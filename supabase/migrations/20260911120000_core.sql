@@ -63,6 +63,6 @@ create policy classes_read_session_students on classes.session_students for sele
 create policy classes_admin_attendance on classes.attendance for all to authenticated using (exists (select 1 from classes.sessions s where s.id = session_id and s.organization_id = core.current_org() and core.is_admin() and core.module_enabled('classes'))) with check (exists (select 1 from classes.sessions s where s.id = session_id and s.organization_id = core.current_org() and core.module_enabled('classes')));
 create policy classes_teacher_attendance on classes.attendance for insert to authenticated with check (exists (select 1 from classes.sessions s where s.id = session_id and s.organization_id = core.current_org() and s.teacher_id = auth.uid() and core.module_enabled('classes')));
 
-grant usage on schema core, classes to authenticated;
-grant select, insert, update, delete on all tables in schema core, classes to authenticated;
+grant usage on schema core, classes to anon, authenticated, service_role;
+grant select, insert, update, delete on all tables in schema core, classes to anon, authenticated, service_role;
 revoke all on all tables in schema courts, payments, inventory from anon, authenticated;
