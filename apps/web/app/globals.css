@@ -44,5 +44,6 @@ h1 { margin:8px 0 8px; font-size:clamp(28px,4vw,48px); letter-spacing:-.06em; li
 .club-dot { width:10px; height:10px; background:var(--lime); border-radius:50%; box-shadow:0 0 0 5px #f1f7d9; }
 .club strong { display:block; font-size:14px; }
 .club span { color:var(--muted); font-size:12px; }
+.empty-state { padding:28px 22px; color:var(--muted); font-size:13px; }
 @media (max-width:900px) { .app { grid-template-columns:1fr; } .sidebar { min-height:auto; padding:16px; } .brand { margin-bottom:20px; } .nav { display:flex; overflow:auto; } .nav-label,.sidebar-foot { display:none; } .nav a { white-space:nowrap; } .main { padding:26px 18px 45px; } .grid { grid-template-columns:repeat(2,1fr); } .content-grid { grid-template-columns:1fr; } }
 @media (max-width:540px) { .topline { display:block; } .profile { margin-top:20px; } .grid { gap:8px; } .metric { padding:14px; min-height:100px; } .metric-value { font-size:25px; margin-top:13px; } .session { grid-template-columns:62px 1fr; padding:14px; } .session .pill { grid-column:2; justify-self:start; } }
