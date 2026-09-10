@@ -1,6 +1,6 @@
-# Aprende Padel Academy Manager
+# AprendePadel Academy Manager
 
-Panel interno para gestionar escuelas, alumnos, grupos, sesiones, asistencia, facturacion y liquidaciones de profesores de Aprende Padel Academy.
+Panel de administración para clubes, profesores, alumnos y clases de AprendePadel Academy.
 
 ## Desarrollo
 
@@ -11,24 +11,28 @@ bun install
 bun dev
 ```
 
-La aplicacion queda disponible en `http://localhost:3000`.
+La aplicación queda disponible en `http://localhost:3000`.
 
 ## Calidad
 
 ```bash
 bun run lint
+bun run typecheck
 bun run build
 ```
 
-## Supabase
+## Variables de entorno
 
-La migracion inicial esta en `supabase/migrations/0001_academy_schema.sql` y define el modelo de escuelas, alumnos, familias, grupos, sesiones, asistencia, tarifas, facturacion y liquidaciones.
+La aplicación web lee `apps/web/.env.local`:
 
-Antes de conectar una instancia real:
+- `NEXT_PUBLIC_SUPABASE_URL`: URL pública del proyecto.
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`: clave `sb_publishable_...`, segura para el navegador.
+- `SUPABASE_SECRET_KEY`: clave `sb_secret_...`, solo para servidor y scripts administrativos.
 
-1. Revisa las reglas de negocio y los nombres de los roles `admin` y `teacher`.
-2. Ejecuta la migracion desde el flujo de migraciones de Supabase.
-3. Configura el rol de cada usuario en `app_metadata.role`, nunca en `user_metadata`.
-4. Añade las variables publicables de Supabase solo cuando se implemente el cliente; no guardes claves `service_role` en el navegador.
+No uses una secret key en código cliente ni la subas a Git. La JWT antigua `service_role` está en proceso de retirada por Supabase y la clave que se compartió anteriormente debe rotarse.
 
-La pantalla actual usa datos de demostracion. La siguiente capa debe conectar Server Components y Server Actions a Supabase con validacion de sesion y autorizacion dentro de cada mutacion.
+## Base de datos
+
+La migración principal está en `supabase/migrations/20260911120000_core.sql` y el seed en `supabase/seed.sql`.
+
+La aplicación usa un monorepo Bun con la app Next.js en `apps/web`, paquetes compartidos en `packages/` y módulos independientes en `modules/`.
