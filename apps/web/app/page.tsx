@@ -1,0 +1,16 @@
+import Link from 'next/link'
+import { modules } from '@aprende-padel/module-kit'
+
+const sessions = [
+  ['17:00', 'Grupo Iniciación · Infantil', 'Club de Ambite · Marta Sánchez', '8 alumnos', 'pending'],
+  ['18:30', 'Nivel Medio · Adultos', 'Club de Pioz · Diego Martín', '6 alumnos', 'pending'],
+  ['20:00', 'Tecnificación Competición', 'Club de Pozuelo del Rey · Laura García', '4 alumnos', 'completed']
+]
+const clubs = [['Club de Ambite', 'Ambite · 5 grupos · 32 alumnos'], ['Club de Pioz', 'Pioz · 7 grupos · 46 alumnos'], ['Club de Pozuelo del Rey', 'Pozuelo del Rey · 4 grupos · 24 alumnos']]
+
+export default function Dashboard() { return <div className="app">
+  <aside className="sidebar"><div className="brand"><span className="brand-mark" /> AprendePadel</div><p className="nav-label">Workspace</p><nav className="nav"><Link className="active" href="/">Resumen <span>⌂</span></Link><Link href="/clases">Clases <span>›</span></Link><Link href="/alumnos">Alumnos <span>›</span></Link><Link href="/profesores">Profesores <span>›</span></Link><Link href="/clubes">Clubes <span>›</span></Link></nav><p className="nav-label" style={{marginTop:32}}>Módulos</p><nav className="nav">{modules.slice(1).map((module) => <Link key={module.id} href="#" aria-disabled="true">{module.name} <span style={{fontSize:10}}>Próximo</span></Link>)}</nav><div className="sidebar-foot">AprendePadel Academy<br /><span>Panel de administración</span></div></aside>
+  <main className="main"><header className="topline"><div><div className="eyebrow">Jueves · 10 septiembre 2026</div><h1>Buenos días, equipo.</h1><p className="subtle">Esto es lo que está pasando hoy en tus clubes.</p></div><div className="profile"><div className="avatar">AP</div><span>Admin Academy</span></div></header>
+    <section className="grid"><div className="metric"><div className="metric-label">Clases esta semana</div><div className="metric-value">42</div><div className="metric-note">↑ 8% vs. semana anterior</div></div><div className="metric"><div className="metric-label">Alumnos activos</div><div className="metric-value">102</div><div className="metric-note">En 3 clubes</div></div><div className="metric"><div className="metric-label">Profesores</div><div className="metric-value">8</div><div className="metric-note">Todos operativos</div></div><div className="metric"><div className="metric-label">Asistencia media</div><div className="metric-value">94%</div><div className="metric-note">↑ 2.4% este mes</div></div></section>
+    <section className="content-grid"><div className="panel"><div className="panel-head"><h2>Agenda de hoy</h2><Link href="/clases">Ver calendario →</Link></div>{sessions.map(([time,title,meta,count,status]) => <div className="session" key={time}><div className="time">{time}</div><div><div className="session-title">{title}</div><div className="session-meta">{meta} · {count}</div></div><span className={`pill ${status === 'completed' ? 'orange' : ''}`}>{status === 'completed' ? 'Terminada' : 'Pendiente'}</span></div>)}</div><div className="panel"><div className="panel-head"><h2>Tus clubes</h2><Link href="/clubes">Gestionar →</Link></div><div className="club-list">{clubs.map(([name,meta]) => <div className="club" key={name}><div className="club-dot" /><div><strong>{name}</strong><span>{meta}</span></div></div>)}</div></div></section>
+  </main></div> }

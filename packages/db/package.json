@@ -1,0 +1,1 @@
+{"name":"@aprende-padel/db","private":true,"version":"0.1.0","exports":{"./server":"./src/server.ts","./client":"./src/client.ts","./types":"./src/database.types.ts"},"dependencies":{"@supabase/ssr":"^0.7.0","@supabase/supabase-js":"^2.110.8"}}

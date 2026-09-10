@@ -4,7 +4,13 @@
   "workspaces": {
     "": {
       "name": "aprende-padel-academy-manager-web",
+    },
+    "apps/web": {
+      "name": "@aprende-padel/web",
       "dependencies": {
+        "@aprende-padel/core": "workspace:*",
+        "@aprende-padel/db": "workspace:*",
+        "@aprende-padel/module-kit": "workspace:*",
         "@supabase/ssr": "^0.7.0",
         "@supabase/supabase-js": "^2.110.8",
         "next": "16.2.11",
@@ -23,13 +29,60 @@
         "typescript": "^5",
       },
     },
+    "modules/classes": {
+      "name": "@aprende-padel/classes",
+      "version": "0.1.0",
+    },
+    "modules/courts": {
+      "name": "@aprende-padel/courts",
+      "version": "0.1.0",
+    },
+    "modules/inventory": {
+      "name": "@aprende-padel/inventory",
+      "version": "0.1.0",
+    },
+    "modules/payments": {
+      "name": "@aprende-padel/payments",
+      "version": "0.1.0",
+    },
+    "packages/core": {
+      "name": "@aprende-padel/core",
+      "version": "0.1.0",
+    },
+    "packages/db": {
+      "name": "@aprende-padel/db",
+      "version": "0.1.0",
+      "dependencies": {
+        "@supabase/ssr": "^0.7.0",
+        "@supabase/supabase-js": "^2.110.8",
+      },
+    },
+    "packages/module-kit": {
+      "name": "@aprende-padel/module-kit",
+      "version": "0.1.0",
+      "dependencies": {
+        "@aprende-padel/core": "workspace:*",
+      },
+    },
   },
-  "trustedDependencies": [
-    "sharp",
-    "unrs-resolver",
-  ],
   "packages": {
     "@alloc/quick-lru": ["@alloc/quick-lru@5.2.0", "", {}, "sha512-UrcABB+4bUrFABwbluTIBErXwvbsU/V7TZWfmbgJfbkwiBuziS9gxdODUyuiecfdGQ85jglMW6juS3+z5TsKLw=="],
+
+    "@aprende-padel/classes": ["@aprende-padel/classes@workspace:modules/classes"],
+
+    "@aprende-padel/core": ["@aprende-padel/core@workspace:packages/core"],
+
+    "@aprende-padel/courts": ["@aprende-padel/courts@workspace:modules/courts"],
+
+    "@aprende-padel/db": ["@aprende-padel/db@workspace:packages/db"],
+
+    "@aprende-padel/inventory": ["@aprende-padel/inventory@workspace:modules/inventory"],
+
+    "@aprende-padel/module-kit": ["@aprende-padel/module-kit@workspace:packages/module-kit"],
+
+    "@aprende-padel/payments": ["@aprende-padel/payments@workspace:modules/payments"],
+
+    "@aprende-padel/web": ["@aprende-padel/web@workspace:apps/web"],
 
     "@babel/code-frame": ["@babel/code-frame@7.29.7", "", { "dependencies": { "@babel/helper-validator-identifier": "^7.29.7", "js-tokens": "^4.0.0", "picocolors": "^1.1.1" } }, "sha512-Aup7aUOfpbAUg2ROOJN6Iw5f9DMBlzu0mIkm/malLQFN/YQgO48wCj0Kxa3sEHJvPVFg7siR+qRInwXd2qhQKw=="],
 
