@@ -4,13 +4,14 @@ export async function getClassReferenceData() {
   const supabase = await getSupabaseServer()
   const [clubsResult, teachersResult, studentsResult, groupsResult] = await Promise.all([
     supabase.schema('core').from('clubs').select('id,name,municipality').eq('active', true).order('name'),
-    supabase.schema('core').from('profiles').select('id,full_name').eq('role', 'teacher').eq('active', true).order('full_name'),
+    supabase.schema('core').from('profiles').select('id,full_name,club_teachers(club_id)').eq('role', 'teacher').eq('active', true).order('full_name'),
     supabase.schema('core').from('students').select('id,first_name,last_name,club_id,category,active').eq('active', true).order('last_name'),
     supabase.schema('classes').from('groups').select('id,name,club_id,teacher_id,weekday,start_time,duration_minutes,capacity,level,category,active').eq('active', true).order('name'),
   ])
   const failure = [clubsResult, teachersResult, studentsResult, groupsResult].find((result) => result.error)
   if (failure?.error) throw new Error(failure.error.message)
-  return { clubs: clubsResult.data ?? [], teachers: teachersResult.data ?? [], students: studentsResult.data ?? [], groups: groupsResult.data ?? [] }
+  const teachers=(teachersResult.data??[]).map(teacher=>({id:teacher.id,full_name:teacher.full_name,club_ids:teacher.club_teachers.map(assignment=>assignment.club_id)}))
+  return { clubs: clubsResult.data ?? [], teachers, students: studentsResult.data ?? [], groups: groupsResult.data ?? [] }
 }
 
 export async function getSessions(start?: string, end?: string, limit = 100, filters?: { clubId?: string; teacherId?: string; status?: 'pending' | 'completed' | 'cancelled' }) {

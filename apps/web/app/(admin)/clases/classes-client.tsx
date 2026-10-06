@@ -8,7 +8,7 @@ import type { ActionResult } from './actions'
 
 type RefData = {
   clubs: { id: string; name: string }[]
-  teachers: { id: string; full_name: string }[]
+  teachers: { id: string; full_name: string; club_ids: string[] }[]
   students: { id: string; first_name: string; last_name: string; club_id: string; category: 'adult' | 'child' }[]
   groups: { id: string; name: string; club_id: string; teacher_id: string; capacity: number; category: 'adult' | 'child' }[]
 }
@@ -25,7 +25,7 @@ export function ClassesClient({ refs }: { refs: RefData }) {
   const [sessionOpen, setSessionOpen] = useState(false)
   const [groupOpen, setGroupOpen] = useState(false)
   const availableStudents = useMemo(() => refs.students.filter((student) => student.club_id === clubId && student.category === category), [refs.students, clubId, category])
-  const teachers = useMemo(() => refs.teachers, [refs.teachers])
+  const teachers = useMemo(() => refs.teachers.filter(teacher=>!clubId||teacher.club_ids.includes(clubId)), [refs.teachers,clubId])
   async function submitCreate(formData:FormData){startCreate(async()=>{const result=await createSession(null,formData);setCreateState(result);if(result.ok){setSessionOpen(false);setStudents([]);setClubId('')}})}
   async function submitGenerate(formData:FormData){startGenerate(async()=>{const result=await generateFromGroup(null,formData);setGenerateState(result);if(result.ok)setGroupOpen(false)})}
 
