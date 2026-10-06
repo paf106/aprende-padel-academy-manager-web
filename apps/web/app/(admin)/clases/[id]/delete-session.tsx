@@ -1,0 +1,7 @@
+'use client'
+import * as Dialog from '@radix-ui/react-dialog'
+import {useState,useTransition} from 'react'
+import {useRouter} from 'next/navigation'
+import {Button} from '../../../../components/ui/button'
+import {deleteSession} from '../actions'
+export function DeleteSessionButton({sessionId}:{sessionId:string}){const[open,setOpen]=useState(false);const[busy,start]=useTransition();const router=useRouter();const[error,setError]=useState('');return <Dialog.Root open={open} onOpenChange={setOpen}><Dialog.Trigger asChild><Button variant="destructive" size="sm">Eliminar clase</Button></Dialog.Trigger><Dialog.Portal><Dialog.Overlay className="dialog-overlay"/><Dialog.Content className="modal"><div className="modal-head"><div><p className="eyebrow">Eliminar sesión</p><Dialog.Title className="dialog-title">¿Eliminar esta clase?</Dialog.Title><Dialog.Description className="field-help">Se borrarán las inscripciones y asistencias. Las clases con liquidaciones ya generadas no se pueden borrar.</Dialog.Description></div></div>{error?<p role="alert" className="form-message error">{error}</p>:null}<div className="modal-actions"><Dialog.Close asChild><Button variant="secondary">Conservar clase</Button></Dialog.Close><Button variant="destructive" disabled={busy} onClick={()=>start(async()=>{const result=await deleteSession(sessionId);if(result.ok){setOpen(false);router.push('/clases');router.refresh()}else setError(result.message)})}>{busy?'Eliminando…':'Eliminar clase'}</Button></div></Dialog.Content></Dialog.Portal></Dialog.Root>}

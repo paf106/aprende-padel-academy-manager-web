@@ -1,4 +1,0 @@
-'use client'
-import { useState, useTransition } from 'react'
-import { updateAttendance } from '../actions'
-export function AttendanceForm({ sessionId, studentId, initialStatus }: { sessionId: string; studentId: string; initialStatus?: 'present' | 'absent' | 'justified' }) { const [status, setStatus] = useState(initialStatus); const [pending, startTransition] = useTransition(); return <div className="attendance-actions">{(['present', 'absent', 'justified'] as const).map((value) => <button key={value} disabled={pending} className={status === value ? 'attendance active' : 'attendance'} onClick={() => startTransition(async () => { await updateAttendance(sessionId, studentId, value); setStatus(value) })}>{value === 'present' ? 'Presente' : value === 'absent' ? 'Ausente' : 'Justificada'}</button>)}</div> }

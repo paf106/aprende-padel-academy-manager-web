@@ -1,0 +1,7 @@
+'use client'
+import {useState,useTransition} from 'react'
+import {updateSessionRoster} from '../actions'
+import {Button} from '../../../../components/ui/button'
+import type {ActionResult} from '../actions'
+type Props={sessionId:string;students:{id:string;first_name:string;last_name:string}[];enrolled:string[]}
+export function RosterForm({sessionId,students,enrolled}:Props){const[selected,setSelected]=useState(enrolled);const[state,setState]=useState<ActionResult|null>(null);const[busy,start]=useTransition();async function submit(){const form=new FormData();form.set('sessionId',sessionId);selected.forEach(id=>form.append('studentIds',id));start(async()=>setState(await updateSessionRoster(null,form)))}return <div className="roster-form"><fieldset className="student-fieldset"><legend>Alumnos inscritos · {selected.length}</legend><div className="student-picker">{students.map(student=><label className="check-row" key={student.id}><input type="checkbox" checked={selected.includes(student.id)} onChange={event=>setSelected(current=>event.target.checked?[...current,student.id]:current.filter(id=>id!==student.id))}/>{student.first_name} {student.last_name}</label>)}</div></fieldset>{state?<p role="status" className={state.ok?'form-message success':'form-message error'}>{state.message}</p>:null}<Button size="sm" variant="secondary" disabled={busy} onClick={submit}>{busy?'Guardando…':'Guardar inscripciones'}</Button></div>}

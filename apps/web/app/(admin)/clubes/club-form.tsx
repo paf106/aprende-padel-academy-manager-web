@@ -1,0 +1,8 @@
+'use client'
+import * as Dialog from '@radix-ui/react-dialog'
+import {useState,useTransition} from 'react'
+import {X} from 'lucide-react'
+import {Button} from '../../../components/ui/button'
+import {createClub} from './actions'
+import type {ActionResult} from '../clases/actions'
+export function ClubForm(){const[state,setState]=useState<ActionResult|null>(null);const[open,setOpen]=useState(false);const[busy,start]=useTransition();async function submit(form:FormData){start(async()=>{const result=await createClub(null,form);setState(result);if(result.ok)setOpen(false)})}return <Dialog.Root open={open} onOpenChange={setOpen}><Dialog.Trigger asChild><Button>+ Nuevo club</Button></Dialog.Trigger><Dialog.Portal><Dialog.Overlay className="dialog-overlay"/><Dialog.Content className="modal"><div className="modal-head"><div><p className="eyebrow">Sedes</p><Dialog.Title className="dialog-title">Crear club</Dialog.Title></div><Dialog.Close asChild><button className="icon-button" aria-label="Cerrar"><X/></button></Dialog.Close></div><form action={submit} className="form-stack"><label>Nombre<input name="name" required maxLength={120}/></label><label>Localidad<input name="municipality" required maxLength={100}/></label><label>Dirección<input name="address" maxLength={240}/></label><label>Zona horaria<input name="timezone" required defaultValue="Europe/Madrid"/></label>{state?<p role="status" className={state.ok?'form-message success':'form-message error'}>{state.message}</p>:null}<div className="modal-actions"><Button variant="secondary" type="button" onClick={()=>setOpen(false)}>Cancelar</Button><Button disabled={busy}>{busy?'Guardando…':'Guardar club'}</Button></div></form></Dialog.Content></Dialog.Portal></Dialog.Root>}

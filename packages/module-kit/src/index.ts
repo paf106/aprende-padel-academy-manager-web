@@ -1,8 +1,9 @@
-import type { ModuleId } from '../../core/src/index'
-export type ModuleDefinition = { id: ModuleId; name: string; description: string; available: boolean }
+import type { ModuleId } from '@aprende-padel/core'
+export type { ModuleId } from '@aprende-padel/core'
+export type ModuleDefinition = { id: ModuleId; name: string; description: string; href: string }
 export const modules: ModuleDefinition[] = [
-  { id: 'classes', name: 'Gestión de clases', description: 'Calendario, grupos y asistencia.', available: true },
-  { id: 'courts', name: 'Pistas', description: 'Reserva y disponibilidad de pistas.', available: false },
-  { id: 'payments', name: 'Pagos', description: 'Cuotas, cobros y liquidaciones.', available: false },
-  { id: 'inventory', name: 'Inventario', description: 'Material de cada club.', available: false }
+  { id: 'classes', name: 'Clases', description: 'Grupos, calendario y asistencia.', href: '/clases' },
+  { id: 'courts', name: 'Pistas', description: 'Reservas y disponibilidad.', href: '/pistas' },
+  { id: 'payments', name: 'Pagos', description: 'Tarifas, cobros y liquidaciones.', href: '/pagos' },
+  { id: 'inventory', name: 'Inventario', description: 'Material de los clubes.', href: '/inventario' }
 ]
