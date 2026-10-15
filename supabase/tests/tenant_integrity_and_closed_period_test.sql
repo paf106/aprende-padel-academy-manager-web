@@ -1,5 +1,5 @@
 begin;
-select plan(22);
+select plan(24);
 
 insert into core.organizations(id, name, slug) values
   ('11000000-0000-0000-0000-000000000001', 'RLS test A', 'rls-test-a'),
@@ -9,7 +9,9 @@ insert into core.clubs(id, organization_id, name, slug, municipality, timezone) 
   ('12000000-0000-0000-0000-000000000001', '11000000-0000-0000-0000-000000000001', 'Club A', 'club-a', 'Madrid', 'Europe/Madrid'),
   ('12000000-0000-0000-0000-000000000002', '11000000-0000-0000-0000-000000000002', 'Club B', 'club-b', 'Pioz', 'Europe/Madrid');
 insert into payments.tariffs(id, organization_id, name, category, monthly_amount_cents)
-values ('1a000000-0000-0000-0000-000000000001', '11000000-0000-0000-0000-000000000002', 'Foreign tariff', 'adult', 1000);
+values
+  ('1a000000-0000-0000-0000-000000000001', '11000000-0000-0000-0000-000000000002', 'Foreign tariff', 'adult', 1000),
+  ('1a000000-0000-0000-0000-000000000002', '11000000-0000-0000-0000-000000000001', 'Local tariff', 'adult', 1000);
 
 insert into auth.users(id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data)
 values
@@ -103,6 +105,11 @@ select throws_ok(
   '23514', null, 'student cannot be created with a foreign organization tariff'
 );
 select is((select count(*)::integer from core.students where first_name = 'Atomic'), 0, 'failed student tariff assignment leaves no partial student');
+select throws_ok(
+  $$select payments.create_student_with_tariff('12000000-0000-0000-0000-000000000001', 'AtomicRollback', 'Failure', '2010-01-01', 'adult', 'unspecified', 'medio', null, null, '1a000000-0000-0000-0000-000000000002', null)$$,
+  '23502', null, 'student and tariff creation is a single transaction when the tariff insert fails'
+);
+select is((select count(*)::integer from core.students where first_name = 'AtomicRollback'), 0, 'tariff insert failure rolls back the new student');
 select throws_ok(
   $$select classes.create_group('Atomic failure', '12000000-0000-0000-0000-000000000001', '13000000-0000-0000-0000-000000000002', 'adult', 'medio', 2::smallint, '10:00'::time, 60::smallint, 8::smallint, '2026-10-15'::date, null::date, array['14000000-0000-0000-0000-000000000003'::uuid])$$,
   '23514', null, 'group creation rejects a student from another organization'
