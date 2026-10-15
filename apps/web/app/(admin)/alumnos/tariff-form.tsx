@@ -1,8 +1,26 @@
 'use client'
-import {useState,useTransition} from 'react'
-import * as Dialog from '@radix-ui/react-dialog'
-import {Button} from '../../../components/ui/button'
-import {changeStudentTariff} from './actions'
-import type {ActionResult} from '../clases/actions'
-type Tariff={id:string;name:string;monthly_amount_cents:number;category:'adult'|'child'}
-export function StudentTariffForm({studentId,category,tariffs,current}:{studentId:string;category:'adult'|'child';tariffs:Tariff[];current?:string}){const[state,setState]=useState<ActionResult|null>(null);const[open,setOpen]=useState(false);const[busy,start]=useTransition();async function submit(form:FormData){form.set('studentId',studentId);start(async()=>{const result=await changeStudentTariff(null,form);setState(result);if(result.ok)setOpen(false)})}return <Dialog.Root open={open} onOpenChange={setOpen}><Dialog.Trigger asChild><Button size="sm" variant="secondary">Cambiar tarifa</Button></Dialog.Trigger><Dialog.Portal><Dialog.Overlay className="dialog-overlay"/><Dialog.Content className="modal"><div className="modal-head"><div><p className="eyebrow">Tarifa mensual</p><Dialog.Title className="dialog-title">Cambiar tarifa</Dialog.Title><Dialog.Description className="field-help">La anterior termina el día previo a la fecha efectiva.</Dialog.Description></div></div><form action={submit} className="form-stack"><label>Nueva tarifa<select name="tariffId" defaultValue="" required><option value="">Selecciona</option>{tariffs.filter(t=>t.category===category).map(t=><option value={t.id} key={t.id}>{t.name} · {(t.monthly_amount_cents/100).toLocaleString('es-ES',{style:'currency',currency:'EUR'})}</option>)}</select></label><label>Vigente desde<input name="startsOn" type="date" required defaultValue={new Date().toISOString().slice(0,10)}/></label>{current?<span className="field-help">Tarifa actual asignada</span>:null}{state?<p role="status" className={state.ok?'form-message success':'form-message error'}>{state.message}</p>:null}<div className="modal-actions"><Dialog.Close asChild><Button type="button" variant="secondary">Cancelar</Button></Dialog.Close><Button disabled={busy}>{busy?'Guardando…':'Asignar tarifa'}</Button></div></form></Dialog.Content></Dialog.Portal></Dialog.Root>}
+
+import { useState, useTransition } from 'react'
+import { Button } from '../../../components/ui/button'
+import { DialogContent } from '../../../components/ui/dialog-shell'
+import { FormMessage } from '../../../components/ui/form-message'
+import { changeStudentTariff } from './actions'
+import type { ActionResult } from '../clases/actions'
+import { localTodayInTimeZone, money } from '@aprende-padel/core'
+
+type Tariff = { id: string; name: string; monthly_amount_cents: number; category: 'adult' | 'child' }
+export function StudentTariffForm({ studentId, category, tariffs, current }: { studentId: string; category: 'adult' | 'child'; tariffs: Tariff[]; current?: string }) {
+  const [state, setState] = useState<ActionResult | null>(null)
+  const [open, setOpen] = useState(false)
+  const [busy, start] = useTransition()
+  async function submit(form: FormData) { form.set('studentId', studentId); start(async () => { const result = await changeStudentTariff(null, form); setState(result); if (result.ok) setOpen(false) }) }
+  return <>
+    <Button size="sm" variant="secondary" onClick={() => { setState(null); setOpen(true) }}>Cambiar tarifa</Button>
+    <DialogContent open={open} onOpenChange={setOpen} title="Cambiar tarifa" description="La tarifa anterior termina el día previo a la nueva fecha."><form action={submit} className="space-y-4 px-5 py-5 sm:px-6">
+      <label className="grid gap-1.5 text-sm font-medium text-slate-700">Nueva tarifa<select name="tariffId" defaultValue="" required className="min-h-10 rounded-xl border border-slate-300 bg-white px-3"><option value="">Selecciona una tarifa</option>{tariffs.filter((tariff) => tariff.category === category).map((tariff) => <option value={tariff.id} key={tariff.id}>{tariff.name} · {money(tariff.monthly_amount_cents)}</option>)}</select></label>
+      <label className="grid gap-1.5 text-sm font-medium text-slate-700">Vigente desde<input name="startsOn" type="date" required defaultValue={localTodayInTimeZone('Europe/Madrid')} className="min-h-10 rounded-xl border border-slate-300 px-3"/></label>{current ? <p className="text-xs text-slate-500">El alumno ya tiene una tarifa asignada.</p> : null}
+      {state ? <FormMessage tone={state.ok ? 'success' : 'error'}>{state.message}</FormMessage> : null}
+      <div className="flex justify-end gap-2 border-t border-slate-100 pt-4"><Button type="button" variant="secondary" onClick={() => setOpen(false)}>Cancelar</Button><Button disabled={busy}>{busy ? 'Guardando…' : 'Asignar tarifa'}</Button></div>
+    </form></DialogContent>
+  </>
+}

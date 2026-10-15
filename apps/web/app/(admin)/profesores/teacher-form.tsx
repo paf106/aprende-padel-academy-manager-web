@@ -1,8 +1,24 @@
 'use client'
-import * as Dialog from '@radix-ui/react-dialog'
-import {useState,useTransition} from 'react'
-import {X} from 'lucide-react'
-import {Button} from '../../../components/ui/button'
-import {createTeacher} from './actions'
-import type {ActionResult} from '../clases/actions'
-export function TeacherForm({clubs}:{clubs:{id:string;name:string}[]}){const[state,setState]=useState<ActionResult|null>(null);const[open,setOpen]=useState(false);const[busy,start]=useTransition();async function submit(form:FormData){start(async()=>{const result=await createTeacher(null,form);setState(result);if(result.ok)setOpen(false)})}return <Dialog.Root open={open} onOpenChange={setOpen}><Dialog.Trigger asChild><Button>+ Nuevo profesor</Button></Dialog.Trigger><Dialog.Portal><Dialog.Overlay className="dialog-overlay"/><Dialog.Content className="modal"><div className="modal-head"><div><p className="eyebrow">Equipo docente</p><Dialog.Title className="dialog-title">Añadir profesor</Dialog.Title></div><Dialog.Close asChild><button className="icon-button" aria-label="Cerrar"><X/></button></Dialog.Close></div><form action={submit} className="form-stack"><label>Nombre completo<input name="fullName" required maxLength={140}/></label><label>Email<input name="email" type="email" required/></label><label>Teléfono<input name="phone" type="tel"/></label><label>Contraseña inicial<input name="password" type="password" minLength={10} required autoComplete="new-password"/></label><fieldset className="student-fieldset"><legend>Clubes</legend>{clubs.map(club=><label className="check-row" key={club.id}><input type="checkbox" name="clubIds" value={club.id}/>{club.name}</label>)}</fieldset><p className="field-help">La contraseña se utiliza solo para crear el acceso y no se guarda en las tablas de la academia.</p>{state?<p role="status" className={state.ok?'form-message success':'form-message error'}>{state.message}</p>:null}<div className="modal-actions"><Button type="button" variant="secondary" onClick={()=>setOpen(false)}>Cancelar</Button><Button disabled={busy}>{busy?'Creando…':'Crear profesor'}</Button></div></form></Dialog.Content></Dialog.Portal></Dialog.Root>}
+
+import { useState, useTransition } from 'react'
+import { Button } from '../../../components/ui/button'
+import { DialogContent } from '../../../components/ui/dialog-shell'
+import { FormMessage } from '../../../components/ui/form-message'
+import { createTeacher } from './actions'
+import type { ActionResult } from '../clases/actions'
+
+export function TeacherForm({ clubs }: { clubs: { id: string; name: string }[] }) {
+  const [state, setState] = useState<ActionResult | null>(null)
+  const [open, setOpen] = useState(false)
+  const [busy, start] = useTransition()
+  async function submit(form: FormData) { start(async () => { const result = await createTeacher(null, form); setState(result); if (result.ok) setOpen(false) }) }
+  return <>
+    <Button onClick={() => { setOpen(true); setState(null) }}>Nuevo profesor</Button>
+    <DialogContent open={open} onOpenChange={setOpen} title="Añadir profesor" description="Crea el acceso y asigna los clubes donde imparte clases."><form action={submit} className="space-y-4 px-5 py-5 sm:px-6">
+      <label className="grid gap-1.5 text-sm font-medium text-slate-700">Nombre completo<input name="fullName" required maxLength={140} className="min-h-10 rounded-xl border border-slate-300 px-3"/></label><label className="grid gap-1.5 text-sm font-medium text-slate-700">Email<input name="email" type="email" required autoComplete="off" spellCheck={false} className="min-h-10 rounded-xl border border-slate-300 px-3"/></label><label className="grid gap-1.5 text-sm font-medium text-slate-700">Teléfono<input name="phone" type="tel" autoComplete="off" className="min-h-10 rounded-xl border border-slate-300 px-3"/></label><label className="grid gap-1.5 text-sm font-medium text-slate-700">Contraseña inicial<input name="password" type="password" minLength={10} required autoComplete="new-password" className="min-h-10 rounded-xl border border-slate-300 px-3"/></label>
+      <fieldset className="grid gap-2 rounded-xl border border-slate-200 p-3"><legend className="px-1 text-sm font-medium text-slate-700">Clubes</legend>{clubs.map((club) => <label className="flex min-h-10 items-center gap-2 rounded-lg px-2 text-sm hover:bg-slate-50" key={club.id}><input type="checkbox" name="clubIds" value={club.id} className="accent-emerald-700"/>{club.name}</label>)}</fieldset>
+      <p className="text-xs text-slate-500">La contraseña se usa para crear el acceso y no se guarda en las tablas de la academia.</p>{state ? <FormMessage tone={state.ok ? 'success' : 'error'}>{state.message}</FormMessage> : null}
+      <div className="flex justify-end gap-2 border-t border-slate-100 pt-4"><Button type="button" variant="secondary" onClick={() => setOpen(false)}>Cancelar</Button><Button disabled={busy}>{busy ? 'Creando…' : 'Crear profesor'}</Button></div>
+    </form></DialogContent>
+  </>
+}

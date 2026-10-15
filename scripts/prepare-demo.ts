@@ -16,30 +16,25 @@ const sql = new SQL({
 
 try {
   await sql.unsafe(`
-    create or replace function core.handle_new_user()
-    returns trigger
-    language plpgsql
-    security definer
-    set search_path = core, public
+    create or replace function core.handle_new_user() returns trigger
+    language plpgsql security definer set search_path = ''
     as $fn$
+    declare
+      org_id uuid;
+      trusted_role core.app_role;
     begin
+      org_id := nullif(new.raw_app_meta_data->>'organization_id', '')::uuid;
+      if org_id is null then return new; end if;
+      begin
+        trusted_role := coalesce(nullif(new.raw_app_meta_data->>'role', '' )::core.app_role, 'student'::core.app_role);
+      exception when invalid_text_representation then
+        trusted_role := 'student'::core.app_role;
+      end;
       insert into core.profiles(id, organization_id, full_name, email, role)
-      values (
-        new.id,
-        coalesce(
-          nullif(new.raw_app_meta_data->>'organization_id', '')::uuid,
-          (select id from core.organizations order by created_at limit 1)
-        ),
-        coalesce(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1)),
-        new.email,
-        coalesce(
-          nullif(new.raw_app_meta_data->>'role', '')::core.app_role,
-          nullif(new.raw_user_meta_data->>'role', '')::core.app_role,
-          'student'
-        )
-      );
+      values (new.id, org_id, coalesce(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1)), new.email, trusted_role)
+      on conflict (id) do nothing;
       return new;
-    end;
+    end
     $fn$;
   `)
   console.log('TRIGGER_FIXED')

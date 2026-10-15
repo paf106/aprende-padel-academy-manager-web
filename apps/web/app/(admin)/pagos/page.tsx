@@ -1,34 +1,40 @@
 import Link from 'next/link'
-import {addMonths,format,parseISO} from 'date-fns'
-import {es} from 'date-fns/locale'
-import {getSupabaseServer} from '@aprende-padel/db/server'
-import {money} from '@aprende-padel/core'
-import {ClosePeriod,GeneratePayments} from './payment-client'
-import {AdjustmentForm,StudentTransactionForm,TeacherTransactionForm} from './transaction-form'
+import { addMonths, format, parseISO } from 'date-fns'
+import { es } from 'date-fns/locale'
+import { getSupabaseServer } from '@aprende-padel/db/server'
+import { localDateInTimeZone, money } from '@aprende-padel/core'
+import { ClosePeriod, GeneratePayments } from './payment-client'
+import { AdjustmentForm, StudentTransactionForm, TeacherTransactionForm } from './transaction-form'
 
-export default async function PaymentsPage({searchParams}:{searchParams:Promise<{period?:string}>}) {
-  const {period:requested}=await searchParams
-  const current=/^\d{4}-(0[1-9]|1[0-2])$/.test(requested??'')?requested!:format(new Date(),'yyyy-MM')
-  const start=`${current}-01`;const prev=format(addMonths(parseISO(start),-1),'yyyy-MM');const next=format(addMonths(parseISO(start),1),'yyyy-MM')
-  const db=await getSupabaseServer()
-  const [{data:charges,error:chargeError},{data:settlements,error:settlementError},{data:periodRecord}]=await Promise.all([
-    db.schema('payments').from('student_charges').select('id,student_id,period,calculated_amount_cents,override_amount_cents,student_transactions(amount_cents)').eq('period',start).order('created_at'),
-    db.schema('payments').from('teacher_settlements').select('id,teacher_id,period,calculated_amount_cents,override_amount_cents,teacher_transactions(amount_cents)').eq('period',start).order('created_at'),
-    db.schema('payments').from('billing_periods').select('status').eq('period',start).maybeSingle(),
+export default async function PaymentsPage({ searchParams }: { searchParams: Promise<{ period?: string }> }) {
+  const { period: requested } = await searchParams
+  const current = /^\d{4}-(0[1-9]|1[0-2])$/.test(requested ?? '') ? requested! : localDateInTimeZone(new Date(), 'Europe/Madrid').slice(0, 7)
+  const start = `${current}-01`
+  const prev = format(addMonths(parseISO(start), -1), 'yyyy-MM')
+  const next = format(addMonths(parseISO(start), 1), 'yyyy-MM')
+  const db = await getSupabaseServer()
+  const [{ data: charges, error: chargeError }, { data: settlements, error: settlementError }, { data: periodRecord }] = await Promise.all([
+    db.schema('payments').from('student_charges').select('id,student_id,period,calculated_amount_cents,override_amount_cents,student_transactions(amount_cents)').eq('period', start).order('created_at'),
+    db.schema('payments').from('teacher_settlements').select('id,teacher_id,period,calculated_amount_cents,override_amount_cents,teacher_transactions(amount_cents)').eq('period', start).order('created_at'),
+    db.schema('payments').from('billing_periods').select('status').eq('period', start).maybeSingle(),
   ])
-  if(chargeError||settlementError)throw new Error('No se pudieron cargar los pagos del mes')
-  const chargeRows=charges??[];const settlementRows=settlements??[]
-  const studentIds=[...new Set(chargeRows.map(c=>c.student_id))];const teacherIds=[...new Set(settlementRows.map(s=>s.teacher_id))]
-  const [{data:students},{data:profiles}]=await Promise.all([
-    studentIds.length?db.schema('core').from('students').select('id,first_name,last_name').in('id',studentIds):Promise.resolve({data:[]}),
-    teacherIds.length?db.schema('core').from('profiles').select('id,full_name').in('id',teacherIds):Promise.resolve({data:[]}),
+  if (chargeError || settlementError) throw new Error('No se pudieron cargar los pagos del mes')
+  const chargeRows = charges ?? []; const settlementRows = settlements ?? []
+  const studentIds = [...new Set(chargeRows.map((charge) => charge.student_id))]; const teacherIds = [...new Set(settlementRows.map((settlement) => settlement.teacher_id))]
+  const [{ data: students }, { data: profiles }] = await Promise.all([
+    studentIds.length ? db.schema('core').from('students').select('id,first_name,last_name').in('id', studentIds) : Promise.resolve({ data: [] }),
+    teacherIds.length ? db.schema('core').from('profiles').select('id,full_name').in('id', teacherIds) : Promise.resolve({ data: [] }),
   ])
-  const studentMap=new Map((students??[]).map(s=>[s.id,`${s.first_name} ${s.last_name}`]));const teacherMap=new Map((profiles??[]).map(p=>[p.id,p.full_name]))
-  const studentDue=chargeRows.reduce((sum,c)=>sum+(c.override_amount_cents??c.calculated_amount_cents),0);const teacherDue=settlementRows.reduce((sum,c)=>sum+(c.override_amount_cents??c.calculated_amount_cents),0)
-  return <main className="main"><header className="page-header"><div><p className="eyebrow">Facturación mensual</p><h1>Pagos</h1><p className="subtle">{format(parseISO(start),'MMMM yyyy',{locale:es})} · {periodRecord?.status==='closed'?'Cerrado':'Abierto'}</p></div><div className="class-actions"><Link className="secondary-button" href="/pagos/tarifas">Tarifas</Link>{periodRecord?.status!=='closed'?<><GeneratePayments period={current}/><ClosePeriod period={current}/></>:null}</div></header>
-    <nav className="month-nav"><Link className="secondary-button" href={`/pagos?period=${prev}`}>← Mes anterior</Link><Link className="secondary-button" href="/pagos">Mes actual</Link><Link className="secondary-button" href={`/pagos?period=${next}`}>Mes siguiente →</Link></nav>
-    <section className="grid"><article className="metric"><div className="metric-label">Cobros de alumnos</div><div className="metric-value">{money(studentDue)}</div><div className="metric-note">{chargeRows.length} cuentas</div></article><article className="metric"><div className="metric-label">Liquidaciones de profesores</div><div className="metric-value">{money(teacherDue)}</div><div className="metric-note">{settlementRows.length} profesores</div></article></section>
-    <section className="panel payment-section"><div className="panel-head"><h2>Alumnos</h2></div>{chargeRows.length?chargeRows.map(c=>{const due=c.override_amount_cents??c.calculated_amount_cents;const paid=(c.student_transactions??[]).reduce((sum,t)=>sum+t.amount_cents,0);return <article className="payment-card" key={c.id}><div className="payment-row"><strong>{studentMap.get(c.student_id)}</strong><span>{money(paid)} / {money(due)}</span><span className={`pill ${paid>=due?'completed':paid>0?'pending':'cancelled'}`}>{paid>=due?'Pagado':paid>0?'Parcial':'Pendiente'}</span></div><div className="payment-controls"><StudentTransactionForm id={c.id} balance={Math.max(0,due-paid)}/><AdjustmentForm id={c.id} currentAmount={due}/></div></article>}) : <p className="empty-state">Aún no hay cobros. Asigna tarifas a los alumnos y genera el mes.</p>}</section>
-    <section className="panel payment-section"><div className="panel-head"><h2>Profesores</h2></div>{settlementRows.length?settlementRows.map(s=>{const due=s.override_amount_cents??s.calculated_amount_cents;const paid=(s.teacher_transactions??[]).reduce((sum,t)=>sum+t.amount_cents,0);return <article className="payment-card" key={s.id}><div className="payment-row"><strong>{teacherMap.get(s.teacher_id)}</strong><span>{money(paid)} / {money(due)}</span><span className={`pill ${paid>=due?'completed':paid>0?'pending':'cancelled'}`}>{paid>=due?'Pagado':paid>0?'Parcial':'Pendiente'}</span></div><div className="payment-controls"><TeacherTransactionForm id={s.id} balance={Math.max(0,due-paid)}/><AdjustmentForm id={s.id} currentAmount={due} teacher/></div></article>}) : <p className="empty-state">Aún no hay liquidaciones de profesores para este mes.</p>}</section>
+  const studentMap = new Map((students ?? []).map((student) => [student.id, `${student.first_name} ${student.last_name}`]))
+  const teacherMap = new Map((profiles ?? []).map((profile) => [profile.id, profile.full_name]))
+  const studentDue = chargeRows.reduce((sum, charge) => sum + (charge.override_amount_cents ?? charge.calculated_amount_cents), 0)
+  const teacherDue = settlementRows.reduce((sum, settlement) => sum + (settlement.override_amount_cents ?? settlement.calculated_amount_cents), 0)
+  const closed = periodRecord?.status === 'closed'
+  return <main className="mx-auto w-full max-w-[1500px] px-4 py-7 sm:px-8">
+    <header className="mb-5 flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><div><p className="text-xs font-medium text-emerald-800">Facturación mensual</p><h1 className="mt-1 text-3xl font-semibold tracking-tight">Pagos</h1><p className="mt-2 text-sm capitalize text-slate-500">{format(parseISO(start), 'MMMM yyyy', { locale: es })} · {closed ? 'Cerrado' : 'Abierto'}</p></div><div className="flex flex-wrap items-center gap-2"><Link className="inline-flex min-h-10 items-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50" href="/pagos/tarifas">Tarifas</Link>{!closed ? <><GeneratePayments period={current}/><ClosePeriod period={current}/></> : null}</div></header>
+    <nav className="mb-5 flex gap-2"><Link className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" href={`/pagos?period=${prev}`}>← Mes anterior</Link><Link className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" href="/pagos">Mes actual</Link><Link className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" href={`/pagos?period=${next}`}>Mes siguiente →</Link></nav>
+    <section className="mb-5 grid gap-4 sm:grid-cols-2"><article className="rounded-2xl border border-slate-200 bg-white p-5"><span className="text-sm text-slate-500">Cobros de alumnos</span><p className="mb-0 mt-3 text-3xl font-semibold tabular-nums">{money(studentDue)}</p><p className="mb-0 mt-1 text-xs text-slate-500">{chargeRows.length} cuentas</p></article><article className="rounded-2xl border border-slate-200 bg-white p-5"><span className="text-sm text-slate-500">Liquidaciones de profesores</span><p className="mb-0 mt-3 text-3xl font-semibold tabular-nums">{money(teacherDue)}</p><p className="mb-0 mt-1 text-xs text-slate-500">{settlementRows.length} profesores</p></article></section>
+    <section className="mb-5 overflow-hidden rounded-2xl border border-slate-200 bg-white"><header className="border-b border-slate-100 px-5 py-4"><h2 className="font-semibold">Alumnos</h2></header>{chargeRows.length ? chargeRows.map((charge) => { const due = charge.override_amount_cents ?? charge.calculated_amount_cents; const paid = (charge.student_transactions ?? []).reduce((sum, transaction) => sum + transaction.amount_cents, 0); return <article className="border-b border-slate-100 p-4 last:border-0 sm:px-5" key={charge.id}><div className="grid grid-cols-[1fr_auto_auto] items-center gap-3"><strong className="text-sm">{studentMap.get(charge.student_id)}</strong><span className="text-sm tabular-nums">{money(paid)} / {money(due)}</span><span className={`rounded-full px-2.5 py-1 text-xs ${paid >= due ? 'bg-emerald-50 text-emerald-800' : 'bg-blue-50 text-blue-800'}`}>{paid >= due ? 'Pagado' : paid > 0 ? 'Parcial' : 'Pendiente'}</span></div>{!closed ? <div className="mt-3 flex flex-wrap items-end gap-4"><StudentTransactionForm id={charge.id} balance={Math.max(0, due - paid)}/><details className="group"><summary className="grid size-9 cursor-pointer list-none place-items-center rounded-full border border-slate-200 text-lg text-slate-500 hover:bg-slate-50">⋯</summary><div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-3"><AdjustmentForm id={charge.id} currentAmount={due}/></div></details></div> : null}</article> }) : <p className="p-7 text-sm text-slate-500">Aún no hay cobros. Asigna tarifas a los alumnos y genera el mes.</p>}</section>
+    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white"><header className="border-b border-slate-100 px-5 py-4"><h2 className="font-semibold">Profesores</h2></header>{settlementRows.length ? settlementRows.map((settlement) => { const due = settlement.override_amount_cents ?? settlement.calculated_amount_cents; const paid = (settlement.teacher_transactions ?? []).reduce((sum, transaction) => sum + transaction.amount_cents, 0); return <article className="border-b border-slate-100 p-4 last:border-0 sm:px-5" key={settlement.id}><div className="grid grid-cols-[1fr_auto_auto] items-center gap-3"><strong className="text-sm">{teacherMap.get(settlement.teacher_id)}</strong><span className="text-sm tabular-nums">{money(paid)} / {money(due)}</span><span className={`rounded-full px-2.5 py-1 text-xs ${paid >= due ? 'bg-emerald-50 text-emerald-800' : 'bg-blue-50 text-blue-800'}`}>{paid >= due ? 'Pagado' : paid > 0 ? 'Parcial' : 'Pendiente'}</span></div>{!closed ? <div className="mt-3 flex flex-wrap items-end gap-4"><TeacherTransactionForm id={settlement.id} balance={Math.max(0, due - paid)}/><details><summary className="grid size-9 cursor-pointer list-none place-items-center rounded-full border border-slate-200 text-lg text-slate-500 hover:bg-slate-50">⋯</summary><div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-3"><AdjustmentForm id={settlement.id} currentAmount={due} teacher/></div></details></div> : null}</article> }) : <p className="p-7 text-sm text-slate-500">Aún no hay liquidaciones de profesores para este mes.</p>}</section>
   </main>
 }

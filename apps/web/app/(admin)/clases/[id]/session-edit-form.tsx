@@ -1,8 +1,32 @@
 'use client'
-import * as Dialog from '@radix-ui/react-dialog'
-import {useState,useTransition} from 'react'
-import {editSession} from '../actions'
-import {Button} from '../../../../components/ui/button'
-import type {ActionResult} from '../../clases/actions'
-function localInput(value:string,timeZone:string){const parts=new Intl.DateTimeFormat('en-CA',{timeZone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date(value));const get=(type:string)=>parts.find(p=>p.type===type)?.value??'';return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}`}
-export function SessionEditForm({sessionId,startsAt,endsAt,notes,timeZone}:{sessionId:string;startsAt:string;endsAt:string;notes:string;timeZone:string}){const[state,setState]=useState<ActionResult|null>(null);const[open,setOpen]=useState(false);const[busy,start]=useTransition();async function submit(form:FormData){form.set('sessionId',sessionId);start(async()=>{const result=await editSession(null,form);setState(result);if(result.ok)setOpen(false)})}const duration=Math.round((new Date(endsAt).getTime()-new Date(startsAt).getTime())/60000);return <Dialog.Root open={open} onOpenChange={setOpen}><Dialog.Trigger asChild><Button variant="secondary" size="sm">Editar fecha y hora</Button></Dialog.Trigger><Dialog.Portal><Dialog.Overlay className="dialog-overlay"/><Dialog.Content className="modal"><div className="modal-head"><div><p className="eyebrow">Reprogramar</p><Dialog.Title className="dialog-title">Editar clase</Dialog.Title></div></div><form action={submit} className="form-stack"><label>Fecha y hora<input name="localStart" type="datetime-local" defaultValue={localInput(startsAt,timeZone)} required/></label><label>Duración<select name="duration" defaultValue={duration}><option value="60">60 min</option><option value="90">90 min</option><option value="120">120 min</option></select></label><label>Notas<textarea name="notes" defaultValue={notes} maxLength={500}/></label>{state?<p role="status" className={state.ok?'form-message success':'form-message error'}>{state.message}</p>:null}<div className="modal-actions"><Dialog.Close asChild><Button type="button" variant="secondary">Cancelar</Button></Dialog.Close><Button disabled={busy}>{busy?'Guardando…':'Guardar cambios'}</Button></div></form></Dialog.Content></Dialog.Portal></Dialog.Root>}
+
+import { useState, useTransition } from 'react'
+import { editSession } from '../actions'
+import { Button } from '../../../../components/ui/button'
+import { DialogContent } from '../../../../components/ui/dialog-shell'
+import { FormMessage } from '../../../../components/ui/form-message'
+import type { ActionResult } from '../../clases/actions'
+
+function localInput(value: string, timeZone: string) {
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(value))
+  const get = (type: string) => parts.find((part) => part.type === type)?.value ?? ''
+  return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}`
+}
+
+export function SessionEditForm({ sessionId, startsAt, endsAt, notes, timeZone }: { sessionId: string; startsAt: string; endsAt: string; notes: string; timeZone: string }) {
+  const [state, setState] = useState<ActionResult | null>(null)
+  const [open, setOpen] = useState(false)
+  const [busy, start] = useTransition()
+  async function submit(form: FormData) {
+    form.set('sessionId', sessionId)
+    start(async () => {
+      const result = await editSession(null, form)
+      setState(result)
+      if (result.ok) setOpen(false)
+    })
+  }
+  const duration = Math.round((new Date(endsAt).getTime() - new Date(startsAt).getTime()) / 60000)
+  return <><Button variant="secondary" size="sm" onClick={() => { setState(null); setOpen(true) }}>Editar fecha y hora</Button><DialogContent open={open} onOpenChange={setOpen} title="Editar clase" description="Cambia el horario sin modificar el grupo.">
+      <form action={submit} className="space-y-4 px-5 py-5 sm:px-6"><label className="block space-y-1.5 text-sm font-medium text-slate-700">Fecha y hora<input name="localStart" type="datetime-local" defaultValue={localInput(startsAt, timeZone)} required className="w-full rounded-xl border border-slate-300 px-3 py-2.5"/></label><label className="block space-y-1.5 text-sm font-medium text-slate-700">Duración<select name="duration" defaultValue={duration} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5"><option value="60">60 min</option><option value="90">90 min</option><option value="120">120 min</option></select></label><label className="block space-y-1.5 text-sm font-medium text-slate-700">Notas<textarea name="notes" defaultValue={notes} maxLength={500} className="w-full rounded-xl border border-slate-300 px-3 py-2.5"/></label>{state ? <FormMessage tone={state.ok ? 'success' : 'error'}>{state.message}</FormMessage> : null}<div className="flex justify-end gap-2 border-t border-slate-100 pt-4"><Button type="button" variant="secondary" onClick={() => setOpen(false)}>Cancelar</Button><Button disabled={busy}>{busy ? 'Guardando…' : 'Guardar cambios'}</Button></div></form>
+    </DialogContent></>
+}

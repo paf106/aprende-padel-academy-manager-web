@@ -2,15 +2,16 @@
 
 import { useActionState } from 'react'
 import { login } from './actions'
+import { FormMessage } from '../../components/ui/form-message'
 
 export function LoginForm() {
   const [error, action, pending] = useActionState(login, null)
-  return <form action={action} style={{ width: '100%', maxWidth: 400, background: 'white', padding: 32, borderRadius: 18, border: '1px solid #dfe5df' }}>
-    <div className="eyebrow">AprendePadel Academy</div><h1 style={{ fontSize: 36 }}>Entrar al panel</h1>
-    <p className="subtle" style={{ marginBottom: 24 }}>Gestiona tus clubes desde un solo lugar.</p>
-    <label style={{ display: 'grid', gap: 7, fontSize: 13, fontWeight: 700, marginBottom: 16 }}>Email<input name="email" type="email" autoComplete="email" required style={{ padding: 12, border: '1px solid #dfe5df', borderRadius: 9 }} /></label>
-    <label style={{ display: 'grid', gap: 7, fontSize: 13, fontWeight: 700, marginBottom: 20 }}>Contraseña<input name="password" type="password" autoComplete="current-password" required style={{ padding: 12, border: '1px solid #dfe5df', borderRadius: 9 }} /></label>
-    {error ? <p role="alert" style={{ color: '#ad5529', fontSize: 13, margin: '0 0 14px' }}>{error}</p> : null}
-    <button disabled={pending} type="submit" style={{ width: '100%', background: '#16795a', color: 'white', border: 0, borderRadius: 9, padding: 13, fontWeight: 700, opacity: pending ? .7 : 1 }}>{pending ? 'Entrando...' : 'Entrar'}</button>
+  return <form action={action} className="w-full max-w-[420px] rounded-3xl border border-slate-200 bg-white p-7 shadow-sm sm:p-9">
+    <p className="text-xs font-semibold uppercase tracking-[.16em] text-emerald-800">AprendePadel Academy</p><h1 className="mt-3 text-3xl font-semibold tracking-tight">Entrar al panel</h1>
+    <p className="mb-7 mt-2 text-sm text-slate-500">Gestiona tus clubes desde un solo lugar.</p>
+    <label className="mb-4 grid gap-2 text-sm font-medium text-slate-700">Email<input name="email" type="email" autoComplete="email" required className="min-h-11 rounded-xl border border-slate-300 px-3"/></label>
+    <label className="mb-5 grid gap-2 text-sm font-medium text-slate-700">Contraseña<input name="password" type="password" autoComplete="current-password" required className="min-h-11 rounded-xl border border-slate-300 px-3"/></label>
+    {error ? <FormMessage>{error}</FormMessage> : null}
+    <button disabled={pending} type="submit" className="mt-2 min-h-11 w-full rounded-xl bg-emerald-800 px-4 text-sm font-semibold text-white hover:bg-emerald-900 disabled:opacity-60">{pending ? 'Entrando…' : 'Entrar'}</button>
   </form>
 }

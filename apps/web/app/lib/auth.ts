@@ -9,8 +9,19 @@ export const getCurrentClaims = cache(async () => {
   return data.claims
 })
 
-export async function requireAdmin() {
+export const getCurrentUser = cache(async () => {
   const claims = await getCurrentClaims()
-  if (claims?.app_metadata?.role !== 'admin') redirect('/login')
-  return claims
+  if (!claims?.sub) return null
+  return { id: claims.sub, email: claims.email, app_metadata: claims.app_metadata }
+})
+
+export async function getAdminUser() {
+  const user = await getCurrentUser()
+  return user?.app_metadata?.role === 'admin' ? user : null
+}
+
+export async function requireAdmin() {
+  const user = await getAdminUser()
+  if (!user) redirect('/login')
+  return { ...user, sub: user.id, app_metadata: user.app_metadata ?? {} }
 }

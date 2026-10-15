@@ -1,1 +1,1 @@
-{"name":"@aprende-padel/ui","private":true,"version":"0.1.0","exports":{"./cn":"./src/cn.ts"},"dependencies":{"clsx":"^2.1.1","tailwind-merge":"^3.7.0"}}
+{"name":"@aprende-padel/ui","private":true,"version":"0.1.0","exports":{"./cn":"./src/cn.ts"}}

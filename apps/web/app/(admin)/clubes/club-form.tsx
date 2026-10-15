@@ -1,8 +1,23 @@
 'use client'
-import * as Dialog from '@radix-ui/react-dialog'
-import {useState,useTransition} from 'react'
-import {X} from 'lucide-react'
-import {Button} from '../../../components/ui/button'
-import {createClub} from './actions'
-import type {ActionResult} from '../clases/actions'
-export function ClubForm(){const[state,setState]=useState<ActionResult|null>(null);const[open,setOpen]=useState(false);const[busy,start]=useTransition();async function submit(form:FormData){start(async()=>{const result=await createClub(null,form);setState(result);if(result.ok)setOpen(false)})}return <Dialog.Root open={open} onOpenChange={setOpen}><Dialog.Trigger asChild><Button>+ Nuevo club</Button></Dialog.Trigger><Dialog.Portal><Dialog.Overlay className="dialog-overlay"/><Dialog.Content className="modal"><div className="modal-head"><div><p className="eyebrow">Sedes</p><Dialog.Title className="dialog-title">Crear club</Dialog.Title></div><Dialog.Close asChild><button className="icon-button" aria-label="Cerrar"><X/></button></Dialog.Close></div><form action={submit} className="form-stack"><label>Nombre<input name="name" required maxLength={120}/></label><label>Localidad<input name="municipality" required maxLength={100}/></label><label>Dirección<input name="address" maxLength={240}/></label><label>Zona horaria<input name="timezone" required defaultValue="Europe/Madrid"/></label>{state?<p role="status" className={state.ok?'form-message success':'form-message error'}>{state.message}</p>:null}<div className="modal-actions"><Button variant="secondary" type="button" onClick={()=>setOpen(false)}>Cancelar</Button><Button disabled={busy}>{busy?'Guardando…':'Guardar club'}</Button></div></form></Dialog.Content></Dialog.Portal></Dialog.Root>}
+
+import { useState, useTransition } from 'react'
+import { Button } from '../../../components/ui/button'
+import { DialogContent } from '../../../components/ui/dialog-shell'
+import { FormMessage } from '../../../components/ui/form-message'
+import { createClub } from './actions'
+import type { ActionResult } from '../clases/actions'
+
+export function ClubForm() {
+  const [state, setState] = useState<ActionResult | null>(null)
+  const [open, setOpen] = useState(false)
+  const [busy, start] = useTransition()
+  async function submit(form: FormData) { start(async () => { const result = await createClub(null, form); setState(result); if (result.ok) setOpen(false) }) }
+  return <>
+    <Button onClick={() => { setOpen(true); setState(null) }}>Nuevo club</Button>
+    <DialogContent open={open} onOpenChange={setOpen} title="Crear club" description="Añade una sede a tu organización."><form action={submit} className="space-y-4 px-5 py-5 sm:px-6">
+      <label className="grid gap-1.5 text-sm font-medium text-slate-700">Nombre<input name="name" required maxLength={120} className="min-h-10 rounded-xl border border-slate-300 px-3"/></label><label className="grid gap-1.5 text-sm font-medium text-slate-700">Localidad<input name="municipality" required maxLength={100} className="min-h-10 rounded-xl border border-slate-300 px-3"/></label><label className="grid gap-1.5 text-sm font-medium text-slate-700">Dirección<input name="address" maxLength={240} className="min-h-10 rounded-xl border border-slate-300 px-3"/></label><label className="grid gap-1.5 text-sm font-medium text-slate-700">Zona horaria<input name="timezone" required defaultValue="Europe/Madrid" className="min-h-10 rounded-xl border border-slate-300 px-3"/></label>
+      {state ? <FormMessage tone={state.ok ? 'success' : 'error'}>{state.message}</FormMessage> : null}
+      <div className="flex justify-end gap-2 border-t border-slate-100 pt-4"><Button variant="secondary" type="button" onClick={() => setOpen(false)}>Cancelar</Button><Button disabled={busy}>{busy ? 'Guardando…' : 'Guardar club'}</Button></div>
+    </form></DialogContent>
+  </>
+}

@@ -1,7 +1,19 @@
-import type { ButtonHTMLAttributes } from 'react'
-import { cva, type VariantProps } from 'class-variance-authority'
-import { cn } from '@aprende-padel/ui/cn'
+import { cloneElement, isValidElement, type ButtonHTMLAttributes, type ReactNode } from 'react'
 
-const variants=cva('inline-flex items-center justify-center gap-2 rounded-[10px] px-4 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8ebc42] disabled:pointer-events-none disabled:opacity-50',{variants:{variant:{default:'bg-brand text-white hover:bg-[#12684d]',secondary:'border border-[var(--line)] bg-white text-ink hover:bg-[#eef2ed]',ghost:'bg-transparent text-ink hover:bg-[#eef2ed]',destructive:'bg-[#a34336] text-white hover:bg-[#87372d]'},size:{default:'min-h-10',sm:'min-h-8 px-3 text-xs',icon:'size-10 p-0'}},defaultVariants:{variant:'default',size:'default'}})
-type Props=ButtonHTMLAttributes<HTMLButtonElement>&VariantProps<typeof variants>
-export function Button({className,variant,size,...props}:Props){return <button className={cn(variants({variant,size}),className)} {...props}/>}
+type Variant = 'default' | 'secondary' | 'ghost' | 'destructive'
+type Size = 'default' | 'sm' | 'icon'
+const variants: Record<Variant, string> = {
+  default: 'border border-transparent bg-emerald-800 text-white hover:bg-emerald-900',
+  secondary: 'border border-slate-200 bg-white text-slate-800 hover:bg-slate-50',
+  ghost: 'border border-transparent bg-transparent text-slate-700 hover:bg-slate-100',
+  destructive: 'border border-transparent bg-rose-700 text-white hover:bg-rose-800',
+}
+const sizes: Record<Size, string> = { default: 'min-h-10 px-4 py-2 text-sm', sm: 'min-h-9 px-3 py-1.5 text-xs', icon: 'size-10 p-0' }
+
+export function Button({ className = '', variant = 'default', size = 'default', asChild = false, children, ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; size?: Size; asChild?: boolean; children?: ReactNode }) {
+  const classes = `inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${variants[variant]} ${sizes[size]} ${className}`
+  if (asChild && isValidElement<{ className?: string }>(children)) {
+    return cloneElement(children, { ...props, className: `${classes} ${children.props.className ?? ''}` })
+  }
+  return <button className={classes} {...props}>{children}</button>
+}
