@@ -113,6 +113,9 @@ isOneToOne: false
                 }
           }
           Functions: {
+            "create_group":
+{ Args: { "p_capacity": number,"p_category": Database["core"]['Enums']["student_category"],"p_club_id": string,"p_duration_minutes": number,"p_ends_on": string | null,"p_level": Database["core"]['Enums']["student_level"],"p_name": string,"p_start_time": string,"p_starts_on": string,"p_student_ids": (string)[] | null,"p_teacher_id": string,"p_weekday": number }; Returns: string
+                           },
             "create_session":
 { Args: { "p_category": Database["core"]['Enums']["student_category"],"p_club_id": string,"p_duration_minutes": number,"p_notes"?: string,"p_starts_at": string,"p_student_ids": (string)[],"p_teacher_id": string }; Returns: string
                            },
@@ -550,14 +553,23 @@ isOneToOne: false
             [_ in never]: never
           }
           Functions: {
+            "change_student_tariff":
+{ Args: { "p_starts_on": string,"p_student_id": string,"p_tariff_id": string }; Returns: undefined
+                           },
             "close_period":
 { Args: { "p_period": string }; Returns: undefined
+                           },
+"create_student_with_tariff":
+{ Args: { "p_birth_date": string,"p_category": Database["core"]['Enums']["student_category"],"p_club_id": string,"p_email": string | null,"p_first_name": string,"p_gender": Database["core"]['Enums']["student_gender"],"p_last_name": string,"p_level": Database["core"]['Enums']["student_level"],"p_phone": string | null,"p_starts_on": string,"p_tariff_id": string }; Returns: string
                            },
 "ensure_open_period":
 { Args: { "p_period": string }; Returns: string
                            },
 "generate_student_charges":
 { Args: { "p_period": string }; Returns: number
+                           },
+"generate_period_payments":
+{ Args: { "p_period": string }; Returns: undefined
                            },
 "generate_teacher_settlements":
 { Args: { "p_period": string }; Returns: number

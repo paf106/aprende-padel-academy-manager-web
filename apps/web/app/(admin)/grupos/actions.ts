@@ -40,34 +40,23 @@ export async function createGroup(_: ActionResult | null, formData: FormData): P
   if (!parsed.success) return { ok: false, message: 'Revisa los campos del grupo y sus alumnos.' }
   const user = await getAdminUser()
   if (!user) return { ok: false, message: 'No autorizado.' }
-  const organizationId = user.app_metadata?.organization_id
-  if (typeof organizationId !== 'string') return { ok: false, message: 'Organización no disponible.' }
   const db = await getSupabaseServer()
   const input = parsed.data
-  const { data: group, error } = await db.schema('classes').from('groups').insert({
-    organization_id: organizationId,
-    club_id: input.clubId,
-    teacher_id: input.teacherId,
-    name: input.name,
-    category: input.category,
-    level: input.level,
-    weekday: input.weekday,
-    start_time: input.startTime,
-    duration_minutes: input.duration,
-    capacity: input.capacity,
-    starts_on: input.startsOn,
-    ends_on: input.endsOn || null,
-  }).select('id').single()
-  if (error || !group) return { ok: false, message: 'No se pudo guardar el grupo. Revisa club y profesor asignado.' }
-  if (input.studentIds.length) {
-    const { error: memberError } = await db.schema('classes').from('group_members').insert(
-      [...new Set(input.studentIds)].map((student_id) => ({ group_id: group.id, student_id, starts_on: input.startsOn })),
-    )
-    if (memberError) {
-      await db.schema('classes').from('groups').delete().eq('id', group.id)
-      return { ok: false, message: 'No se pudo asignar el alumnado: comprueba categoría, club y aforo.' }
-    }
-  }
+  const { error } = await db.schema('classes').rpc('create_group', {
+    p_name: input.name,
+    p_club_id: input.clubId,
+    p_teacher_id: input.teacherId,
+    p_category: input.category,
+    p_level: input.level,
+    p_weekday: input.weekday,
+    p_start_time: input.startTime,
+    p_duration_minutes: input.duration,
+    p_capacity: input.capacity,
+    p_starts_on: input.startsOn,
+    p_ends_on: input.endsOn || null,
+    p_student_ids: [...new Set(input.studentIds)],
+  })
+  if (error) return { ok: false, message: 'No se pudo guardar el grupo. Revisa club, profesor, categoría y aforo.' }
   revalidatePath('/grupos')
   revalidatePath('/clases')
   return { ok: true, message: 'Grupo creado.' }

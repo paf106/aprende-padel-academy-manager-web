@@ -15,10 +15,14 @@ export const getCurrentUser = cache(async () => {
   return { id: claims.sub, email: claims.email, app_metadata: claims.app_metadata }
 })
 
-export async function getAdminUser() {
+export const getAdminUser = cache(async () => {
   const user = await getCurrentUser()
-  return user?.app_metadata?.role === 'admin' ? user : null
-}
+  if (user?.app_metadata?.role !== 'admin') return null
+  const supabase = await getSupabaseServer()
+  const { data } = await supabase.schema('core').from('profiles').select('id')
+    .eq('id', user.id).eq('role', 'admin').eq('active', true).maybeSingle()
+  return data ? user : null
+})
 
 export async function requireAdmin() {
   const user = await getAdminUser()

@@ -28,33 +28,21 @@ export async function saveStudent(_: ActionResult | null, formData: FormData): P
   const organizationId = user.app_metadata?.organization_id
   if (typeof organizationId !== 'string') return { ok: false, message: 'Organización no disponible.' }
   const supabase = await getSupabaseServer()
-  const { data: tariff } = await supabase.schema('payments').from('tariffs').select('id')
-    .eq('id', parsed.data.tariffId).eq('category', parsed.data.category).maybeSingle()
-  if (!tariff) return { ok: false, message: 'Selecciona una tarifa activa de la misma categoría.' }
-
   const input = parsed.data
-  const { data: student, error } = await supabase.schema('core').from('students').insert({
-    organization_id: organizationId,
-    club_id: input.clubId,
-    first_name: input.firstName,
-    last_name: input.lastName,
-    birth_date: input.birthDate,
-    category: input.category,
-    gender: input.gender,
-    level: input.level,
-    email: input.email || null,
-    phone: input.phone || null,
-  }).select('id').single()
-  if (error || !student) return { ok: false, message: 'No se pudo guardar el alumno.' }
-  const { error: tariffError } = await supabase.schema('payments').from('student_tariffs').insert({
-    student_id: student.id,
-    tariff_id: input.tariffId,
-    starts_on: localTodayInTimeZone('Europe/Madrid'),
+  const { error } = await supabase.schema('payments').rpc('create_student_with_tariff', {
+    p_club_id: input.clubId,
+    p_first_name: input.firstName,
+    p_last_name: input.lastName,
+    p_birth_date: input.birthDate,
+    p_category: input.category,
+    p_gender: input.gender,
+    p_level: input.level,
+    p_email: input.email || null,
+    p_phone: input.phone || null,
+    p_tariff_id: input.tariffId,
+    p_starts_on: localTodayInTimeZone('Europe/Madrid'),
   })
-  if (tariffError) {
-    await supabase.schema('core').from('students').update({ active: false }).eq('id', student.id)
-    return { ok: false, message: 'Alumno creado sin asignar tarifa; revisa el catálogo de tarifas.' }
-  }
+  if (error) return { ok: false, message: 'No se pudo guardar el alumno con su tarifa. Revisa club y tarifa.' }
   revalidatePath('/alumnos')
   return { ok: true, message: 'Alumno creado y tarifa asignada.' }
 }
@@ -103,25 +91,12 @@ export async function changeStudentTariff(_: ActionResult | null, formData: Form
   const user = await getAdminUser()
   if (!user) return { ok: false, message: 'No autorizado.' }
   const db = await getSupabaseServer()
-  const [{ data: student }, { data: tariff }] = await Promise.all([
-    db.schema('core').from('students').select('category').eq('id', input.data.studentId).maybeSingle(),
-    db.schema('payments').from('tariffs').select('category').eq('id', input.data.tariffId).maybeSingle(),
-  ])
-  if (!student || !tariff || student.category !== tariff.category) return { ok: false, message: 'La categoría de la tarifa debe coincidir con la del alumno.' }
-  const start = input.data.startsOn
-  const { data: assignments, error } = await db.schema('payments').from('student_tariffs').select('id,starts_on,ends_on')
-    .eq('student_id', input.data.studentId).is('ends_on', null).order('starts_on', { ascending: false }).limit(1)
-  if (error) return { ok: false, message: 'No se pudo leer la tarifa anterior.' }
-  const current = assignments?.[0]
-  if (current && current.starts_on >= start) return { ok: false, message: 'La nueva tarifa debe empezar después de la tarifa actual.' }
-  if (current) {
-    const end = new Date(`${start}T00:00:00Z`)
-    end.setUTCDate(end.getUTCDate() - 1)
-    const { error: updateError } = await db.schema('payments').from('student_tariffs').update({ ends_on: end.toISOString().slice(0, 10) }).eq('id', current.id)
-    if (updateError) return { ok: false, message: 'No se pudo cerrar la tarifa anterior.' }
-  }
-  const { error: insertError } = await db.schema('payments').from('student_tariffs').insert({ student_id: input.data.studentId, tariff_id: input.data.tariffId, starts_on: start })
-  if (insertError) return { ok: false, message: 'No se pudo asignar la nueva tarifa.' }
+  const { error } = await db.schema('payments').rpc('change_student_tariff', {
+    p_student_id: input.data.studentId,
+    p_tariff_id: input.data.tariffId,
+    p_starts_on: input.data.startsOn,
+  })
+  if (error) return { ok: false, message: 'No se pudo asignar la tarifa. Revisa categoría y fechas.' }
   revalidatePath('/alumnos')
   revalidatePath('/pagos')
   return { ok: true, message: 'Tarifa asignada.' }
