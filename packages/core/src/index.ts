@@ -16,20 +16,31 @@ export type AttendanceStatus = (typeof attendanceStatuses)[number]
 export const statusLabels: Record<ClassStatus,string> = { pending: 'Pendiente', completed: 'Terminada', cancelled: 'Cancelada' }
 export const attendanceLabels: Record<AttendanceStatus,string> = { present: 'Presente', absent: 'Ausente', justified: 'Justificada' }
 
+const dateTimeFormatters = new Map<string, Intl.DateTimeFormat>()
+function getDateTimeFormatter(locale: string, options: Intl.DateTimeFormatOptions) {
+  const key = `${locale}:${JSON.stringify(options)}`
+  let formatter = dateTimeFormatters.get(key)
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat(locale, options)
+    dateTimeFormatters.set(key, formatter)
+  }
+  return formatter
+}
+
 export function formatInClubTime(value: string, timeZone: string, options?: { timeOnly?: boolean }) {
-  return new Intl.DateTimeFormat('es-ES', options?.timeOnly
+  return getDateTimeFormatter('es-ES', options?.timeOnly
     ? { timeZone, hour: '2-digit', minute: '2-digit' }
     : { timeZone, dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
 }
 
 export function localDateInTimeZone(value: string | Date, timeZone: string) {
-  const parts = new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date(value))
+  const parts = getDateTimeFormatter('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date(value))
   const get = (type: string) => parts.find((part) => part.type === type)?.value ?? ''
   return `${get('year')}-${get('month')}-${get('day')}`
 }
 
 export function localTimeInTimeZone(value: string | Date, timeZone: string) {
-  const parts = new Intl.DateTimeFormat('en-GB', { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(value))
+  const parts = getDateTimeFormatter('en-GB', { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(value))
   const get = (type: string) => Number(parts.find((part) => part.type === type)?.value ?? 0)
   return get('hour') * 60 + get('minute')
 }

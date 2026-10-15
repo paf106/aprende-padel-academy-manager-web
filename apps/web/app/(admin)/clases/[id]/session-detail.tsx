@@ -2,7 +2,6 @@
 
 import { useMemo, useState, useTransition } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { UserPlus } from 'lucide-react'
@@ -34,7 +33,6 @@ type DetailData = {
 
 export function SessionDetail({ detail, backHref, loadCandidates }: { detail: DetailData; backHref: string; loadCandidates: () => Promise<{ id: string; first_name: string; last_name: string }[]> }) {
   const { session, club, teacher, students, studentIds, capacity, group, timeZone } = detail
-  const router = useRouter()
   const showToast = useToast()
   const [filter, setFilter] = useState<'all' | 'unmarked'>('all')
   const [showAdd, setShowAdd] = useState(false)
@@ -52,8 +50,8 @@ export function SessionDetail({ detail, backHref, loadCandidates }: { detail: De
   const safeCapacity = Math.max(1, capacity)
   const dateLabel = format(new Date(`${localDateInTimeZone(session.starts_at, timeZone)}T12:00:00`), 'EEEE d MMMM yyyy', { locale: es })
   async function openAdd() { setShowAdd(true); if (!candidates) setCandidates(await loadCandidates()) }
-  function saveRoster() { startTransition(async () => { const form = new FormData(); form.set('sessionId', session.id); selected.forEach((id) => form.append('studentIds', id)); const result = await updateSessionRoster(null, form); if (result.ok) { showToast(result.message); setShowAdd(false); router.refresh() } else showToast(result.message, 'error') }) }
-  function submitCancel(formData: FormData) { formData.set('sessionId', session.id); formData.set('status', session.status === 'cancelled' ? 'pending' : 'cancelled'); startCancel(async () => { const result = await setSessionStatus(null, formData); setCancelState(result); if (result.ok) { showToast(result.message); setCancelOpen(false); router.refresh() } }) }
+  function saveRoster() { startTransition(async () => { const form = new FormData(); form.set('sessionId', session.id); selected.forEach((id) => form.append('studentIds', id)); const result = await updateSessionRoster(null, form); if (result.ok) { showToast(result.message); setShowAdd(false) } else showToast(result.message, 'error') }) }
+  function submitCancel(formData: FormData) { formData.set('sessionId', session.id); formData.set('status', session.status === 'cancelled' ? 'pending' : 'cancelled'); startCancel(async () => { const result = await setSessionStatus(null, formData); setCancelState(result); if (result.ok) { showToast(result.message); setCancelOpen(false) } }) }
 
   return <div className="mx-auto w-full max-w-[1200px] px-4 pb-12 pt-5 sm:px-8">
     <Link href={backHref} className="inline-flex items-center gap-2 text-sm font-medium text-blue-800 hover:underline"><span aria-hidden="true">←</span> Volver al calendario</Link>

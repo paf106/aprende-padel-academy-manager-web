@@ -1,10 +1,16 @@
 export type TimedCalendarEvent = { id: string; startsAt: string; endsAt: string; timeZone?: string; allDay?: boolean }
 export type CalendarEventPlacement = { id: string; top: number; height: number; left: number; width: number; hidden: boolean; allDay?: boolean }
 
+const timeFormatters = new Map<string, Intl.DateTimeFormat>()
 function minuteOfDay(value: string, timeZone?: string) {
   const date = new Date(value)
   if (timeZone) {
-    const parts = new Intl.DateTimeFormat('en-GB', { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(date)
+    let formatter = timeFormatters.get(timeZone)
+    if (!formatter) {
+      formatter = new Intl.DateTimeFormat('en-GB', { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+      timeFormatters.set(timeZone, formatter)
+    }
+    const parts = formatter.formatToParts(date)
     return Number(parts.find((part) => part.type === 'hour')?.value ?? 0) * 60 + Number(parts.find((part) => part.type === 'minute')?.value ?? 0)
   }
   return date.getHours() * 60 + date.getMinutes()

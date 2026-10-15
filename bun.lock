@@ -63,10 +63,14 @@
     "packages/db": {
       "name": "@aprende-padel/db",
       "version": "0.1.0",
+      "devDependencies": {
+        "@types/react": "^19",
+      },
       "peerDependencies": {
         "@supabase/ssr": "^0.7.0",
         "@supabase/supabase-js": "^2.110.8",
         "next": "16.2.11",
+        "react": "^19.2.4",
       },
     },
     "packages/module-kit": {

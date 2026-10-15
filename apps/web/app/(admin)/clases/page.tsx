@@ -1,4 +1,5 @@
 import { addDays, endOfWeek, format, parseISO, startOfMonth, startOfWeek } from 'date-fns'
+import { Suspense } from 'react'
 import { getClassReferenceData, getSessions } from '../../../lib/classes-data'
 import { CalendarToolbar } from './calendar-toolbar'
 import { NewSessionDialog } from './new-session-dialog'
@@ -21,13 +22,20 @@ export default async function ClassesPage({ searchParams }: { searchParams: Prom
   const periodEnd = view === 'day' ? date : view === 'week' ? endOfWeek(date, { weekStartsOn: 1 }) : addDays(periodStart, 41)
   const status = ['pending', 'completed', 'cancelled'].includes(params.status ?? '') ? params.status as 'pending' | 'completed' | 'cancelled' : undefined
   const filters = { clubId: validId(params.club) ? params.club : undefined, teacherId: validId(params.teacher) ? params.teacher : undefined, status }
-  const [reference, sessions] = await Promise.all([
-    getClassReferenceData(),
-    getSessions(`${format(addDays(periodStart, -1), 'yyyy-MM-dd')}T00:00:00`, `${format(addDays(periodEnd, 2), 'yyyy-MM-dd')}T00:00:00`, 500, filters),
-  ])
+  const now = new Date().toISOString()
+  const sessionsPromise = getSessions(`${format(addDays(periodStart, -1), 'yyyy-MM-dd')}T00:00:00`, `${format(addDays(periodEnd, 2), 'yyyy-MM-dd')}T00:00:00`, 500, filters)
+  const reference = await getClassReferenceData()
   return <main className="min-w-0 overflow-hidden pb-10">
     <CalendarToolbar date={format(date, 'yyyy-MM-dd')} view={view} club={filters.clubId} teacher={filters.teacherId} status={status} clubs={reference.clubs} teachers={reference.teachers} action={<NewSessionDialog refs={reference}/>}/>
-    <div className="px-3 pb-3 pt-2 text-xs text-slate-500 sm:px-5">{sessions.length} sesiones {view === 'day' ? 'en este día' : view === 'week' ? 'esta semana' : 'este mes'}</div>
-    <div className="px-2 sm:px-4">{view === 'week' || view === 'day' ? <WeekCalendar startDate={format(periodStart, 'yyyy-MM-dd')} sessions={sessions} clubs={reference.clubs} view={view}/> : <MonthCalendar month={format(date, 'yyyy-MM')} sessions={sessions} clubs={reference.clubs}/>}</div>
+    <Suspense fallback={<CalendarLoading/>}><CalendarResults sessionsPromise={sessionsPromise} now={now} periodStart={format(periodStart, 'yyyy-MM-dd')} month={format(date, 'yyyy-MM')} view={view} clubs={reference.clubs}/></Suspense>
   </main>
+}
+
+async function CalendarResults({ sessionsPromise, now, periodStart, month, view, clubs }: { sessionsPromise: ReturnType<typeof getSessions>; now: string; periodStart: string; month: string; view: 'day' | 'week' | 'month'; clubs: { id: string; name: string }[] }) {
+  const sessions = await sessionsPromise
+  return <div className="px-2 py-3 sm:px-4">{view === 'week' || view === 'day' ? <WeekCalendar now={now} startDate={periodStart} sessions={sessions} clubs={clubs} view={view}/> : <MonthCalendar month={month} sessions={sessions} clubs={clubs}/>}</div>
+}
+
+function CalendarLoading() {
+  return <div role="status" className="space-y-3 px-2 py-3 sm:px-4"><span className="sr-only">Cargando calendario…</span><div aria-hidden="true" className="h-5 w-40 animate-pulse rounded bg-slate-200"/><div aria-hidden="true" className="h-[650px] animate-pulse rounded-2xl border border-slate-200 bg-white"/></div>
 }

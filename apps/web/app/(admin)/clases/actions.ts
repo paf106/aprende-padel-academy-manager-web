@@ -22,28 +22,41 @@ async function requireAdmin() {
 
 export async function getClassDialogData() {
   const { supabase } = await requireAdmin()
-  const [{ data: students, error: studentError }, { data: groups, error: groupError }] = await Promise.all([
-    supabase.schema('core').from('students').select('id,first_name,last_name,club_id,category').eq('active', true).order('last_name'),
-    supabase.schema('classes').from('groups').select('id,name,club_id,teacher_id,capacity,category').eq('active', true).order('name'),
-  ])
-  if (studentError || groupError) throw new Error('No se pudieron cargar alumnos y grupos')
-  return { students: students ?? [], groups: groups ?? [] }
+  const { data: groups, error } = await supabase.schema('classes').from('groups').select('id,name,club_id,teacher_id,capacity,category').eq('active', true).order('name')
+  if (error) throw new Error('No se pudieron cargar los grupos')
+  return { groups: groups ?? [] }
+}
+
+export async function getStudentsForSessionForm(clubId: string, category: 'adult' | 'child') {
+  const input = z.object({ clubId: z.uuid(), category: z.enum(['adult', 'child']) }).safeParse({ clubId, category })
+  if (!input.success) return []
+  const { supabase } = await requireAdmin()
+  const { data, error } = await supabase.schema('core').from('students').select('id,first_name,last_name,club_id,category').eq('active', true).eq('club_id', input.data.clubId).eq('category', input.data.category).order('last_name').limit(1000)
+  if (error) throw new Error('No se pudieron cargar los alumnos del club')
+  return data ?? []
 }
 
 export async function getClassDetailData(id: string) {
   const validId = z.uuid().safeParse(id)
   if (!validId.success) return null
   const { supabase } = await requireAdmin()
-  const { data: session, error } = await supabase.schema('classes').from('sessions').select('id,starts_at,ends_at,status,notes,cancellation_reason,club_id,teacher_id,category,group_id,groups(name,capacity,level)').eq('id', id).maybeSingle()
-  if (error || !session) return null
-  const [{ data: club }, { data: teacher }, { data: enrolled }, { data: attendance }] = await Promise.all([
-    supabase.schema('core').from('clubs').select('name,municipality,timezone').eq('id', session.club_id).maybeSingle(),
-    supabase.schema('core').from('profiles').select('full_name').eq('id', session.teacher_id).maybeSingle(),
+  const [sessionResult, enrolledResult, attendanceResult] = await Promise.all([
+    supabase.schema('classes').from('sessions').select('id,starts_at,ends_at,status,notes,cancellation_reason,club_id,teacher_id,category,group_id,groups(name,capacity,level)').eq('id', id).maybeSingle(),
     supabase.schema('classes').from('session_students').select('student_id').eq('session_id', id),
     supabase.schema('classes').from('attendance').select('student_id,status,comment').eq('session_id', id),
   ])
+  const { data: session, error } = sessionResult
+  if (error || !session || enrolledResult.error || attendanceResult.error) return null
+  const enrolled = enrolledResult.data
+  const attendance = attendanceResult.data
   const studentIds = (enrolled ?? []).map((item) => item.student_id)
-  const { data: enrolledStudents } = studentIds.length ? await supabase.schema('core').from('students').select('id,first_name,last_name').in('id', studentIds) : { data: [] }
+  const [{ data: club }, { data: teacher }, enrolledStudentsResult] = await Promise.all([
+    supabase.schema('core').from('clubs').select('name,municipality,timezone').eq('id', session.club_id).maybeSingle(),
+    supabase.schema('core').from('profiles').select('full_name').eq('id', session.teacher_id).maybeSingle(),
+    studentIds.length ? supabase.schema('core').from('students').select('id,first_name,last_name').in('id', studentIds) : Promise.resolve({ data: [], error: null }),
+  ])
+  const { data: enrolledStudents, error: studentError } = enrolledStudentsResult
+  if (studentError) return null
   const attendanceMap = new Map((attendance ?? []).map((item) => [item.student_id, item]))
   return { session, club, teacher, students: (enrolledStudents ?? []).map((student) => ({ ...student, attendance: attendanceMap.get(student.id) ?? null })), studentIds, capacity: session.groups?.capacity ?? 16, group: session.groups, timeZone: club?.timezone ?? 'Europe/Madrid' }
 }

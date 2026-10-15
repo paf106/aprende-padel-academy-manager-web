@@ -1,12 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { addDays, format, parseISO, startOfWeek } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { Check } from 'lucide-react'
-import { clubCalendarColor, formatInClubTime, layoutDayEvents, localDateInTimeZone, localTimeInTimeZone, statusLabels } from '@aprende-padel/core'
+import { clubCalendarColor, formatInClubTime, layoutDayEvents, localDateInTimeZone, localTimeInTimeZone, statusLabels, type CalendarEventPlacement } from '@aprende-padel/core'
 import { EventPopover, type CalendarEventInfo } from '../../../components/ui/event-popover'
 
 const OPEN_HOUR = 8
@@ -16,16 +16,50 @@ const hours = Array.from({ length: CLOSE_HOUR - OPEN_HOUR }, (_, index) => OPEN_
 const slots = Array.from({ length: (CLOSE_HOUR - OPEN_HOUR) * 2 }, (_, index) => OPEN_HOUR * 60 + index * 30)
 type Event = CalendarEventInfo & { allDay?: boolean }
 
-export function WeekCalendar({ startDate, sessions, clubs, view = 'week' }: { startDate: string; sessions: Event[]; clubs: { id: string; name: string }[]; view?: 'day' | 'week' }) {
+export function WeekCalendar({ now, startDate, sessions, clubs, view = 'week' }: { now: string; startDate: string; sessions: Event[]; clubs: { id: string; name: string }[]; view?: 'day' | 'week' }) {
   const router = useRouter()
   const search = useSearchParams()
-  const selectedDay = parseISO(startDate)
-  const weekStart = startOfWeek(selectedDay, { weekStartsOn: 1 })
-  const days = view === 'day' ? [selectedDay] : Array.from({ length: 7 }, (_, index) => addDays(weekStart, index))
-  const weekDays = Array.from({ length: 7 }, (_, index) => addDays(weekStart, index))
-  const colors = Object.fromEntries(clubs.map((club, index) => [club.id, clubCalendarColor(index)]))
-  const now = new Date()
-  const today = localDateInTimeZone(now, 'Europe/Madrid')
+  const selectedDay = useMemo(() => parseISO(startDate), [startDate])
+  const weekStart = useMemo(() => startOfWeek(selectedDay, { weekStartsOn: 1 }), [selectedDay])
+  const days = useMemo(() => view === 'day' ? [selectedDay] : Array.from({ length: 7 }, (_, index) => addDays(weekStart, index)), [view, selectedDay, weekStart])
+  const weekDays = useMemo(() => Array.from({ length: 7 }, (_, index) => addDays(weekStart, index)), [weekStart])
+  const colors = useMemo(() => Object.fromEntries(clubs.map((club, index) => [club.id, clubCalendarColor(index)])), [clubs])
+  const [clock, setClock] = useState(now)
+  useEffect(() => {
+    const timer = window.setInterval(() => setClock(new Date().toISOString()), 60_000)
+    return () => window.clearInterval(timer)
+  }, [])
+  const nowDate = new Date(clock)
+  const today = localDateInTimeZone(nowDate, 'Europe/Madrid')
+  const current = localTimeInTimeZone(nowDate, 'Europe/Madrid')
+  const dailyEventsByDay = useMemo(() => {
+    const byDay = new Map<string, Event[]>()
+    for (const event of sessions) {
+      const key = localDateInTimeZone(event.starts_at, event.club?.timezone ?? 'Europe/Madrid')
+      const dayEvents = byDay.get(key)
+      if (dayEvents) dayEvents.push(event)
+      else byDay.set(key, [event])
+    }
+    return byDay
+  }, [sessions])
+  const layoutByDay = useMemo(() => {
+    const byDay = new Map<string, { daily: Event[]; byId: Map<string, CalendarEventPlacement>; overflow: Map<number, number> }>()
+    for (const day of days) {
+      const key = format(day, 'yyyy-MM-dd')
+      const daily = (dailyEventsByDay.get(key) ?? []).filter((event) => !event.allDay)
+      const positions = layoutDayEvents(daily.map((event) => ({ id: event.id, startsAt: event.starts_at, endsAt: event.ends_at, timeZone: event.club?.timezone ?? 'Europe/Madrid', allDay: event.allDay })), { startHour: OPEN_HOUR, endHour: CLOSE_HOUR, pixelsPerHour: PIXELS_PER_HOUR, maxColumns: 3 })
+      const byId = new Map(positions.filter((position) => !position.allDay).map((position) => [position.id, position]))
+      const overflow = new Map<number, number>()
+      for (const position of positions) {
+        if (!position.hidden || position.allDay) continue
+        const half = Math.round(position.top / (PIXELS_PER_HOUR / 2))
+        overflow.set(half, (overflow.get(half) ?? 0) + 1)
+      }
+      byDay.set(key, { daily, byId, overflow })
+    }
+    return byDay
+  }, [days, dailyEventsByDay])
+  const hasAllDay = sessions.some((session) => session.allDay)
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
   const [focusedCell, setFocusedCell] = useState({ day: 0, slot: 20 })
   function createAt(day: Date, minute: number) { const params = new URLSearchParams(search.toString()); params.set('newDate', format(day, 'yyyy-MM-dd')); params.set('newTime', `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`); router.push(`/clases?${params.toString()}`, { scroll: false }) }
@@ -34,19 +68,12 @@ export function WeekCalendar({ startDate, sessions, clubs, view = 'week' }: { st
     <div className="max-h-[min(72vh,850px)] overflow-auto overscroll-contain [scrollbar-gutter:stable]"><div className="sticky top-0 z-20 grid grid-cols-[52px_minmax(0,1fr)] border-b border-slate-200 bg-white">
       <div className="border-r border-slate-200"/><div className={`grid ${view === 'day' ? 'grid-cols-1' : 'grid-cols-7 max-sm:min-w-[820px]'}`}>{days.map((day) => { const key = format(day,'yyyy-MM-dd'); return <div key={key} aria-current={key === today ? 'date' : undefined} className="flex min-h-[68px] items-center justify-center gap-2 border-r border-slate-200 text-slate-600 last:border-r-0"><span className="text-[11px] uppercase tracking-wide">{format(day,'EEE',{locale:es})}</span><strong className={`grid size-9 place-items-center rounded-full text-base font-medium ${key === today ? 'bg-blue-700 text-white' : 'text-slate-800'}`}>{format(day,'d')}</strong>{key === today ? <span className="sr-only">Hoy</span> : null}</div>})}</div>
     </div>
-    {sessions.some((session) => session.allDay) ? <div className="grid grid-cols-[52px_minmax(0,1fr)] border-b border-slate-200"><span className="px-1 py-2 text-[9px] text-slate-500">Hora local</span><div className={`grid ${view === 'day' ? 'grid-cols-1' : 'grid-cols-7 max-sm:min-w-[820px]'}`}>{days.map((day) => { const key = format(day,'yyyy-MM-dd'); const events = sessions.filter((event) => event.allDay && localDateInTimeZone(event.starts_at,event.club?.timezone??'Europe/Madrid') === key); return <div key={key} className="grid min-h-8 content-start gap-1 border-r border-slate-200 p-1 last:border-r-0">{events.map((event) => <button type="button" key={event.id} data-session-id={event.id} onClick={() => setSelectedEvent(event)} className="truncate rounded-md px-2 py-1 text-left text-[10px] font-medium text-white" style={{backgroundColor:colors[event.club_id]?.border??'#3b82f6'}}>{event.club?.name??'Clase'} · {event.studentCount}/{event.capacity}</button>)}</div>})}</div></div> : null}
+    {hasAllDay ? <div className="grid grid-cols-[52px_minmax(0,1fr)] border-b border-slate-200"><span className="px-1 py-2 text-[9px] text-slate-600">Hora local</span><div className={`grid ${view === 'day' ? 'grid-cols-1' : 'grid-cols-7 max-sm:min-w-[820px]'}`}>{days.map((day) => { const key = format(day,'yyyy-MM-dd'); const events = (dailyEventsByDay.get(key) ?? []).filter((event) => event.allDay); return <div key={key} className="grid min-h-8 content-start gap-1 border-r border-slate-200 p-1 last:border-r-0">{events.map((event) => <button type="button" key={event.id} data-session-id={event.id} onClick={() => setSelectedEvent(event)} className="truncate rounded-md px-2 py-1 text-left text-[11px] font-medium text-slate-900" style={{backgroundColor:colors[event.club_id]?.background??'#d2e3fc'}}>{event.club?.name??'Clase'} · {event.studentCount}/{event.capacity}</button>)}</div>})}</div></div> : null}
     <div className="grid grid-cols-[52px_minmax(0,1fr)]">
       <div className="relative border-r border-slate-200 bg-white" style={{height:(CLOSE_HOUR-OPEN_HOUR)*PIXELS_PER_HOUR}}>{hours.map((hour)=><span key={hour} className="absolute right-2 -translate-y-1/2 text-[10px] tabular-nums text-slate-500" style={{top:(hour-OPEN_HOUR)*PIXELS_PER_HOUR}}>{String(hour).padStart(2,'0')}:00</span>)}</div>
       <div data-calendar-grid className={`grid ${view === 'day' ? 'grid-cols-1' : 'grid-cols-7 max-sm:min-w-[820px]'}`}>{days.map((day, dayIndex)=>{
         const key=format(day,'yyyy-MM-dd')
-        const daily=sessions.filter((event)=>!event.allDay && localDateInTimeZone(event.starts_at,event.club?.timezone??'Europe/Madrid')===key)
-        const positions=layoutDayEvents(daily.map((event)=>({id:event.id,startsAt:event.starts_at,endsAt:event.ends_at,timeZone:event.club?.timezone??'Europe/Madrid',allDay:event.allDay})),{startHour:OPEN_HOUR,endHour:CLOSE_HOUR,pixelsPerHour:PIXELS_PER_HOUR,maxColumns:3})
-        const allDayPositions=positions.filter((position)=>position.allDay)
-        const timedPositions=positions.filter((position)=>!position.allDay)
-        const byId=new Map(timedPositions.map((position)=>[position.id,position]))
-        const overflow=new Map<number,number>()
-        timedPositions.filter((position)=>position.hidden).forEach((position)=>{const half=Math.round(position.top/(PIXELS_PER_HOUR/2));overflow.set(half,(overflow.get(half)??0)+1)})
-        const current=localTimeInTimeZone(now,'Europe/Madrid')
+        const { daily, byId, overflow } = layoutByDay.get(key) ?? { daily: [], byId: new Map(), overflow: new Map() }
         return <div key={key} className={`relative border-r border-slate-200 last:border-r-0 ${key===today?'bg-blue-50/20':''}`} style={{height:(CLOSE_HOUR-OPEN_HOUR)*PIXELS_PER_HOUR,backgroundImage:'repeating-linear-gradient(to bottom, transparent 0, transparent 67px, #e2e8f0 67px, #e2e8f0 68px)'}}>
           {slots.map((minute, slotIndex)=><button key={minute} data-slot-day={dayIndex} data-slot-index={slotIndex} tabIndex={focusedCell.day === dayIndex && focusedCell.slot === slotIndex ? 0 : -1} type="button" aria-label={`Crear clase ${format(day,'d MMMM',{locale:es})} ${String(Math.floor(minute/60)).padStart(2,'0')}:${String(minute%60).padStart(2,'0')}`} className="absolute inset-x-0 z-0 h-[34px] border-b border-dashed border-slate-100 bg-transparent hover:bg-blue-50/70 focus-visible:z-10 focus-visible:bg-blue-100" style={{top:((minute-OPEN_HOUR*60)/60)*PIXELS_PER_HOUR}} onFocus={()=>setFocusedCell({day:dayIndex,slot:slotIndex})} onKeyDown={(event)=>{const delta={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[event.key as 'ArrowLeft'|'ArrowRight'|'ArrowUp'|'ArrowDown'];if(!delta)return;event.preventDefault();const nextDay=Math.max(0,Math.min(days.length-1,dayIndex+delta[0]));const nextSlot=Math.max(0,Math.min(slots.length-1,slotIndex+delta[1]));setFocusedCell({day:nextDay,slot:nextSlot});requestAnimationFrame(()=>document.querySelector<HTMLElement>(`[data-calendar-grid] [data-slot-day="${nextDay}"][data-slot-index="${nextSlot}"]`)?.focus())}} onClick={()=>createAt(day,minute)}/>)}
           {key===today&&current>=OPEN_HOUR*60&&current<CLOSE_HOUR*60?<div className="pointer-events-none absolute inset-x-0 z-10 h-0.5 bg-rose-600" style={{top:(current-OPEN_HOUR*60)*PIXELS_PER_HOUR}}><span className="absolute -left-1 -top-1 size-2.5 rounded-full bg-rose-600"/></div>:null}
