@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from 'react'
 import { Button } from '../../../components/ui/button'
 import { StudentPicker } from '../../../components/ui/student-picker'
 import { FormMessage } from '../../../components/ui/form-message'
+import { useToast } from '../../../components/ui/toast'
 import { DialogContent } from '../../../components/ui/dialog-shell'
 import { createGroup } from './actions'
 import type { ActionResult } from '../clases/actions'
@@ -16,9 +17,10 @@ export function GroupForm({ clubs, teachers, students }: Props) {
   const [clubId, setClubId] = useState('')
   const [category, setCategory] = useState<'adult' | 'child'>('adult')
   const [selected, setSelected] = useState<string[]>([])
+  const showToast = useToast()
   const teacherChoices = teachers.filter((teacher) => teacher.clubs.includes(clubId))
   const studentChoices = useMemo(() => students.filter((student) => student.club_id === clubId && student.category === category), [students, clubId, category])
-  async function submit(form: FormData) { start(async () => { const result = await createGroup(null, form); setState(result); if (result.ok) { setOpen(false); setSelected([]) } }) }
+  async function submit(form: FormData) { start(async () => { const result = await createGroup(null, form); setState(result); if (result.ok) { showToast(result.message); setOpen(false); setSelected([]) } }) }
   return <>
     <Button onClick={() => { setOpen(true); setState(null) }}>Nuevo grupo</Button>
     <DialogContent open={open} onOpenChange={setOpen} title="Crear grupo" description="Define el horario semanal y el alumnado inscrito.">
@@ -31,7 +33,7 @@ export function GroupForm({ clubs, teachers, students }: Props) {
         <div className="grid gap-3 sm:grid-cols-2"><label className="space-y-1.5 text-sm font-medium text-slate-700">Desde<input name="startsOn" type="date" required className="w-full rounded-xl border border-slate-300 px-3 py-2.5"/></label><label className="space-y-1.5 text-sm font-medium text-slate-700">Hasta (opcional)<input name="endsOn" type="date" className="w-full rounded-xl border border-slate-300 px-3 py-2.5"/></label></div>
         {clubId ? <StudentPicker students={studentChoices} selected={selected} onChange={setSelected}/> : <p className="text-sm text-slate-500">Selecciona un club para ver alumnos disponibles.</p>}
         {state ? <FormMessage tone={state.ok ? 'success' : 'error'}>{state.message}</FormMessage> : null}
-        <div className="flex justify-end gap-2 border-t border-slate-100 pt-4"><Button type="button" variant="secondary" onClick={() => setOpen(false)}>Cancelar</Button><Button disabled={busy}>{busy ? 'Guardando…' : 'Crear grupo'}</Button></div>
+        <div className="flex justify-end gap-2 border-t border-slate-100 pt-4"><Button type="button" variant="secondary" onClick={() => setOpen(false)}>Cancelar</Button><Button type="submit" disabled={busy}>{busy ? 'Guardando…' : 'Crear grupo'}</Button></div>
       </form>
     </DialogContent>
   </>

@@ -1,31 +1,32 @@
 'use client'
 
-import { useEffect, useRef, useState, useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import { Button } from '../../../components/ui/button'
 import { StudentPicker } from '../../../components/ui/student-picker'
 import { FormMessage } from '../../../components/ui/form-message'
+import { DialogContent } from '../../../components/ui/dialog-shell'
+import { useToast } from '../../../components/ui/toast'
 import { updateGroup } from './actions'
 import type { ActionResult } from '../clases/actions'
 
 type Group = { id: string; name: string; club_id: string; teacher_id: string; category: 'adult' | 'child'; level: 'iniciacion' | 'principiante' | 'medio' | 'avanzado' | 'competicion'; weekday: number; start_time: string; duration_minutes: number; capacity: number; starts_on: string; ends_on: string | null; members: string[] }
 type Refs = { clubs: { id: string; name: string }[]; teachers: { id: string; full_name: string; clubs: string[] }[]; students: { id: string; first_name: string; last_name: string; club_id: string; category: 'adult' | 'child' }[] }
 
-function NativeFormDialog({open,onClose,title,children}:{open:boolean;onClose:()=>void;title:string;children:React.ReactNode}){const ref=useRef<HTMLDialogElement>(null);useEffect(()=>{if(open&&!ref.current?.open)ref.current?.showModal();if(!open&&ref.current?.open)ref.current?.close()},[open]);return <dialog ref={ref} onCancel={event=>{event.preventDefault();onClose()}} onClose={()=>{if(open)onClose()}} className="m-auto max-h-[min(92dvh,850px)] w-[min(94vw,620px)] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-0 text-slate-900 shadow-2xl backdrop:bg-slate-950/40"><header className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white px-5 py-4"><h2 className="text-lg font-semibold">{title}</h2><button type="button" onClick={onClose} className="grid size-9 place-items-center rounded-full hover:bg-slate-100">×</button></header>{children}</dialog>}
-
 export function GroupEditForm({ group, refs }: { group: Group; refs: Refs }) {
   const [state, setState] = useState<ActionResult | null>(null)
   const [open, setOpen] = useState(false)
   const [busy, start] = useTransition()
   const [selected, setSelected] = useState(group.members)
+  const showToast = useToast()
   const teacherOptions = refs.teachers.filter((teacher) => teacher.clubs.includes(group.club_id))
   const students = refs.students.filter((student) => student.club_id === group.club_id && student.category === group.category)
   async function submit(form: FormData) {
     form.set('groupId', group.id); form.set('clubId', group.club_id); form.set('category', group.category)
-    start(async () => { const result = await updateGroup(null, form); setState(result); if (result.ok) setOpen(false) })
+    start(async () => { const result = await updateGroup(null, form); setState(result); if (result.ok) { showToast(result.message); setOpen(false) } })
   }
   return <>
     <Button size="sm" variant="secondary" onClick={() => { setState(null); setSelected(group.members); setOpen(true) }}>Editar</Button>
-    <NativeFormDialog open={open} onClose={() => setOpen(false)} title="Editar grupo">
+    <DialogContent open={open} onOpenChange={setOpen} title="Editar grupo" description="Actualiza horario, aforo y alumnado del grupo.">
       <form action={submit} className="space-y-4 px-5 py-5 sm:px-6">
         <label className="block space-y-1.5 text-sm font-medium text-slate-700">Nombre<input name="name" defaultValue={group.name} required maxLength={100} className="w-full rounded-xl border border-slate-300 px-3 py-2.5"/></label>
         <div className="grid gap-3 sm:grid-cols-2"><label className="space-y-1.5 text-sm font-medium text-slate-700">Club<select defaultValue={group.club_id} disabled className="w-full rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5">{refs.clubs.map((club) => <option key={club.id} value={club.id}>{club.name}</option>)}</select></label><label className="space-y-1.5 text-sm font-medium text-slate-700">Categoría<select defaultValue={group.category} disabled className="w-full rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5"><option value="adult">Adultos</option><option value="child">Infantil</option></select></label></div>
@@ -35,8 +36,8 @@ export function GroupEditForm({ group, refs }: { group: Group; refs: Refs }) {
         <div className="grid gap-3 sm:grid-cols-2"><label className="space-y-1.5 text-sm font-medium text-slate-700">Desde<input name="startsOn" type="date" defaultValue={group.starts_on} required className="w-full rounded-xl border border-slate-300 px-3 py-2.5"/></label><label className="space-y-1.5 text-sm font-medium text-slate-700">Hasta (opcional)<input name="endsOn" type="date" defaultValue={group.ends_on ?? ''} className="w-full rounded-xl border border-slate-300 px-3 py-2.5"/></label></div>
         <StudentPicker students={students} selected={selected} onChange={setSelected} capacity={group.capacity}/>
         {state ? <FormMessage tone={state.ok ? 'success' : 'error'}>{state.message}</FormMessage> : null}
-        <div className="flex justify-end gap-2 border-t border-slate-100 pt-4"><Button type="button" variant="secondary" onClick={() => setOpen(false)}>Cancelar</Button><Button disabled={busy}>{busy ? 'Guardando…' : 'Guardar cambios'}</Button></div>
+        <div className="flex justify-end gap-2 border-t border-slate-100 pt-4"><Button type="button" variant="secondary" onClick={() => setOpen(false)}>Cancelar</Button><Button type="submit" disabled={busy}>{busy ? 'Guardando…' : 'Guardar cambios'}</Button></div>
       </form>
-    </NativeFormDialog>
+    </DialogContent>
   </>
 }

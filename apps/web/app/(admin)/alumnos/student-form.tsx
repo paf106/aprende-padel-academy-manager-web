@@ -5,6 +5,7 @@ import { Button } from '../../../components/ui/button'
 import { Input } from '../../../components/ui/input'
 import { DialogContent } from '../../../components/ui/dialog-shell'
 import { FormMessage } from '../../../components/ui/form-message'
+import { useToast } from '../../../components/ui/toast'
 import { saveStudent } from './actions'
 import type { ActionResult } from '../clases/actions'
 
@@ -15,7 +16,8 @@ export function StudentForm({ clubs, tariffs }: Props) {
   const [busy, start] = useTransition()
   const [open, setOpen] = useState(false)
   const [category, setCategory] = useState<'adult' | 'child'>('adult')
-  async function submit(form: FormData) { start(async () => { const result = await saveStudent(null, form); setState(result); if (result.ok) setOpen(false) }) }
+  const showToast = useToast()
+  async function submit(form: FormData) { start(async () => { const result = await saveStudent(null, form); setState(result); if (result.ok) { showToast(result.message); setOpen(false) } }) }
   return <>
     <Button onClick={() => { setOpen(true); setState(null) }}>Nuevo alumno</Button>
     <DialogContent open={open} onOpenChange={setOpen} title="Añadir alumno" description="Completa sus datos y asigna una tarifa mensual."><form action={submit} className="space-y-4 px-5 py-5 sm:px-6">
@@ -27,7 +29,7 @@ export function StudentForm({ clubs, tariffs }: Props) {
       <label className="grid gap-1.5 text-sm font-medium text-slate-700">Género<select name="gender" defaultValue="unspecified" className="min-h-10 rounded-xl border border-slate-300 bg-white px-3"><option value="unspecified">Prefiero no indicarlo</option><option value="female">Mujer</option><option value="male">Hombre</option><option value="other">Otro</option></select></label>
       <label className="grid gap-1.5 text-sm font-medium text-slate-700">Nivel<select name="level" defaultValue="iniciacion" className="min-h-10 rounded-xl border border-slate-300 bg-white px-3"><option value="iniciacion">Iniciación</option><option value="principiante">Principiante</option><option value="medio">Medio</option><option value="avanzado">Avanzado</option><option value="competicion">Competición</option></select></label>
       {state ? <FormMessage tone={state.ok ? 'success' : 'error'}>{state.message}</FormMessage> : null}
-      <div className="flex justify-end gap-2 border-t border-slate-100 pt-4"><Button type="button" variant="secondary" onClick={() => setOpen(false)}>Cancelar</Button><Button disabled={busy}>{busy ? 'Guardando…' : 'Crear alumno'}</Button></div>
+      <div className="flex justify-end gap-2 border-t border-slate-100 pt-4"><Button type="button" variant="secondary" onClick={() => setOpen(false)}>Cancelar</Button><Button type="submit" disabled={busy}>{busy ? 'Guardando…' : 'Crear alumno'}</Button></div>
     </form></DialogContent>
   </>
 }

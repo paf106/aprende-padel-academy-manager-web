@@ -12,5 +12,5 @@ export default async function AdminLayout({ children }: Readonly<{ children: Rea
   const { data, error } = await supabase.schema('core').from('module_activations').select('module_id').eq('organization_id', orgId).eq('enabled', true)
   if (error) throw new Error('No se pudieron cargar los módulos de la organización')
   const enabled = (data ?? []).map((entry) => entry.module_id as ModuleId)
-  return <div className="min-h-screen bg-slate-50 md:pl-[248px]"><AdminSidebar enabled={enabled}/>{children}</div>
+  return <div className="min-h-screen bg-slate-50 pb-24 md:pb-0 md:pl-[248px]"><AdminSidebar enabled={enabled}/><div id="main-content" tabIndex={-1}>{children}</div></div>
 }
