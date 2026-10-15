@@ -1,24 +1,31 @@
 {
   "name": "aprende-padel-academy",
-  "private": true,
-  "workspaces": ["apps/*", "packages/*", "modules/*"],
-  "scripts": {
-    "dev": "bun --cwd apps/web dev",
-    "build": "bun --cwd apps/web build",
-    "lint": "bun --cwd apps/web lint",
-    "typecheck": "bun --cwd apps/web typecheck",
-    "db:types": "supabase gen types typescript --project-id kkvjqchacnmnqntrinjm --schema public,core,classes,payments > packages/db/src/database.types.ts",
-    "test": "vitest run",
-    "test:watch": "vitest"
-  },
-  "packageManager": "bun@1.3.10",
   "devDependencies": {
     "@types/bun": "^1.4.2",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.11",
+    "husky": "^9",
+    "lint-staged": "^16",
+    "prettier": "^3",
     "supabase": "^2.119.0",
     "vitest": "^5.0.3"
   },
-  "dependencies": {
-    "date-fns": "^4.4.0",
-    "lucide-react": "^1.52.0"
-  }
+  "packageManager": "bun@1.4.2",
+  "private": true,
+  "scripts": {
+    "dev": "bun --cwd apps/web dev",
+    "build": "bun --cwd apps/web build",
+    "lint": "eslint apps/web/app apps/web/components apps/web/lib apps/web/proxy.ts packages modules scripts",
+    "typecheck": "bun --cwd apps/web typecheck && bun --cwd apps/web tsc --noEmit --incremental false -p ../../tsconfig.repo.json",
+    "db:types": "supabase gen types typescript --project-id kkvjqchacnmnqntrinjm --schema public,core,classes,payments > packages/db/src/database.types.ts",
+    "seed:demo": "bun --env-file=apps/web/.env.local scripts/seed-demo.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepare": "husky"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "modules/*"
+  ]
 }

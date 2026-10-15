@@ -1,0 +1,6 @@
+node_modules
+.next
+.agents
+bun.lock
+packages/db/src/database.types.ts
+apps/web/next-env.d.ts

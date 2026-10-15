@@ -4,7 +4,8 @@ import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
 import { getSupabaseServer } from '@aprende-padel/db/server'
 import { getAdminUser, requireAdmin } from '../../lib/auth'
-import type { ActionResult } from '../clases/actions'
+import { requireModule } from '../../lib/modules'
+import type { ActionResult } from '../../lib/action-result'
 
 const schema = z.object({
   name: z.string().trim().min(2).max(100),
@@ -17,7 +18,7 @@ const schema = z.object({
   duration: z.coerce.number().int().min(30).max(180),
   capacity: z.coerce.number().int().min(1).max(16),
   startsOn: z.iso.date(),
-  endsOn: z.preprocess((value) => value === '' ? undefined : value, z.iso.date().optional()),
+  endsOn: z.preprocess((value) => (value === '' ? undefined : value), z.iso.date().optional()),
   studentIds: z.array(z.uuid()).max(16),
 })
 
@@ -26,18 +27,28 @@ const studentOptionsSchema = z.object({ clubId: z.uuid(), category: z.enum(['adu
 export async function getGroupStudentOptions(clubId: string, category: 'adult' | 'child') {
   const input = studentOptionsSchema.safeParse({ clubId, category })
   if (!input.success) return []
-  await requireAdmin()
+  await requireModule('classes')
   const db = await getSupabaseServer()
-  const { data, error } = await db.schema('core').from('students')
-    .select('id,first_name,last_name,club_id,category').eq('active', true)
-    .eq('club_id', input.data.clubId).eq('category', input.data.category).order('last_name').limit(1000)
+  const { data, error } = await db
+    .schema('core')
+    .from('students')
+    .select('id,first_name,last_name,club_id,category')
+    .eq('active', true)
+    .eq('club_id', input.data.clubId)
+    .eq('category', input.data.category)
+    .order('last_name')
+    .limit(1000)
   if (error) throw new Error('No se pudieron cargar los alumnos del grupo')
   return data ?? []
 }
 
 export async function createGroup(_: ActionResult | null, formData: FormData): Promise<ActionResult> {
-  const parsed = schema.safeParse({ ...Object.fromEntries(formData), studentIds: formData.getAll('studentIds') })
+  const parsed = schema.safeParse({
+    ...Object.fromEntries(formData),
+    studentIds: formData.getAll('studentIds'),
+  })
   if (!parsed.success) return { ok: false, message: 'Revisa los campos del grupo y sus alumnos.' }
+  await requireModule('classes')
   const user = await getAdminUser()
   if (!user) return { ok: false, message: 'No autorizado.' }
   const db = await getSupabaseServer()
@@ -56,7 +67,8 @@ export async function createGroup(_: ActionResult | null, formData: FormData): P
     p_ends_on: input.endsOn || null,
     p_student_ids: [...new Set(input.studentIds)],
   })
-  if (error) return { ok: false, message: 'No se pudo guardar el grupo. Revisa club, profesor, categoría y aforo.' }
+  if (error)
+    return { ok: false, message: 'No se pudo guardar el grupo. Revisa club, profesor, categoría y aforo.' }
   revalidatePath('/grupos')
   revalidatePath('/clases')
   return { ok: true, message: 'Grupo creado.' }
@@ -65,18 +77,28 @@ export async function createGroup(_: ActionResult | null, formData: FormData): P
 export async function deactivateGroup(id: string): Promise<ActionResult> {
   const parsed = z.uuid().safeParse(id)
   if (!parsed.success) return { ok: false, message: 'Grupo no válido.' }
+  await requireModule('classes')
   const user = await getAdminUser()
   if (!user) return { ok: false, message: 'No autorizado.' }
   const db = await getSupabaseServer()
-  const { data, error } = await db.schema('classes').from('groups').update({ active: false }).eq('id', parsed.data).select('id').maybeSingle()
+  const { data, error } = await db
+    .schema('classes')
+    .from('groups')
+    .update({ active: false })
+    .eq('id', parsed.data)
+    .select('id')
+    .maybeSingle()
   if (error || !data) return { ok: false, message: 'No se pudo desactivar el grupo.' }
   revalidatePath('/grupos')
   return { ok: true, message: 'Grupo desactivado.' }
 }
 
 export async function updateGroup(_: ActionResult | null, formData: FormData): Promise<ActionResult> {
-  const parsed = schema.extend({ groupId: z.uuid() }).safeParse({ ...Object.fromEntries(formData), studentIds: formData.getAll('studentIds') })
+  const parsed = schema
+    .extend({ groupId: z.uuid() })
+    .safeParse({ ...Object.fromEntries(formData), studentIds: formData.getAll('studentIds') })
   if (!parsed.success) return { ok: false, message: 'Revisa los campos del grupo y sus alumnos.' }
+  await requireModule('classes')
   const user = await getAdminUser()
   if (!user) return { ok: false, message: 'No autorizado.' }
   const db = await getSupabaseServer()
@@ -94,7 +116,11 @@ export async function updateGroup(_: ActionResult | null, formData: FormData): P
     p_ends_on: input.endsOn || undefined,
     p_student_ids: [...new Set(input.studentIds)],
   })
-  if (error) return { ok: false, message: 'No se pudo actualizar el grupo. Comprueba aforo, categoría, club y profesor.' }
+  if (error)
+    return {
+      ok: false,
+      message: 'No se pudo actualizar el grupo. Comprueba aforo, categoría, club y profesor.',
+    }
   revalidatePath('/grupos')
   revalidatePath('/clases')
   return { ok: true, message: 'Grupo actualizado.' }
