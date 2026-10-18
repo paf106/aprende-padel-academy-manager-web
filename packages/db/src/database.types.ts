@@ -315,13 +315,13 @@ isOneToOne: false
                   ]
                 },"students": {
                   Row: {
-                    "active": boolean,"birth_date": string,"category": Database["core"]['Enums']["student_category"],"club_id": string,"created_at": string,"email": string | null,"first_name": string,"gender": Database["core"]['Enums']["student_gender"],"id": string,"last_name": string,"level": Database["core"]['Enums']["student_level"],"notes": string | null,"organization_id": string,"phone": string | null,"updated_at": string
+                    "active": boolean,"birth_date": string,"category": Database["core"]['Enums']["student_category"],"club_id": string,"created_at": string,"email": string | null,"first_name": string,"gender": Database["core"]['Enums']["student_gender"],"id": string,"last_name": string,"level": Database["core"]['Enums']["student_level"],"notes": string | null,"organization_id": string,"phone": string | null,"search_name": string,"updated_at": string
                   }
                   Insert: {
-                    "active"?: boolean,"birth_date": string,"category": Database["core"]['Enums']["student_category"],"club_id": string,"created_at"?: string,"email"?: string | null,"first_name": string,"gender"?: Database["core"]['Enums']["student_gender"],"id"?: string,"last_name": string,"level"?: Database["core"]['Enums']["student_level"],"notes"?: string | null,"organization_id": string,"phone"?: string | null,"updated_at"?: string
+                    "active"?: boolean,"birth_date": string,"category": Database["core"]['Enums']["student_category"],"club_id": string,"created_at"?: string,"email"?: string | null,"first_name": string,"gender"?: Database["core"]['Enums']["student_gender"],"id"?: string,"last_name": string,"level"?: Database["core"]['Enums']["student_level"],"notes"?: string | null,"organization_id": string,"phone"?: string | null,"search_name"?: string,"updated_at"?: string
                   }
                   Update: {
-                    "active"?: boolean,"birth_date"?: string,"category"?: Database["core"]['Enums']["student_category"],"club_id"?: string,"created_at"?: string,"email"?: string | null,"first_name"?: string,"gender"?: Database["core"]['Enums']["student_gender"],"id"?: string,"last_name"?: string,"level"?: Database["core"]['Enums']["student_level"],"notes"?: string | null,"organization_id"?: string,"phone"?: string | null,"updated_at"?: string
+                    "active"?: boolean,"birth_date"?: string,"category"?: Database["core"]['Enums']["student_category"],"club_id"?: string,"created_at"?: string,"email"?: string | null,"first_name"?: string,"gender"?: Database["core"]['Enums']["student_gender"],"id"?: string,"last_name"?: string,"level"?: Database["core"]['Enums']["student_level"],"notes"?: string | null,"organization_id"?: string,"phone"?: string | null,"search_name"?: string,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -344,6 +344,33 @@ isOneToOne: false
             [_ in never]: never
           }
           Functions: {
+            "search_students": {
+              Args: {
+                "p_search"?: string | null,
+                "p_club_id"?: string | null,
+                "p_category"?: Database["core"]["Enums"]["student_category"] | null,
+                "p_level"?: Database["core"]["Enums"]["student_level"] | null,
+                "p_active"?: boolean | null,
+                "p_limit"?: number | null,
+                "p_offset"?: number | null
+              }
+              Returns: {
+                "id": string,
+                "first_name": string,
+                "last_name": string,
+                "category": Database["core"]["Enums"]["student_category"],
+                "level": Database["core"]["Enums"]["student_level"],
+                "club_id": string,
+                "active": boolean,
+                "email": string | null,
+                "phone": string | null,
+                "total_count": number
+              }[]
+            },
+            "set_student_active": {
+              Args: { "p_student_id": string, "p_active": boolean }
+              Returns: boolean
+            },
             "admin_org_check":
 { Args: { "target_org": string }; Returns: boolean
                            },

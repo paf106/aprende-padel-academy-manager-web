@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { getSupabaseServer } from '@aprende-padel/db/server'
 import { localTodayInTimeZone } from '@aprende-padel/core'
 import { getAdminUser } from '../../lib/auth'
-import { requireModule } from '../../lib/modules'
+import { getEnabledModules, requireModule } from '../../lib/modules'
 import type { ActionResult } from '../../lib/action-result'
 
 const schema = z.object({
@@ -18,7 +18,7 @@ const schema = z.object({
   clubId: z.uuid(),
   email: z.email().or(z.literal('')).optional(),
   phone: z.string().max(40).optional(),
-  tariffId: z.uuid(),
+  tariffId: z.union([z.uuid(), z.literal('')]).optional(),
 })
 
 async function getClassesAdmin() {
@@ -35,41 +35,66 @@ export async function saveStudent(_: ActionResult | null, formData: FormData): P
   if (typeof organizationId !== 'string') return { ok: false, message: 'Organización no disponible.' }
   const supabase = await getSupabaseServer()
   const input = parsed.data
-  const { error } = await supabase.schema('payments').rpc('create_student_with_tariff', {
-    p_club_id: input.clubId,
-    p_first_name: input.firstName,
-    p_last_name: input.lastName,
-    p_birth_date: input.birthDate,
-    p_category: input.category,
-    p_gender: input.gender,
-    p_level: input.level,
-    p_email: input.email || null,
-    p_phone: input.phone || null,
-    p_tariff_id: input.tariffId,
-    p_starts_on: localTodayInTimeZone('Europe/Madrid'),
-  })
-  if (error)
-    return { ok: false, message: 'No se pudo guardar el alumno con su tarifa. Revisa club y tarifa.' }
+  const paymentsEnabled = (await getEnabledModules(organizationId)).includes('payments')
+  if (paymentsEnabled) {
+    if (!input.tariffId) return { ok: false, message: 'Selecciona una tarifa mensual para el alumno.' }
+    const { error } = await supabase.schema('payments').rpc('create_student_with_tariff', {
+      p_club_id: input.clubId,
+      p_first_name: input.firstName,
+      p_last_name: input.lastName,
+      p_birth_date: input.birthDate,
+      p_category: input.category,
+      p_gender: input.gender,
+      p_level: input.level,
+      p_email: input.email || null,
+      p_phone: input.phone || null,
+      p_tariff_id: input.tariffId,
+      p_starts_on: localTodayInTimeZone('Europe/Madrid'),
+    })
+    if (error)
+      return { ok: false, message: 'No se pudo guardar el alumno con su tarifa. Revisa el club y la tarifa.' }
+  } else {
+    const { error } = await supabase
+      .schema('core')
+      .from('students')
+      .insert({
+        organization_id: organizationId,
+        club_id: input.clubId,
+        first_name: input.firstName,
+        last_name: input.lastName,
+        birth_date: input.birthDate,
+        category: input.category,
+        gender: input.gender,
+        level: input.level,
+        email: input.email || null,
+        phone: input.phone || null,
+      })
+    if (error) return { ok: false, message: 'No se pudo guardar el alumno. Revisa el club y sus datos.' }
+  }
   revalidatePath('/alumnos')
-  return { ok: true, message: 'Alumno creado y tarifa asignada.' }
+  return { ok: true, message: paymentsEnabled ? 'Alumno creado y tarifa asignada.' : 'Alumno creado.' }
 }
 
-export async function deactivateStudent(id: string): Promise<ActionResult> {
-  const parsed = z.uuid().safeParse(id)
+export async function setStudentActive(id: string, active: boolean): Promise<ActionResult> {
+  const parsed = z.object({ id: z.uuid(), active: z.boolean() }).safeParse({ id, active })
   if (!parsed.success) return { ok: false, message: 'Alumno no válido.' }
   const user = await getClassesAdmin()
   if (!user) return { ok: false, message: 'No autorizado.' }
   const supabase = await getSupabaseServer()
-  const { data, error } = await supabase
+  const { error } = await supabase
     .schema('core')
-    .from('students')
-    .update({ active: false })
-    .eq('id', parsed.data)
-    .select('id')
-    .maybeSingle()
-  if (error || !data) return { ok: false, message: 'No se pudo desactivar el alumno.' }
+    .rpc('set_student_active', { p_student_id: parsed.data.id, p_active: parsed.data.active })
+  if (error)
+    return { ok: false, message: `No se pudo ${parsed.data.active ? 'reactivar' : 'desactivar'} el alumno.` }
   revalidatePath('/alumnos')
-  return { ok: true, message: 'Alumno desactivado.' }
+  revalidatePath('/grupos')
+  revalidatePath('/clases')
+  return {
+    ok: true,
+    message: parsed.data.active
+      ? 'Alumno reactivado.'
+      : 'Alumno desactivado y retirado de las próximas clases.',
+  }
 }
 
 export async function updateStudent(_: ActionResult | null, formData: FormData): Promise<ActionResult> {

@@ -12,10 +12,17 @@ import type { ActionResult } from '../../lib/action-result'
 
 type Props = {
   clubs: { id: string; name: string }[]
-  tariffs: { id: string; name: string; category: 'adult' | 'child'; monthly_amount_cents: number }[]
+  tariffs: {
+    id: string
+    name: string
+    category: 'adult' | 'child'
+    monthly_amount_cents: number
+    active?: boolean
+  }[]
+  paymentsEnabled: boolean
 }
 
-export function StudentForm({ clubs, tariffs }: Props) {
+export function StudentForm({ clubs, tariffs, paymentsEnabled }: Props) {
   const [state, setState] = useState<ActionResult | null>(null)
   const [busy, start] = useTransition()
   const [open, setOpen] = useState(false)
@@ -45,7 +52,11 @@ export function StudentForm({ clubs, tariffs }: Props) {
         open={open}
         onOpenChange={setOpen}
         title="Añadir alumno"
-        description="Completa sus datos y asigna una tarifa mensual."
+        description={
+          paymentsEnabled
+            ? 'Completa sus datos y asigna una tarifa mensual.'
+            : 'Completa los datos para añadirlo a la academia.'
+        }
       >
         <form action={submit} className="space-y-4 px-5 py-5 sm:px-6">
           <div className="grid gap-3 sm:grid-cols-2">
@@ -86,23 +97,25 @@ export function StudentForm({ clubs, tariffs }: Props) {
               ))}
             </Select>
           </label>
-          <label className="grid gap-1.5 text-sm font-medium text-slate-700">
-            Tarifa mensual
-            <Select name="tariffId" required defaultValue="">
-              <option value="">Selecciona una tarifa</option>
-              {tariffs
-                .filter((tariff) => tariff.category === category)
-                .map((tariff) => (
-                  <option key={tariff.id} value={tariff.id}>
-                    {tariff.name} ·{' '}
-                    {(tariff.monthly_amount_cents / 100).toLocaleString('es-ES', {
-                      style: 'currency',
-                      currency: 'EUR',
-                    })}
-                  </option>
-                ))}
-            </Select>
-          </label>
+          {paymentsEnabled ? (
+            <label className="grid gap-1.5 text-sm font-medium text-slate-700">
+              Tarifa mensual
+              <Select name="tariffId" required defaultValue="">
+                <option value="">Selecciona una tarifa</option>
+                {tariffs
+                  .filter((tariff) => tariff.active !== false && tariff.category === category)
+                  .map((tariff) => (
+                    <option key={tariff.id} value={tariff.id}>
+                      {tariff.name} ·{' '}
+                      {(tariff.monthly_amount_cents / 100).toLocaleString('es-ES', {
+                        style: 'currency',
+                        currency: 'EUR',
+                      })}
+                    </option>
+                  ))}
+              </Select>
+            </label>
+          ) : null}
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="grid gap-1.5 text-sm font-medium text-slate-700">
               Email
@@ -142,7 +155,7 @@ export function StudentForm({ clubs, tariffs }: Props) {
               Cancelar
             </Button>
             <Button type="submit" disabled={busy}>
-              {busy ? 'Guardando…' : 'Crear alumno'}
+              {busy ? 'Guardando…' : paymentsEnabled ? 'Crear alumno' : 'Añadir alumno'}
             </Button>
           </div>
         </form>

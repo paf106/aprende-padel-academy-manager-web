@@ -11,7 +11,13 @@ import type { ActionResult } from '../../lib/action-result'
 import { localTodayInTimeZone, money } from '@aprende-padel/core'
 import { useToast } from '../../../components/ui/toast'
 
-type Tariff = { id: string; name: string; monthly_amount_cents: number; category: 'adult' | 'child' }
+type Tariff = {
+  id: string
+  name: string
+  monthly_amount_cents: number
+  category: 'adult' | 'child'
+  active?: boolean
+}
 export function StudentTariffForm({
   studentId,
   category,
@@ -62,7 +68,7 @@ export function StudentTariffForm({
             <Select name="tariffId" defaultValue="" required>
               <option value="">Selecciona una tarifa</option>
               {tariffs
-                .filter((tariff) => tariff.category === category)
+                .filter((tariff) => tariff.active !== false && tariff.category === category)
                 .map((tariff) => (
                   <option value={tariff.id} key={tariff.id}>
                     {tariff.name} · {money(tariff.monthly_amount_cents)}
@@ -79,7 +85,11 @@ export function StudentTariffForm({
               defaultValue={localTodayInTimeZone('Europe/Madrid')}
             />
           </label>
-          {current ? <p className="text-xs text-slate-500">El alumno ya tiene una tarifa asignada.</p> : null}
+          {current ? (
+            <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-700">
+              Tarifa actual: <strong>{current}</strong>
+            </p>
+          ) : null}
           {state ? <FormMessage tone={state.ok ? 'success' : 'error'}>{state.message}</FormMessage> : null}
           <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
             <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
