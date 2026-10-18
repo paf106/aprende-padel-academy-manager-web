@@ -11,13 +11,12 @@ export default async function GroupsPage() {
   const db = await getSupabaseServer()
   const [{ data: clubs }, { data: teachers }, { data: assignments }, { data: groups, error }] =
     await Promise.all([
-      db.schema('core').from('clubs').select('id,name').eq('active', true).order('name'),
+      db.schema('core').from('clubs').select('id,name,active').order('name'),
       db
         .schema('core')
         .from('profiles')
-        .select('id,full_name')
+        .select('id,full_name,active')
         .eq('role', 'teacher')
-        .eq('active', true)
         .order('full_name'),
       db.schema('core').from('club_teachers').select('club_id,teacher_id'),
       db
@@ -36,6 +35,7 @@ export default async function GroupsPage() {
   const teacherChoices = (teachers ?? []).map((teacher) => ({
     id: teacher.id,
     full_name: teacher.full_name,
+    active: teacher.active,
     clubs: (assignments ?? [])
       .filter((assignment) => assignment.teacher_id === teacher.id)
       .map((assignment) => assignment.club_id),
@@ -45,7 +45,7 @@ export default async function GroupsPage() {
       <PageHeader
         title="Grupos"
         description={`${new Intl.NumberFormat('es-ES').format(rows.length)} ${rows.length === 1 ? 'grupo activo' : 'grupos activos'}`}
-        actions={<GroupForm clubs={clubs ?? []} teachers={teacherChoices} />}
+        actions={<GroupForm clubs={(clubs ?? []).filter((club) => club.active)} teachers={teacherChoices} />}
       />
       <section
         role="list"

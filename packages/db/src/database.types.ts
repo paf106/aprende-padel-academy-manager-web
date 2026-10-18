@@ -371,6 +371,10 @@ isOneToOne: false
               Args: { "p_student_id": string, "p_active": boolean }
               Returns: boolean
             },
+            "update_teacher": {
+              Args: { "p_teacher_id": string, "p_full_name": string, "p_phone": string | null, "p_club_ids": string[] }
+              Returns: undefined
+            },
             "admin_org_check":
 { Args: { "target_org": string }; Returns: boolean
                            },

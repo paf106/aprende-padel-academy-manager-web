@@ -13,7 +13,7 @@ import type { ActionResult } from '../../lib/action-result'
 
 type Props = {
   clubs: { id: string; name: string }[]
-  teachers: { id: string; full_name: string; clubs: string[] }[]
+  teachers: { id: string; full_name: string; clubs: string[]; active?: boolean }[]
 }
 export function GroupForm({ clubs, teachers }: Props) {
   const [state, setState] = useState<ActionResult | null>(null)
@@ -28,7 +28,9 @@ export function GroupForm({ clubs, teachers }: Props) {
   >([])
   const [studentLoading, setStudentLoading] = useState(false)
   const showToast = useToast()
-  const teacherChoices = teachers.filter((teacher) => teacher.clubs.includes(clubId))
+  const teacherChoices = teachers.filter(
+    (teacher) => teacher.active !== false && teacher.clubs.includes(clubId),
+  )
   async function loadStudents(nextClubId: string, nextCategory: 'adult' | 'child') {
     if (!nextClubId) {
       setStudentChoices([])

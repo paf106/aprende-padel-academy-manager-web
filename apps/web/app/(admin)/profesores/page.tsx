@@ -1,6 +1,8 @@
 import { getSupabaseServer } from '@aprende-padel/db/server'
 import { PageHeader } from '../../../components/ui/page-header'
 import { TeacherForm } from './teacher-form'
+import { TeacherEditForm } from './teacher-edit-form'
+import { TeacherActiveAction } from './teacher-active-action'
 
 export default async function TeachersPage() {
   const db = await getSupabaseServer()
@@ -12,17 +14,28 @@ export default async function TeachersPage() {
       .eq('role', 'teacher')
       .order('full_name'),
     db.schema('core').from('club_teachers').select('teacher_id,club_id'),
-    db.schema('core').from('clubs').select('id,name').eq('active', true),
+    db.schema('core').from('clubs').select('id,name,active').order('name'),
   ])
   if (error) throw new Error('No se pudo cargar el equipo docente')
-  const names = new Map((clubs ?? []).map((club) => [club.id, club.name]))
   const rows = teachers ?? []
+  const teacherClubs = new Map(
+    rows.map((teacher) => [
+      teacher.id,
+      (assignments ?? []).filter((item) => item.teacher_id === teacher.id).map((item) => item.club_id),
+    ]),
+  )
+  const clubNames = new Map((clubs ?? []).map((club) => [club.id, club.name]))
+  const editClubOptions = (clubs ?? []).map((club) => ({ id: club.id, name: club.name, active: club.active }))
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-7 sm:px-8">
       <PageHeader
         title="Profesores"
-        description={`${new Intl.NumberFormat('es-ES').format(rows.length)} ${rows.length === 1 ? 'profesor registrado' : 'profesores registrados'}`}
-        actions={<TeacherForm clubs={clubs ?? []} />}
+        description={`${new Intl.NumberFormat('es-ES').format(rows.length)} ${rows.length === 1 ? 'profesor' : 'profesores'}`}
+        actions={
+          <TeacherForm
+            clubs={(clubs ?? []).filter((club) => club.active).map(({ id, name }) => ({ id, name }))}
+          />
+        }
       />
       <section
         role="list"
@@ -35,9 +48,11 @@ export default async function TeachersPage() {
             `${parts[0]?.[0] ?? ''}${parts.length > 1 ? (parts.at(-1)?.[0] ?? '') : ''}`.toLocaleUpperCase(
               'es',
             )
-          const teacherClubs = (assignments ?? []).filter(
-            (assignment) => assignment.teacher_id === teacher.id,
-          )
+          const ids = teacherClubs.get(teacher.id) ?? []
+          const assignmentsForTeacher = ids.map((id) => ({
+            id,
+            name: clubNames.get(id) ?? 'Club no disponible',
+          }))
           return (
             <article
               role="listitem"
@@ -62,14 +77,21 @@ export default async function TeachersPage() {
                 </span>
               </div>
               <div aria-label="Clubes asignados" className="flex flex-wrap gap-1.5">
-                {teacherClubs.map((assignment) => (
+                {assignmentsForTeacher.map((club) => (
                   <span
                     className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-800"
-                    key={assignment.club_id}
+                    key={club.id}
                   >
-                    {names.get(assignment.club_id) ?? 'Club no disponible'}
+                    {club.name}
                   </span>
                 ))}
+                {!assignmentsForTeacher.length ? (
+                  <span className="text-xs text-slate-500">Sin clubes asignados</span>
+                ) : null}
+              </div>
+              <div className="flex gap-2">
+                <TeacherEditForm teacher={{ ...teacher, club_ids: ids }} clubs={editClubOptions} />
+                <TeacherActiveAction id={teacher.id} name={teacher.full_name} active={teacher.active} />
               </div>
             </article>
           )
@@ -77,7 +99,9 @@ export default async function TeachersPage() {
         {!rows.length ? (
           <div className="p-10 text-center">
             <p className="text-sm font-medium text-slate-800">Aún no hay profesores registrados</p>
-            <p className="mt-1 text-sm text-slate-600">Añade al equipo docente para poder asignar clases.</p>
+            <p className="mt-1 text-sm text-slate-600">
+              Añade al equipo docente para asignar clases y grupos.
+            </p>
           </div>
         ) : null}
       </section>

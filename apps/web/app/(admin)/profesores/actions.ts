@@ -61,6 +61,17 @@ export async function createTeacher(_: ActionResult | null, formData: FormData):
   })
   if (error || !data.user) return { ok: false, message: 'No se pudo crear el acceso del profesor.' }
 
+  const { error: profileError } = await db
+    .schema('core')
+    .from('profiles')
+    .update({ phone: parsed.data.phone?.trim() || null })
+    .eq('id', data.user.id)
+    .eq('organization_id', organizationId)
+  if (profileError) {
+    await authAdmin.auth.admin.deleteUser(data.user.id)
+    return { ok: false, message: 'No se pudieron guardar los datos de contacto del profesor.' }
+  }
+
   const { error: assignmentError } = await db
     .schema('core')
     .from('club_teachers')
@@ -72,6 +83,61 @@ export async function createTeacher(_: ActionResult | null, formData: FormData):
 
   revalidatePath('/profesores')
   revalidatePath('/clases')
+  revalidatePath('/grupos')
   revalidatePath('/pagos/tarifas')
   return { ok: true, message: 'Profesor creado. Entrégale su contraseña inicial por un canal seguro.' }
+}
+
+export async function updateTeacher(_: ActionResult | null, formData: FormData): Promise<ActionResult> {
+  const parsed = z
+    .object({
+      teacherId: z.uuid(),
+      fullName: z.string().trim().min(2).max(140),
+      phone: z.string().trim().max(40).optional(),
+      clubIds: z.array(z.uuid()).min(1),
+    })
+    .safeParse({ ...Object.fromEntries(formData), clubIds: formData.getAll('clubIds') })
+  if (!parsed.success) return { ok: false, message: 'Revisa el nombre y asigna al menos un club.' }
+  await requireModule('classes')
+  const user = await requireAdmin()
+  if (typeof user.app_metadata.organization_id !== 'string')
+    return { ok: false, message: 'Organización no disponible.' }
+  const supabase = await getSupabaseServer()
+  const { error } = await supabase.schema('core').rpc('update_teacher', {
+    p_teacher_id: parsed.data.teacherId,
+    p_full_name: parsed.data.fullName,
+    p_phone: parsed.data.phone || null,
+    p_club_ids: [...new Set(parsed.data.clubIds)],
+  })
+  if (error)
+    return { ok: false, message: 'No se pudo actualizar el profesor. Verifica los clubes seleccionados.' }
+  revalidatePath('/profesores')
+  revalidatePath('/grupos')
+  revalidatePath('/clases')
+  return { ok: true, message: 'Profesor actualizado.' }
+}
+
+export async function setTeacherActive(id: string, active: boolean): Promise<ActionResult> {
+  const parsed = z.object({ id: z.uuid(), active: z.boolean() }).safeParse({ id, active })
+  if (!parsed.success) return { ok: false, message: 'Profesor no válido.' }
+  await requireModule('classes')
+  const user = await requireAdmin()
+  const organizationId = user.app_metadata.organization_id
+  if (typeof organizationId !== 'string') return { ok: false, message: 'Organización no disponible.' }
+  const supabase = await getSupabaseServer()
+  const { data, error } = await supabase
+    .schema('core')
+    .from('profiles')
+    .update({ active: parsed.data.active })
+    .eq('id', parsed.data.id)
+    .eq('organization_id', organizationId)
+    .eq('role', 'teacher')
+    .select('id')
+    .maybeSingle()
+  if (error || !data) return { ok: false, message: 'No se pudo cambiar el estado del profesor.' }
+  revalidatePath('/profesores')
+  revalidatePath('/grupos')
+  revalidatePath('/clases')
+  revalidatePath('/pagos/tarifas')
+  return { ok: true, message: parsed.data.active ? 'Profesor reactivado.' : 'Profesor desactivado.' }
 }

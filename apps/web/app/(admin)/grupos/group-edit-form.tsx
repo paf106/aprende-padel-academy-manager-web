@@ -28,7 +28,7 @@ type Group = {
 }
 type Refs = {
   clubs: { id: string; name: string }[]
-  teachers: { id: string; full_name: string; clubs: string[] }[]
+  teachers: { id: string; full_name: string; clubs: string[]; active?: boolean }[]
 }
 
 export function GroupEditForm({ group, refs }: { group: Group; refs: Refs }) {
@@ -40,7 +40,12 @@ export function GroupEditForm({ group, refs }: { group: Group; refs: Refs }) {
   const [students, setStudents] = useState<PickableStudent[]>([])
   const [studentsLoading, setStudentsLoading] = useState(false)
   const showToast = useToast()
-  const teacherOptions = refs.teachers.filter((teacher) => teacher.clubs.includes(group.club_id))
+  const teacherOptions = refs.teachers.filter(
+    (teacher) =>
+      teacher.clubs.includes(group.club_id) && (teacher.active !== false || teacher.id === group.teacher_id),
+  )
+  const currentTeacherInactive =
+    refs.teachers.find((teacher) => teacher.id === group.teacher_id)?.active === false
   async function openDialog() {
     setState(null)
     setSelected(group.members)
@@ -113,10 +118,16 @@ export function GroupEditForm({ group, refs }: { group: Group; refs: Refs }) {
               {teacherOptions.map((teacher) => (
                 <option key={teacher.id} value={teacher.id}>
                   {teacher.full_name}
+                  {teacher.active === false ? ' · Inactivo (elige otro para guardar)' : ''}
                 </option>
               ))}
             </Select>
           </label>
+          {currentTeacherInactive ? (
+            <p role="status" className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-950">
+              El profesor asignado está inactivo. Elige un profesor activo antes de guardar el grupo.
+            </p>
+          ) : null}
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="space-y-1.5 text-sm font-medium text-slate-700">
               Nivel
