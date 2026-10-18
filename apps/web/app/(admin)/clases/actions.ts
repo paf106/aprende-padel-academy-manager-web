@@ -79,6 +79,27 @@ export async function getClassDetailData(id: string) {
   ])
   const { data: session, error } = sessionResult
   if (error || !session || enrolledResult.error || attendanceResult.error) return null
+  const [previousResult, nextResult] = await Promise.all([
+    supabase
+      .schema('classes')
+      .from('sessions')
+      .select('id')
+      .eq('club_id', session.club_id)
+      .lt('starts_at', session.starts_at)
+      .order('starts_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .schema('classes')
+      .from('sessions')
+      .select('id')
+      .eq('club_id', session.club_id)
+      .gt('starts_at', session.starts_at)
+      .order('starts_at', { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+  ])
+  if (previousResult.error || nextResult.error) return null
   const enrolled = enrolledResult.data
   const attendance = attendanceResult.data
   const studentIds = (enrolled ?? []).map((item) => item.student_id)
@@ -109,6 +130,8 @@ export async function getClassDetailData(id: string) {
     capacity: session.groups?.capacity ?? 16,
     group: session.groups,
     timeZone: club?.timezone ?? 'Europe/Madrid',
+    previousSessionId: previousResult.data?.id ?? null,
+    nextSessionId: nextResult.data?.id ?? null,
   }
 }
 
@@ -154,17 +177,15 @@ export async function createSession(_: ActionResult | null, formData: FormData):
     if (!org) return { ok: false, message: 'Organización no disponible.' }
     const studentIds = [...new Set(studentIdsResult.data)]
     const localStart = `${parsed.data.date}T${parsed.data.time}:00`
-    const { error } = await supabase
-      .schema('classes')
-      .rpc('create_session', {
-        p_club_id: parsed.data.clubId,
-        p_teacher_id: parsed.data.teacherId,
-        p_category: parsed.data.category,
-        p_starts_at: localStart,
-        p_duration_minutes: parsed.data.duration,
-        p_student_ids: studentIds,
-        p_notes: parsed.data.notes || undefined,
-      })
+    const { error } = await supabase.schema('classes').rpc('create_session', {
+      p_club_id: parsed.data.clubId,
+      p_teacher_id: parsed.data.teacherId,
+      p_category: parsed.data.category,
+      p_starts_at: localStart,
+      p_duration_minutes: parsed.data.duration,
+      p_student_ids: studentIds,
+      p_notes: parsed.data.notes || undefined,
+    })
     if (error)
       return {
         ok: false,
@@ -206,13 +227,11 @@ export async function setSessionStatus(_: ActionResult | null, formData: FormDat
     return { ok: false, message: 'La cancelación requiere un motivo.' }
   try {
     const { supabase } = await requireAdmin()
-    const { error } = await supabase
-      .schema('classes')
-      .rpc('set_session_status', {
-        p_session_id: parsed.data.sessionId,
-        p_status: parsed.data.status,
-        p_reason: parsed.data.reason ?? undefined,
-      })
+    const { error } = await supabase.schema('classes').rpc('set_session_status', {
+      p_session_id: parsed.data.sessionId,
+      p_status: parsed.data.status,
+      p_reason: parsed.data.reason ?? undefined,
+    })
     if (error) return { ok: false, message: 'No se pudo actualizar el estado de la clase.' }
     revalidatePath('/')
     revalidatePath('/clases')
@@ -228,7 +247,7 @@ export async function updateAttendance(
   formData: FormData,
 ): Promise<{ ok: boolean; message: string }> {
   const parsed = z
-    .object({ sessionId: z.uuid(), studentId: z.uuid(), comment: z.string().trim().min(1).max(300) })
+    .object({ sessionId: z.uuid(), studentId: z.uuid(), comment: z.string().trim().max(300).optional() })
     .safeParse(Object.fromEntries(formData))
   if (!parsed.success) return { ok: false, message: 'Datos de asistencia no válidos.' }
   let auth
@@ -254,7 +273,7 @@ export async function updateAttendance(
       session_id: parsed.data.sessionId,
       student_id: parsed.data.studentId,
       status: existing.status,
-      comment: parsed.data.comment,
+      comment: parsed.data.comment || null,
       marked_by: user.id,
       marked_at: new Date().toISOString(),
     })
@@ -307,14 +326,12 @@ export async function editSession(_: ActionResult | null, formData: FormData): P
   } catch {
     return { ok: false, message: 'No autorizado.' }
   }
-  const { error } = await auth.supabase
-    .schema('classes')
-    .rpc('reschedule_session', {
-      p_session_id: parsed.data.sessionId,
-      p_local_start: parsed.data.localStart,
-      p_duration_minutes: parsed.data.duration,
-      p_notes: parsed.data.notes || undefined,
-    })
+  const { error } = await auth.supabase.schema('classes').rpc('reschedule_session', {
+    p_session_id: parsed.data.sessionId,
+    p_local_start: parsed.data.localStart,
+    p_duration_minutes: parsed.data.duration,
+    p_notes: parsed.data.notes || undefined,
+  })
   if (error) return { ok: false, message: 'No se pudo actualizar la clase. Revisa solapes del profesor.' }
   revalidatePath('/clases')
   revalidatePath(`/clases/${parsed.data.sessionId}`)
@@ -362,12 +379,10 @@ export async function updateSessionRoster(_: ActionResult | null, formData: Form
   } catch {
     return { ok: false, message: 'No autorizado.' }
   }
-  const { error } = await auth.supabase
-    .schema('classes')
-    .rpc('update_session_roster', {
-      p_session_id: input.data.sessionId,
-      p_student_ids: [...new Set(input.data.studentIds)],
-    })
+  const { error } = await auth.supabase.schema('classes').rpc('update_session_roster', {
+    p_session_id: input.data.sessionId,
+    p_student_ids: [...new Set(input.data.studentIds)],
+  })
   if (error)
     return { ok: false, message: 'No se pudo actualizar el alumnado. Comprueba club, categoría y aforo.' }
   revalidatePath(`/clases/${input.data.sessionId}`)
@@ -386,16 +401,13 @@ export async function setAttendanceQuick(_: ActionResult | null, formData: FormD
   } catch {
     return { ok: false, message: 'No autorizado.' }
   }
-  const { error } = await auth.supabase
-    .schema('classes')
-    .from('attendance')
-    .upsert({
-      session_id: input.data.sessionId,
-      student_id: input.data.studentId,
-      status: input.data.status,
-      marked_by: auth.user.id,
-      marked_at: new Date().toISOString(),
-    })
+  const { error } = await auth.supabase.schema('classes').from('attendance').upsert({
+    session_id: input.data.sessionId,
+    student_id: input.data.studentId,
+    status: input.data.status,
+    marked_by: auth.user.id,
+    marked_at: new Date().toISOString(),
+  })
   if (error) return { ok: false, message: 'No se pudo guardar la asistencia.' }
   revalidatePath(`/clases/${input.data.sessionId}`)
   return { ok: true, message: 'Asistencia guardada.' }

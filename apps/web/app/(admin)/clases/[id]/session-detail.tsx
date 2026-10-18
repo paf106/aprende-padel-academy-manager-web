@@ -2,9 +2,10 @@
 
 import { useMemo, useState, useTransition } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { UserPlus } from 'lucide-react'
+import { ArrowLeft, ChevronLeft, ChevronRight, UserPlus } from 'lucide-react'
 import { formatInClubTime, statusLabels, attendanceLabels, localDateInTimeZone } from '@aprende-padel/core'
 import { Button } from '../../../../components/ui/button'
 import { StatusBadge } from '../../../../components/ui/status-badge'
@@ -15,11 +16,11 @@ import { Menu } from '../../../../components/ui/menu'
 import { AttendanceForm } from './attendance-form'
 import { SessionEditForm } from './session-edit-form'
 import { MarkAllPresentButton } from './mark-all-present'
-import { DeleteSessionButton } from './delete-session'
 import { SessionStatusForm } from './status-form'
-import { setSessionStatus, updateSessionRoster } from '../actions'
+import { deleteSession, setSessionStatus, updateSessionRoster } from '../actions'
 import type { ActionResult } from '../../../lib/action-result'
 import { useToast } from '../../../../components/ui/toast'
+import { Textarea } from '../../../../components/ui/textarea'
 
 const countLabel = (count: number, singular: string, plural: string) =>
   `${new Intl.NumberFormat('es-ES').format(count)} ${count === 1 ? singular : plural}`
@@ -49,6 +50,8 @@ type DetailData = {
   capacity: number
   group: { name: string; capacity: number; level: string } | null
   timeZone: string
+  previousSessionId: string | null
+  nextSessionId: string | null
 }
 
 export function SessionDetail({
@@ -60,18 +63,34 @@ export function SessionDetail({
   backHref: string
   loadCandidates: () => Promise<{ id: string; first_name: string; last_name: string }[]>
 }) {
-  const { session, club, teacher, students, studentIds, capacity, group, timeZone } = detail
+  const {
+    session,
+    club,
+    teacher,
+    students,
+    studentIds,
+    capacity,
+    group,
+    timeZone,
+    previousSessionId,
+    nextSessionId,
+  } = detail
+  const router = useRouter()
   const showToast = useToast()
   const [filter, setFilter] = useState<'all' | 'unmarked'>('all')
   const [showAdd, setShowAdd] = useState(false)
   const [candidates, setCandidates] = useState<
     { id: string; first_name: string; last_name: string }[] | null
   >(null)
+  const [candidateError, setCandidateError] = useState('')
   const [selected, setSelected] = useState<string[]>(studentIds)
   const [busy, startTransition] = useTransition()
   const [cancelOpen, setCancelOpen] = useState(false)
   const [cancelState, setCancelState] = useState<ActionResult | null>(null)
   const [cancelBusy, startCancel] = useTransition()
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleteState, setDeleteState] = useState<ActionResult | null>(null)
+  const [deleteBusy, startDelete] = useTransition()
   const present = students.filter((student) => student.attendance?.status === 'present').length
   const absent = students.filter((student) => student.attendance?.status === 'absent').length
   const justified = students.filter((student) => student.attendance?.status === 'justified').length
@@ -88,9 +107,20 @@ export function SessionDetail({
     'EEEE d MMMM yyyy',
     { locale: es },
   )
+  const detailHref = (id: string) =>
+    `/clases/${id}${backHref.includes('?') ? `?${backHref.split('?')[1]}` : ''}`
   async function openAdd() {
     setShowAdd(true)
-    if (!candidates) setCandidates(await loadCandidates())
+    setSelected(studentIds)
+    setCandidates(null)
+    setCandidateError('')
+    try {
+      setCandidates(await loadCandidates())
+    } catch {
+      setCandidateError(
+        'No se pudo cargar el alumnado. Cierra y vuelve a abrir este diálogo para intentarlo de nuevo.',
+      )
+    }
   }
   function saveRoster() {
     startTransition(async () => {
@@ -101,6 +131,7 @@ export function SessionDetail({
       if (result.ok) {
         showToast(result.message)
         setShowAdd(false)
+        router.refresh()
       } else showToast(result.message, 'error')
     })
   }
@@ -113,28 +144,70 @@ export function SessionDetail({
       if (result.ok) {
         showToast(result.message)
         setCancelOpen(false)
-      }
+      } else showToast(result.message, 'error')
     })
   }
 
+  function confirmDelete() {
+    startDelete(async () => {
+      const result = await deleteSession(session.id)
+      setDeleteState(result)
+      if (result.ok) {
+        showToast(result.message)
+        setDeleteOpen(false)
+        router.push(backHref)
+        router.refresh()
+      } else showToast(result.message, 'error')
+    })
+  }
+
+  const rosterOptions = useMemo(() => {
+    const unique = new Map<string, { id: string; first_name: string; last_name: string }>()
+    for (const student of students) unique.set(student.id, student)
+    for (const student of candidates ?? []) unique.set(student.id, student)
+    return [...unique.values()]
+  }, [students, candidates])
+
   return (
-    <div className="mx-auto w-full max-w-[1200px] px-4 pb-12 pt-5 sm:px-8">
-      <Link
-        href={backHref}
-        className="inline-flex items-center gap-2 text-sm font-medium text-blue-800 hover:underline"
-      >
-        <span aria-hidden="true">←</span> Volver al calendario
-      </Link>
+    <div className="mx-auto w-full max-w-7xl px-4 pb-12 pt-5 sm:px-8">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Link
+          href={backHref}
+          className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-brand hover:underline"
+        >
+          <ArrowLeft size={17} aria-hidden="true" /> Volver al calendario
+        </Link>
+        <nav aria-label="Navegar entre clases del club" className="flex gap-1">
+          {previousSessionId ? (
+            <Link
+              href={detailHref(previousSessionId)}
+              aria-label="Clase anterior del club"
+              title="Clase anterior"
+              className="grid size-11 place-items-center rounded-full text-slate-700 hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-accent"
+            >
+              <ChevronLeft size={20} aria-hidden="true" />
+            </Link>
+          ) : null}
+          {nextSessionId ? (
+            <Link
+              href={detailHref(nextSessionId)}
+              aria-label="Siguiente clase del club"
+              title="Siguiente clase"
+              className="grid size-11 place-items-center rounded-full text-slate-700 hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-accent"
+            >
+              <ChevronRight size={20} aria-hidden="true" />
+            </Link>
+          ) : null}
+        </nav>
+      </div>
       <header className="mt-5 flex flex-col justify-between gap-4 border-b border-slate-200 pb-5 lg:flex-row lg:items-center">
         <div className="min-w-0">
-          <p className="mb-1 text-sm font-medium text-blue-800">
-            {group ? `Grupo · ${group.name}` : 'Clase suelta'}
-          </p>
-          <h1 className="text-balance break-words text-3xl font-normal tracking-tight text-slate-900">
-            {club?.name ?? 'Clase'}
+          <h1 className="text-balance break-words text-3xl font-semibold tracking-tight text-slate-900">
+            {group?.name ?? club?.name ?? 'Clase suelta'}
           </h1>
           <p className="mt-2 text-sm capitalize text-slate-700">
-            {dateLabel} · {formatInClubTime(session.starts_at, timeZone, { timeOnly: true })}–
+            {club?.name ? `${club.name} · ` : ''}
+            {dateLabel} · {formatInClubTime(session.starts_at, timeZone, { timeOnly: true })} –
             {formatInClubTime(session.ends_at, timeZone, { timeOnly: true })} · {duration} min
           </p>
         </div>
@@ -153,6 +226,7 @@ export function SessionDetail({
             </>
           ) : null}
           <Menu
+            label="Más acciones de la clase"
             items={[
               ...(session.status === 'pending'
                 ? [
@@ -176,9 +250,16 @@ export function SessionDetail({
                     },
                   ]
                 : []),
+              {
+                label: 'Eliminar clase',
+                destructive: true,
+                onSelect: () => {
+                  setDeleteState(null)
+                  setDeleteOpen(true)
+                },
+              },
             ]}
           />
-          <DeleteSessionButton sessionId={session.id} returnTo={backHref} />
         </div>
       </header>
 
@@ -201,7 +282,7 @@ export function SessionDetail({
           {group ? (
             <Link
               href={`/grupos#${session.group_id}`}
-              className="text-xs font-medium text-blue-800 hover:underline"
+              className="text-xs font-medium text-brand hover:underline"
             >
               Grupo: {group.name}
             </Link>
@@ -223,7 +304,7 @@ export function SessionDetail({
             aria-valuemax={safeCapacity}
           >
             <span
-              className="block h-full rounded-full bg-blue-800"
+              className="block h-full rounded-full bg-accent"
               style={{ width: `${Math.min(100, (students.length / safeCapacity) * 100)}%` }}
             />
           </div>
@@ -250,14 +331,15 @@ export function SessionDetail({
           <div>
             <h2 className="text-lg font-semibold">Alumnos</h2>
             <p className="mt-1 text-xs text-slate-500">
-              {present} presentes · {absent} ausentes · {justified} justificadas ·{' '}
-              {students.length - present - absent - justified} sin marcar
+              {countLabel(present, 'presente', 'presentes')} · {countLabel(absent, 'ausente', 'ausentes')} ·{' '}
+              {countLabel(justified, 'justificada', 'justificadas')} ·{' '}
+              {countLabel(students.length - present - absent - justified, 'sin marcar', 'sin marcar')}
             </p>
           </div>
           {session.status !== 'cancelled' ? (
             <div className="flex flex-wrap items-center gap-2">
               <Button variant="secondary" size="sm" onClick={openAdd}>
-                <UserPlus size={15} /> Añadir alumnos
+                <UserPlus size={16} aria-hidden="true" /> Añadir alumnos
               </Button>
               <MarkAllPresentButton sessionId={session.id} />
             </div>
@@ -268,7 +350,7 @@ export function SessionDetail({
             type="button"
             aria-pressed={filter === 'all'}
             onClick={() => setFilter('all')}
-            className={`rounded-full px-3 py-1.5 text-xs font-medium ${filter === 'all' ? 'bg-blue-50 text-blue-800' : 'text-slate-500 hover:bg-slate-50'}`}
+            className={`min-h-11 rounded-full px-4 py-2 text-sm font-medium ${filter === 'all' ? 'bg-emerald-50 text-brand' : 'text-slate-600 hover:bg-slate-50'}`}
           >
             Todos ({students.length})
           </button>
@@ -276,7 +358,7 @@ export function SessionDetail({
             type="button"
             aria-pressed={filter === 'unmarked'}
             onClick={() => setFilter('unmarked')}
-            className={`rounded-full px-3 py-1.5 text-xs font-medium ${filter === 'unmarked' ? 'bg-blue-50 text-blue-800' : 'text-slate-500 hover:bg-slate-50'}`}
+            className={`min-h-11 rounded-full px-4 py-2 text-sm font-medium ${filter === 'unmarked' ? 'bg-emerald-50 text-brand' : 'text-slate-600 hover:bg-slate-50'}`}
           >
             Sin marcar ({students.length - present - absent - justified})
           </button>
@@ -312,6 +394,7 @@ export function SessionDetail({
                 studentId={student.id}
                 studentName={`${student.first_name} ${student.last_name}`}
                 initialStatus={student.attendance?.status}
+                initialComment={student.attendance?.comment ?? ''}
                 disabled={session.status === 'cancelled'}
               />
             </article>
@@ -327,7 +410,10 @@ export function SessionDetail({
       </section>
       <DialogContent
         open={showAdd}
-        onOpenChange={setShowAdd}
+        onOpenChange={(open) => {
+          setShowAdd(open)
+          if (!open) setSelected(studentIds)
+        }}
         title="Añadir alumnos"
         description={`Selecciona alumnos. Aforo ${students.length}/${capacity}.`}
         footer={
@@ -335,22 +421,50 @@ export function SessionDetail({
             <Button variant="secondary" onClick={() => setShowAdd(false)}>
               Cancelar
             </Button>
-            <Button disabled={busy || !candidates} onClick={saveRoster}>
+            <Button
+              type="button"
+              disabled={busy || !candidates || Boolean(candidateError)}
+              onClick={saveRoster}
+            >
               {busy ? 'Guardando…' : 'Guardar inscripciones'}
             </Button>
           </>
         }
       >
-        {candidates ? (
-          <StudentPicker
-            students={[...students, ...candidates]}
-            selected={selected}
-            onChange={setSelected}
-            capacity={capacity}
-          />
-        ) : (
-          <p className="text-sm text-slate-500">Cargando alumnos…</p>
-        )}
+        <div className="px-5 py-5 sm:px-6">
+          {candidateError ? (
+            <FormMessage>{candidateError}</FormMessage>
+          ) : candidates ? (
+            <StudentPicker
+              students={rosterOptions}
+              selected={selected}
+              onChange={setSelected}
+              capacity={capacity}
+            />
+          ) : (
+            <p role="status" className="text-sm text-slate-600">
+              Cargando alumnos…
+            </p>
+          )}
+        </div>
+      </DialogContent>
+      <DialogContent
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="¿Eliminar esta clase?"
+        description="Se borrarán las inscripciones y asistencias. Las clases incluidas en liquidaciones no se pueden eliminar."
+      >
+        <div className="space-y-4 px-5 py-5 sm:px-6">
+          {deleteState && !deleteState.ok ? <FormMessage>{deleteState.message}</FormMessage> : null}
+          <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
+            <Button variant="secondary" type="button" onClick={() => setDeleteOpen(false)}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" type="button" disabled={deleteBusy} onClick={confirmDelete}>
+              {deleteBusy ? 'Eliminando…' : 'Eliminar clase'}
+            </Button>
+          </div>
+        </div>
       </DialogContent>
       <DialogContent
         open={cancelOpen}
@@ -366,13 +480,7 @@ export function SessionDetail({
           {session.status !== 'cancelled' ? (
             <label className="block space-y-1.5 text-sm font-medium">
               Motivo
-              <textarea
-                name="reason"
-                maxLength={300}
-                required
-                placeholder="Escribe el motivo…"
-                className="w-full rounded-xl border border-slate-300 px-3 py-2.5"
-              />
+              <Textarea name="reason" maxLength={300} required placeholder="Escribe el motivo…" />
             </label>
           ) : null}
           {cancelState ? (
@@ -380,7 +488,7 @@ export function SessionDetail({
           ) : null}
           <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
             <Button type="button" variant="secondary" onClick={() => setCancelOpen(false)}>
-              Volver
+              Cancelar
             </Button>
             <Button
               type="submit"

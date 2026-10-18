@@ -84,11 +84,15 @@ export function SessionEditForm({
           </label>
           <label className="block space-y-1.5 text-sm font-medium text-slate-700">
             Duración
-            <Select name="duration" defaultValue={duration}>
-              <option value="60">60 min</option>
-              <option value="90">90 min</option>
-              <option value="120">120 min</option>
-            </Select>
+            <Input
+              name="duration"
+              type="number"
+              min="30"
+              max="180"
+              step="15"
+              defaultValue={duration}
+              required
+            />
           </label>
           <label className="block space-y-1.5 text-sm font-medium text-slate-700">
             Notas
