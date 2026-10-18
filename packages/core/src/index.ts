@@ -66,6 +66,19 @@ export function localTimeInTimeZone(value: string | Date, timeZone: string) {
   return get('hour') * 60 + get('minute')
 }
 
+export function timeZoneOffsetLabel(timeZone: string, value: string | Date = new Date()) {
+  const parts = getDateTimeFormatter('en-US', {
+    timeZone,
+    timeZoneName: 'shortOffset',
+    hour: '2-digit',
+  }).formatToParts(new Date(value))
+  const offset = parts.find((part) => part.type === 'timeZoneName')?.value ?? 'GMT+0'
+  const match = offset.match(/(?:GMT|UTC)([+-])(\d{1,2})(?::?(\d{2}))?/)
+  if (!match) return 'GMT+00'
+  const [, sign, hours, minutes = '00'] = match
+  return `GMT${sign}${hours.padStart(2, '0')}${minutes === '00' ? '' : `:${minutes}`}`
+}
+
 export function localTodayInTimeZone(timeZone: string, now = new Date()) {
   return localDateInTimeZone(now, timeZone)
 }
