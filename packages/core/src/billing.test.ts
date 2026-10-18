@@ -11,7 +11,7 @@ describe('saldo de pagos', () => {
   })
 
   it('marca como pagado un cargo con total cero', () => {
-    expect(paymentBalance(0, [])).toEqual({ paidCents: 0, balanceCents: 0, status: 'paid' })
+    expect(paymentBalance(0, [])).toEqual({ paidCents: 0, balanceCents: 0, status: 'none' })
   })
 
   it('no devuelve un saldo negativo si hay un sobrepago histórico', () => {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState } from 'react'
+import { useActionState, useState } from 'react'
 import { saveTeacherRates, setTeacherRateOverride } from './actions'
 import { Button } from '../../../components/ui/button'
 import { Input } from '../../../components/ui/input'
@@ -14,79 +14,132 @@ type Settings = {
 }
 type RateTarget = { kind: 'default' } | { kind: 'teacher'; teacherId: string }
 
-function RatesForm({ settings, target }: { settings: Settings; target: RateTarget }) {
+function euroValue(cents: number) {
+  return (cents / 100).toFixed(2)
+}
+
+function RatesForm({
+  settings,
+  target,
+  hasOverride = false,
+}: {
+  settings: Settings
+  target: RateTarget
+  hasOverride?: boolean
+}) {
   const teacher = target.kind === 'teacher'
+  const [editing, setEditing] = useState(!teacher || hasOverride)
   const actionFunction = teacher ? setTeacherRateOverride : saveTeacherRates
   const [state, action, pending] = useActionState(actionFunction, null as ActionResult | null)
+  if (teacher && !editing) {
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+        <span className="inline-flex min-h-8 items-center gap-2 rounded-full bg-slate-100 px-3 text-xs font-medium text-slate-700">
+          <span aria-hidden="true" className="size-2 rounded-full bg-slate-500" />
+          Usa los valores generales
+        </span>
+        <Button size="sm" variant="secondary" type="button" onClick={() => setEditing(true)}>
+          Definir excepción
+        </Button>
+      </div>
+    )
+  }
   return (
-    <form action={action} className="flex flex-wrap items-end gap-3 p-4">
+    <form
+      action={action}
+      className="flex flex-wrap items-end gap-3 p-4"
+      onSubmit={(event) => {
+        const submitter = (event.nativeEvent as SubmitEvent).submitter
+        if (
+          submitter instanceof HTMLButtonElement &&
+          submitter.name === 'clearOverride' &&
+          !window.confirm('¿Quitar la excepción y volver a los valores generales?')
+        )
+          event.preventDefault()
+      }}
+    >
       {teacher ? <input type="hidden" name="teacherId" value={target.teacherId} /> : null}
       {teacher ? (
         <>
-          <label className="grid gap-1.5 text-xs font-medium text-slate-700">
-            Menos del umbral (€ / h)
+          <label className="grid gap-1.5 text-sm font-medium text-slate-800">
+            Menos de {settings.teacher_student_threshold} alumnos (€ / h)
             <Input
               name="below"
-              type="number"
+              type="text"
               inputMode="decimal"
-              step="0.01"
-              min="0"
-              defaultValue={(settings.teacher_rate_below_cents / 100).toFixed(2)}
-              className="w-36"
+              pattern="[0-9]+([.,][0-9]{1,2})?"
+              maxLength={10}
+              placeholder={euroValue(settings.teacher_rate_below_cents)}
+              defaultValue={hasOverride ? euroValue(settings.teacher_rate_below_cents) : ''}
+              required
+              className="w-36 tabular-nums"
             />
           </label>
-          <label className="grid gap-1.5 text-xs font-medium text-slate-700">
-            Desde el umbral (€ / h)
+          <label className="grid gap-1.5 text-sm font-medium text-slate-800">
+            Desde {settings.teacher_student_threshold} alumnos (€ / h)
             <Input
               name="threshold"
-              type="number"
+              type="text"
               inputMode="decimal"
-              step="0.01"
-              min="0"
-              defaultValue={(settings.teacher_rate_threshold_cents / 100).toFixed(2)}
-              className="w-36"
+              pattern="[0-9]+([.,][0-9]{1,2})?"
+              maxLength={10}
+              placeholder={euroValue(settings.teacher_rate_threshold_cents)}
+              defaultValue={hasOverride ? euroValue(settings.teacher_rate_threshold_cents) : ''}
+              required
+              className="w-36 tabular-nums"
             />
           </label>
-          <label className="flex min-h-11 items-center gap-2 text-xs text-slate-700">
-            <input type="checkbox" name="clearOverride" value="true" className="accent-emerald-800" />
-            Quitar excepción
+          <label className="grid gap-1.5 text-sm font-medium text-slate-800">
+            Umbral de alumnos
+            <Input
+              name="studentThreshold"
+              type="number"
+              min="1"
+              max="16"
+              defaultValue={hasOverride ? settings.teacher_student_threshold : 3}
+              required
+              className="w-28 tabular-nums"
+            />
           </label>
         </>
       ) : (
         <>
-          <label className="grid gap-1.5 text-xs font-medium text-slate-700">
-            Menos de {settings.teacher_student_threshold} inscritos (€ / h)
+          <label className="grid gap-1.5 text-sm font-medium text-slate-800">
+            Menos de {settings.teacher_student_threshold} alumnos (€ / h)
             <Input
               name="belowEuros"
-              type="number"
+              type="text"
               inputMode="decimal"
-              step="0.01"
-              min="0"
-              defaultValue={(settings.teacher_rate_below_cents / 100).toFixed(2)}
-              className="w-36"
+              pattern="[0-9]+([.,][0-9]{1,2})?"
+              maxLength={10}
+              defaultValue={euroValue(settings.teacher_rate_below_cents)}
+              required
+              className="w-36 tabular-nums"
             />
           </label>
-          <label className="grid gap-1.5 text-xs font-medium text-slate-700">
-            Desde {settings.teacher_student_threshold} inscritos (€ / h)
+          <label className="grid gap-1.5 text-sm font-medium text-slate-800">
+            Desde {settings.teacher_student_threshold} alumnos (€ / h)
             <Input
               name="thresholdEuros"
-              type="number"
+              type="text"
               inputMode="decimal"
-              step="0.01"
-              min="0"
-              defaultValue={(settings.teacher_rate_threshold_cents / 100).toFixed(2)}
-              className="w-36"
+              pattern="[0-9]+([.,][0-9]{1,2})?"
+              maxLength={10}
+              defaultValue={euroValue(settings.teacher_rate_threshold_cents)}
+              required
+              className="w-36 tabular-nums"
             />
           </label>
-          <label className="grid gap-1.5 text-xs font-medium text-slate-700">
-            Umbral de inscritos
+          <label className="grid gap-1.5 text-sm font-medium text-slate-800">
+            Umbral de alumnos
             <Input
               name="studentThreshold"
               type="number"
               min="1"
               max="16"
               defaultValue={settings.teacher_student_threshold}
-              className="w-28"
+              required
+              className="w-28 tabular-nums"
             />
           </label>
         </>
@@ -94,6 +147,24 @@ function RatesForm({ settings, target }: { settings: Settings; target: RateTarge
       <Button type="submit" size="sm" disabled={pending}>
         {pending ? 'Guardando…' : teacher ? 'Guardar excepción' : 'Guardar valores generales'}
       </Button>
+      {teacher && hasOverride ? (
+        <Button
+          type="submit"
+          size="sm"
+          variant="ghost"
+          name="clearOverride"
+          value="true"
+          disabled={pending}
+          className="text-rose-800 hover:bg-rose-50"
+        >
+          Quitar excepción
+        </Button>
+      ) : null}
+      {teacher ? (
+        <Button type="button" size="sm" variant="ghost" onClick={() => setEditing(false)}>
+          Cancelar
+        </Button>
+      ) : null}
       {state ? <FormMessage tone={state.ok ? 'success' : 'error'}>{state.message}</FormMessage> : null}
     </form>
   )
@@ -102,7 +173,14 @@ function RatesForm({ settings, target }: { settings: Settings; target: RateTarge
 export function DefaultTeacherRatesForm({ settings }: { settings: Settings }) {
   return <RatesForm settings={settings} target={{ kind: 'default' }} />
 }
-
-export function TeacherOverrideRatesForm({ settings, teacherId }: { settings: Settings; teacherId: string }) {
-  return <RatesForm settings={settings} target={{ kind: 'teacher', teacherId }} />
+export function TeacherOverrideRatesForm({
+  settings,
+  teacherId,
+  hasOverride,
+}: {
+  settings: Settings
+  teacherId: string
+  hasOverride: boolean
+}) {
+  return <RatesForm settings={settings} target={{ kind: 'teacher', teacherId }} hasOverride={hasOverride} />
 }

@@ -3,6 +3,7 @@ import { money } from '@aprende-padel/core'
 import { getSupabaseServer } from '@aprende-padel/db/server'
 import { PageHeader } from '../../../../components/ui/page-header'
 import { TariffForm } from '../tariffs-form'
+import { TariffActiveAction, TariffEditForm } from '../tariff-actions'
 import { DefaultTeacherRatesForm, TeacherOverrideRatesForm } from '../teacher-rates-form'
 
 export default async function TariffsPage() {
@@ -52,19 +53,65 @@ export default async function TariffsPage() {
           <h2 className="font-semibold">Tarifas de alumnos</h2>
         </header>
         <TariffForm />
-        {(tariffs ?? []).map((tariff) => (
-          <div
-            className="grid grid-cols-3 border-b border-slate-100 px-5 py-4 text-sm last:border-0"
-            key={tariff.id}
-          >
-            <strong className="min-w-0 break-words">{tariff.name}</strong>
-            <span className="text-slate-500">{tariff.category === 'adult' ? 'Adultos' : 'Infantil'}</span>
-            <strong className="text-right tabular-nums">{money(tariff.monthly_amount_cents)} / mes</strong>
+        {tariffs?.length ? (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[680px] text-left text-sm">
+              <caption className="sr-only">Tarifas de alumnos</caption>
+              <thead>
+                <tr className="border-b border-slate-200 text-xs text-slate-600">
+                  <th scope="col" className="px-5 py-3">
+                    Nombre
+                  </th>
+                  <th scope="col" className="px-5 py-3">
+                    Categoría
+                  </th>
+                  <th scope="col" className="px-5 py-3">
+                    Estado
+                  </th>
+                  <th scope="col" className="px-5 py-3 text-right">
+                    Cuota
+                  </th>
+                  <th scope="col" className="px-5 py-3">
+                    Acciones
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {tariffs.map((tariff) => (
+                  <tr className="border-b border-slate-100 last:border-0" key={tariff.id}>
+                    <th scope="row" className="max-w-sm break-words px-5 py-4 font-medium">
+                      {tariff.name}
+                    </th>
+                    <td className="px-5 py-4 text-slate-600">
+                      {tariff.category === 'adult' ? 'Adultos' : 'Infantil'}
+                    </td>
+                    <td className="px-5 py-4">
+                      <span
+                        className={`inline-flex min-h-8 items-center rounded-full px-2.5 text-xs font-medium ${tariff.active ? 'bg-emerald-50 text-emerald-900' : 'bg-slate-100 text-slate-700'}`}
+                      >
+                        {tariff.active ? 'Activa' : 'Inactiva'}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4 text-right font-medium tabular-nums">
+                      {money(tariff.monthly_amount_cents)} / mes
+                    </td>
+                    <td className="px-5 py-4">
+                      <div className="flex gap-2">
+                        <TariffEditForm tariff={tariff} />
+                        <TariffActiveAction tariff={tariff} />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        ))}
-        {!tariffs?.length ? (
-          <p className="p-6 text-sm text-slate-500">Todavía no hay tarifas configuradas.</p>
-        ) : null}
+        ) : (
+          <div className="p-8 text-center">
+            <p className="text-sm font-medium text-slate-800">Todavía no hay tarifas configuradas</p>
+            <p className="mt-1 text-sm text-slate-600">Añade una cuota mensual para poder generar cobros.</p>
+          </div>
+        )}
       </section>
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
         <header className="border-b border-slate-100 px-5 py-4">
@@ -75,9 +122,9 @@ export default async function TariffsPage() {
           <p className="px-5 pt-4 text-sm font-medium">Valor general</p>
           <DefaultTeacherRatesForm settings={defaults} />
         </div>
-        <div className="border-b border-slate-100 px-5 py-4 text-sm font-semibold">
+        <h3 className="border-b border-slate-100 px-5 py-4 text-sm font-semibold">
           Excepciones por profesor
-        </div>
+        </h3>
         {(teachers ?? []).map((teacher) => {
           const rate = ratesByTeacher.get(teacher.id)
           return (
@@ -91,10 +138,16 @@ export default async function TariffsPage() {
                     rate?.threshold_rate_cents ?? defaults.teacher_rate_threshold_cents,
                   teacher_student_threshold: rate?.student_threshold ?? defaults.teacher_student_threshold,
                 }}
+                hasOverride={Boolean(rate)}
               />
             </div>
           )
         })}
+        {!teachers?.length ? (
+          <p className="p-6 text-sm text-slate-600">
+            No hay profesores activos a los que asignar una excepción.
+          </p>
+        ) : null}
       </section>
     </main>
   )

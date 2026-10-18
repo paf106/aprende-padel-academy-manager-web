@@ -1,7 +1,7 @@
 export type PaymentBalance = {
   paidCents: number
   balanceCents: number
-  status: 'pending' | 'partial' | 'paid'
+  status: 'pending' | 'partial' | 'paid' | 'none'
 }
 
 export function paymentBalance(dueCents: number, transactions: readonly number[]): PaymentBalance {
@@ -16,6 +16,6 @@ export function paymentBalance(dueCents: number, transactions: readonly number[]
   return {
     paidCents,
     balanceCents: Math.max(0, dueCents - paidCents),
-    status: paidCents >= dueCents ? 'paid' : paidCents > 0 ? 'partial' : 'pending',
+    status: dueCents === 0 ? 'none' : paidCents >= dueCents ? 'paid' : paidCents > 0 ? 'partial' : 'pending',
   }
 }

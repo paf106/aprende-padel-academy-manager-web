@@ -25,9 +25,10 @@ export function TariffForm() {
         <Input
           id="tariff-amount"
           name="amountEuros"
-          type="number"
-          step="0.01"
-          min="0"
+          type="text"
+          inputMode="decimal"
+          pattern="[0-9]+([.,][0-9]{1,2})?"
+          maxLength={10}
           required
           className="w-36"
         />

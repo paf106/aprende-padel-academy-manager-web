@@ -602,9 +602,32 @@ isOneToOne: false
 "generate_period_payments":
 { Args: { "p_period": string }; Returns: undefined
                            },
-"generate_teacher_settlements":
+            "generate_teacher_settlements":
 { Args: { "p_period": string }; Returns: number
-                           }
+                           },
+            "period_totals": {
+              Args: { "p_period": string }
+              Returns: {
+                "student_due_cents": number,
+                "student_paid_cents": number,
+                "student_count": number,
+                "teacher_due_cents": number,
+                "teacher_paid_cents": number,
+                "teacher_count": number
+              }[]
+            },
+            "period_payment_rows": {
+              Args: { "p_period": string, "p_kind": string, "p_status"?: string, "p_search"?: string | null, "p_limit"?: number, "p_offset"?: number }
+              Returns: {
+                "id": string,
+                "subject_id": string,
+                "subject_name": string,
+                "calculated_amount_cents": number,
+                "override_amount_cents": number | null,
+                "paid_amount_cents": number,
+                "total_count": number
+              }[]
+            }
           }
           Enums: {
             "method": "cash"|"bizum"

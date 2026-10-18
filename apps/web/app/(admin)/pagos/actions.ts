@@ -32,7 +32,7 @@ export async function saveTariff(_: ActionResult | null, formData: FormData): Pr
     .object({
       name: z.string().trim().min(2).max(100),
       category: z.enum(['adult', 'child']),
-      amountEuros: z.coerce.number().finite().min(0).max(10000),
+      amountEuros: moneyInput,
     })
     .safeParse(Object.fromEntries(formData))
   if (!input.success) return { ok: false, message: 'Indica nombre, categoría e importe mensual válidos.' }
@@ -40,26 +40,62 @@ export async function saveTariff(_: ActionResult | null, formData: FormData): Pr
   if (!context) return { ok: false, message: 'No autorizado.' }
   const organizationId = context.user.app_metadata?.organization_id
   if (typeof organizationId !== 'string') return { ok: false, message: 'Organización no disponible.' }
-  const { error } = await context.supabase
-    .schema('payments')
-    .from('tariffs')
-    .insert({
-      organization_id: organizationId,
-      name: input.data.name,
-      category: input.data.category,
-      monthly_amount_cents: Math.round(input.data.amountEuros * 100),
-    })
+  const { error } = await context.supabase.schema('payments').from('tariffs').insert({
+    organization_id: organizationId,
+    name: input.data.name,
+    category: input.data.category,
+    monthly_amount_cents: input.data.amountEuros,
+  })
   if (error) return { ok: false, message: 'No se pudo guardar la tarifa.' }
   revalidatePath('/pagos/tarifas')
   revalidatePath('/alumnos')
   return { ok: true, message: 'Tarifa guardada.' }
 }
 
+export async function updateTariff(_: ActionResult | null, formData: FormData): Promise<ActionResult> {
+  const input = z
+    .object({ id: z.uuid(), name: z.string().trim().min(2).max(100), amountEuros: moneyInput })
+    .safeParse(Object.fromEntries(formData))
+  if (!input.success) return { ok: false, message: 'Indica un nombre y un importe mensual válidos.' }
+  const context = await getAdminContext()
+  if (!context) return { ok: false, message: 'No autorizado.' }
+  const { data, error } = await context.supabase
+    .schema('payments')
+    .from('tariffs')
+    .update({ name: input.data.name, monthly_amount_cents: input.data.amountEuros })
+    .eq('id', input.data.id)
+    .select('id')
+    .maybeSingle()
+  if (error || !data)
+    return { ok: false, message: 'No se pudo actualizar la tarifa. Revisa si ya existe otra con ese nombre.' }
+  revalidatePath('/pagos/tarifas')
+  revalidatePath('/alumnos')
+  return { ok: true, message: 'Tarifa actualizada.' }
+}
+
+export async function setTariffActive(id: string, active: boolean): Promise<ActionResult> {
+  const parsed = z.object({ id: z.uuid(), active: z.boolean() }).safeParse({ id, active })
+  if (!parsed.success) return { ok: false, message: 'Tarifa no válida.' }
+  const context = await getAdminContext()
+  if (!context) return { ok: false, message: 'No autorizado.' }
+  const { data, error } = await context.supabase
+    .schema('payments')
+    .from('tariffs')
+    .update({ active: parsed.data.active })
+    .eq('id', parsed.data.id)
+    .select('id')
+    .maybeSingle()
+  if (error || !data) return { ok: false, message: 'No se pudo cambiar el estado de la tarifa.' }
+  revalidatePath('/pagos/tarifas')
+  revalidatePath('/alumnos')
+  return { ok: true, message: parsed.data.active ? 'Tarifa reactivada.' : 'Tarifa desactivada.' }
+}
+
 export async function saveTeacherRates(_: ActionResult | null, formData: FormData): Promise<ActionResult> {
   const input = z
     .object({
-      belowEuros: z.coerce.number().finite().min(0).max(1000),
-      thresholdEuros: z.coerce.number().finite().min(0).max(1000),
+      belowEuros: moneyInput,
+      thresholdEuros: moneyInput,
       studentThreshold: z.coerce.number().int().min(1).max(16),
       teacherId: z.preprocess((value) => (value === '' ? undefined : value), z.uuid().optional()),
     })
@@ -70,8 +106,8 @@ export async function saveTeacherRates(_: ActionResult | null, formData: FormDat
   const organizationId = context.user.app_metadata?.organization_id
   if (typeof organizationId !== 'string') return { ok: false, message: 'Organización no disponible.' }
   const rates = {
-    below_threshold_cents: Math.round(input.data.belowEuros * 100),
-    threshold_rate_cents: Math.round(input.data.thresholdEuros * 100),
+    below_threshold_cents: input.data.belowEuros,
+    threshold_rate_cents: input.data.thresholdEuros,
     student_threshold: input.data.studentThreshold,
   }
   if (input.data.teacherId) {
@@ -178,13 +214,22 @@ export async function setTeacherRateOverride(
     if (error) return { ok: false, message: 'No se pudo quitar la excepción.' }
   } else {
     const parsed = z
-      .object({ below: moneyInput, threshold: moneyInput })
-      .safeParse({ below: formData.get('below'), threshold: formData.get('threshold') })
+      .object({
+        below: moneyInput,
+        threshold: moneyInput,
+        studentThreshold: z.coerce.number().int().min(1).max(16),
+      })
+      .safeParse({
+        below: formData.get('below'),
+        threshold: formData.get('threshold'),
+        studentThreshold: formData.get('studentThreshold'),
+      })
     if (!parsed.success) return { ok: false, message: 'Introduce las dos tarifas por hora.' }
     const { error } = await context.supabase.schema('payments').from('teacher_rates').upsert({
       teacher_id: id.data,
       below_threshold_cents: parsed.data.below,
       threshold_rate_cents: parsed.data.threshold,
+      student_threshold: parsed.data.studentThreshold,
     })
     if (error) return { ok: false, message: 'No se pudo guardar la tarifa docente.' }
   }
@@ -193,12 +238,28 @@ export async function setTeacherRateOverride(
 }
 
 export async function adjustStudentCharge(_: ActionResult | null, formData: FormData): Promise<ActionResult> {
-  const input = z
-    .object({ chargeId: z.uuid(), override: moneyInput, reason: z.string().trim().min(3).max(300) })
-    .safeParse(Object.fromEntries(formData))
-  if (!input.success) return { ok: false, message: 'El ajuste necesita importe y motivo.' }
+  const id = z.uuid().safeParse(formData.get('chargeId'))
+  const clear = formData.get('clearOverride') === 'true'
+  const input = clear
+    ? null
+    : z
+        .object({ override: moneyInput, reason: z.string().trim().min(3).max(300) })
+        .safeParse(Object.fromEntries(formData))
+  if (!id.success || (!clear && (!input || !input.success)))
+    return { ok: false, message: 'El ajuste necesita importe y motivo.' }
   const context = await getAdminContext()
   if (!context) return { ok: false, message: 'No autorizado.' }
+  if (clear) {
+    const { error } = await context.supabase
+      .schema('payments')
+      .from('student_charges')
+      .update({ override_amount_cents: null, override_reason: null })
+      .eq('id', id.data)
+    if (error) return { ok: false, message: 'No se pudo quitar el ajuste.' }
+    revalidatePath('/pagos')
+    return { ok: true, message: 'Ajuste quitado.' }
+  }
+  if (!input?.success) return { ok: false, message: 'El ajuste necesita importe y motivo.' }
   const { error } = await context.supabase
     .schema('payments')
     .from('student_charges')
@@ -206,7 +267,7 @@ export async function adjustStudentCharge(_: ActionResult | null, formData: Form
       override_amount_cents: input.data.override,
       override_reason: input.data.reason,
     })
-    .eq('id', input.data.chargeId)
+    .eq('id', id.data)
   if (error)
     return { ok: false, message: 'El ajuste no puede ser inferior a lo cobrado o no se pudo aplicar.' }
   revalidatePath('/pagos')
@@ -217,12 +278,28 @@ export async function adjustTeacherSettlement(
   _: ActionResult | null,
   formData: FormData,
 ): Promise<ActionResult> {
-  const input = z
-    .object({ settlementId: z.uuid(), override: moneyInput, reason: z.string().trim().min(3).max(300) })
-    .safeParse(Object.fromEntries(formData))
-  if (!input.success) return { ok: false, message: 'El ajuste necesita importe y motivo.' }
+  const id = z.uuid().safeParse(formData.get('settlementId'))
+  const clear = formData.get('clearOverride') === 'true'
+  const input = clear
+    ? null
+    : z
+        .object({ override: moneyInput, reason: z.string().trim().min(3).max(300) })
+        .safeParse(Object.fromEntries(formData))
+  if (!id.success || (!clear && (!input || !input.success)))
+    return { ok: false, message: 'El ajuste necesita importe y motivo.' }
   const context = await getAdminContext()
   if (!context) return { ok: false, message: 'No autorizado.' }
+  if (clear) {
+    const { error } = await context.supabase
+      .schema('payments')
+      .from('teacher_settlements')
+      .update({ override_amount_cents: null, override_reason: null })
+      .eq('id', id.data)
+    if (error) return { ok: false, message: 'No se pudo quitar el ajuste.' }
+    revalidatePath('/pagos')
+    return { ok: true, message: 'Ajuste quitado.' }
+  }
+  if (!input?.success) return { ok: false, message: 'El ajuste necesita importe y motivo.' }
   const { error } = await context.supabase
     .schema('payments')
     .from('teacher_settlements')
@@ -230,7 +307,7 @@ export async function adjustTeacherSettlement(
       override_amount_cents: input.data.override,
       override_reason: input.data.reason,
     })
-    .eq('id', input.data.settlementId)
+    .eq('id', id.data)
   if (error)
     return { ok: false, message: 'El ajuste no puede ser inferior a lo pagado o no se pudo aplicar.' }
   revalidatePath('/pagos')
