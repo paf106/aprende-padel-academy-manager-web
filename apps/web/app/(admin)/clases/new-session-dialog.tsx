@@ -2,9 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { Plus } from 'lucide-react'
 import { createSession, generateFromGroup, getClassDialogData, getStudentsForSessionForm } from './actions'
 import type { ActionResult } from '../../lib/action-result'
 import { Button } from '../../../components/ui/button'
+import { Input } from '../../../components/ui/input'
+import { Select } from '../../../components/ui/select'
+import { Textarea } from '../../../components/ui/textarea'
 import { FormMessage } from '../../../components/ui/form-message'
 import { StudentPicker } from '../../../components/ui/student-picker'
 import { DialogContent } from '../../../components/ui/dialog-shell'
@@ -38,6 +42,7 @@ export function NewSessionDialog({ refs }: { refs: RefData }) {
   const [open, setOpen] = useState(false)
   const [groupOpen, setGroupOpen] = useState(false)
   const [clubId, setClubId] = useState('')
+  const [teacherId, setTeacherId] = useState('')
   const [category, setCategory] = useState<'adult' | 'child'>('adult')
   const [students, setStudents] = useState<string[]>([])
   const [date, setDate] = useState('')
@@ -136,33 +141,35 @@ export function NewSessionDialog({ refs }: { refs: RefData }) {
 
   return (
     <div className="relative flex items-center gap-2">
-      <button
+      <Button
         type="button"
         onClick={() => {
           setDate('')
           setTime('18:00')
           setClubId('')
+          setTeacherId('')
           setStudents([])
           setStudentOptions([])
           setOpen(true)
           setCreateResult(null)
           void loadData()
         }}
-        className="inline-flex min-h-11 items-center gap-2 rounded-full bg-blue-700 px-5 text-sm font-medium text-white shadow-sm hover:bg-blue-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-700 focus-visible:ring-offset-2"
+        className="rounded-full"
       >
-        + Nueva clase
-      </button>
-      <button
+        <Plus size={17} aria-hidden="true" /> Nueva clase
+      </Button>
+      <Button
         type="button"
         onClick={() => {
           setGroupOpen(true)
           setGroupResult(null)
           void loadData()
         }}
-        className="inline-flex min-h-11 items-center rounded-full border border-slate-400 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-100"
+        className="rounded-full"
+        variant="secondary"
       >
         Generar desde grupo
-      </button>
+      </Button>
       <DialogContent
         open={open}
         onOpenChange={(value) => {
@@ -174,17 +181,17 @@ export function NewSessionDialog({ refs }: { refs: RefData }) {
         <form action={submitCreate} className="space-y-4 px-5 py-5 sm:px-6">
           <label className="block space-y-1.5 text-sm font-medium text-slate-700">
             Club
-            <select
+            <Select
               name="clubId"
               required
               value={clubId}
               onChange={(event) => {
                 const nextClub = event.target.value
                 setClubId(nextClub)
+                setTeacherId('')
                 setStudents([])
                 void loadStudentOptions(nextClub, category)
               }}
-              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5"
             >
               <option value="">Selecciona un club</option>
               {refs.clubs.map((club) => (
@@ -192,11 +199,11 @@ export function NewSessionDialog({ refs }: { refs: RefData }) {
                   {club.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <label className="block space-y-1.5 text-sm font-medium text-slate-700">
             Categoría
-            <select
+            <Select
               name="category"
               value={category}
               onChange={(event) => {
@@ -205,19 +212,18 @@ export function NewSessionDialog({ refs }: { refs: RefData }) {
                 setStudents([])
                 void loadStudentOptions(clubId, nextCategory)
               }}
-              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5"
             >
               <option value="adult">Adultos</option>
               <option value="child">Infantil</option>
-            </select>
+            </Select>
           </label>
           <label className="block space-y-1.5 text-sm font-medium text-slate-700">
             Profesor
-            <select
+            <Select
               name="teacherId"
               required
-              defaultValue=""
-              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5"
+              value={teacherId}
+              onChange={(event) => setTeacherId(event.target.value)}
             >
               <option value="">Selecciona un profesor</option>
               {teacherOptions.map((teacher) => (
@@ -225,42 +231,36 @@ export function NewSessionDialog({ refs }: { refs: RefData }) {
                   {teacher.full_name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <div className="grid gap-3 sm:grid-cols-3">
             <label className="space-y-1.5 text-sm font-medium text-slate-700">
               Fecha
-              <input
+              <Input
                 name="date"
                 type="date"
                 required
                 value={date}
                 onChange={(event) => setDate(event.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2.5"
               />
             </label>
             <label className="space-y-1.5 text-sm font-medium text-slate-700">
               Hora
-              <input
+              <Input
                 name="time"
                 type="time"
                 required
                 value={time}
                 onChange={(event) => setTime(event.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2.5"
               />
             </label>
             <label className="space-y-1.5 text-sm font-medium text-slate-700">
               Duración
-              <select
-                name="duration"
-                defaultValue="60"
-                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5"
-              >
+              <Select name="duration" defaultValue="60">
                 <option value="60">60 min</option>
                 <option value="90">90 min</option>
                 <option value="120">120 min</option>
-              </select>
+              </Select>
             </label>
           </div>
           {studentsLoading ? (
@@ -274,12 +274,7 @@ export function NewSessionDialog({ refs }: { refs: RefData }) {
           )}
           <label className="block space-y-1.5 text-sm font-medium text-slate-700">
             Notas
-            <textarea
-              name="notes"
-              rows={2}
-              maxLength={500}
-              className="w-full rounded-xl border border-slate-300 px-3 py-2.5"
-            />
+            <Textarea name="notes" rows={2} maxLength={500} />
           </label>
           {createResult ? (
             <FormMessage tone={createResult.ok ? 'success' : 'error'}>{createResult.message}</FormMessage>
@@ -303,38 +298,23 @@ export function NewSessionDialog({ refs }: { refs: RefData }) {
         <form action={submitGroup} className="space-y-4 px-5 py-5 sm:px-6">
           <label className="block space-y-1.5 text-sm font-medium">
             Grupo
-            <select
-              name="groupId"
-              required
-              defaultValue=""
-              className="w-full rounded-xl border border-slate-400 bg-white px-3 py-2.5"
-            >
+            <Select name="groupId" required defaultValue="">
               <option value="">{loading ? 'Cargando grupos…' : 'Selecciona un grupo'}</option>
               {(dialogData?.groups ?? []).map((group) => (
                 <option key={group.id} value={group.id}>
                   {group.name} · {refs.clubs.find((club) => club.id === group.club_id)?.name ?? 'Club'}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="space-y-1.5 text-sm font-medium">
               Desde
-              <input
-                name="start"
-                type="date"
-                required
-                className="w-full rounded-xl border border-slate-400 px-3 py-2.5"
-              />
+              <Input name="start" type="date" required />
             </label>
             <label className="space-y-1.5 text-sm font-medium">
               Hasta
-              <input
-                name="end"
-                type="date"
-                required
-                className="w-full rounded-xl border border-slate-400 px-3 py-2.5"
-              />
+              <Input name="end" type="date" required />
             </label>
           </div>
           <p className="text-xs text-slate-600">El rango máximo de generación es de 12 meses.</p>

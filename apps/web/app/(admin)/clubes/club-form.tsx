@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { Button } from '../../../components/ui/button'
+import { Input } from '../../../components/ui/input'
 import { DialogContent } from '../../../components/ui/dialog-shell'
 import { FormMessage } from '../../../components/ui/form-message'
 import { useToast } from '../../../components/ui/toast'
@@ -42,38 +43,19 @@ export function ClubForm() {
         <form action={submit} className="space-y-4 px-5 py-5 sm:px-6">
           <label className="grid gap-1.5 text-sm font-medium text-slate-700">
             Nombre
-            <input
-              name="name"
-              required
-              maxLength={120}
-              className="min-h-10 rounded-xl border border-slate-300 px-3"
-            />
+            <Input name="name" required maxLength={120} />
           </label>
           <label className="grid gap-1.5 text-sm font-medium text-slate-700">
             Localidad
-            <input
-              name="municipality"
-              required
-              maxLength={100}
-              className="min-h-10 rounded-xl border border-slate-300 px-3"
-            />
+            <Input name="municipality" required maxLength={100} />
           </label>
           <label className="grid gap-1.5 text-sm font-medium text-slate-700">
             Dirección
-            <input
-              name="address"
-              maxLength={240}
-              className="min-h-10 rounded-xl border border-slate-300 px-3"
-            />
+            <Input name="address" maxLength={240} />
           </label>
           <label className="grid gap-1.5 text-sm font-medium text-slate-700">
             Zona horaria
-            <input
-              name="timezone"
-              required
-              defaultValue="Europe/Madrid"
-              className="min-h-10 rounded-xl border border-slate-300 px-3"
-            />
+            <Input name="timezone" required defaultValue="Europe/Madrid" />
           </label>
           {state ? <FormMessage tone={state.ok ? 'success' : 'error'}>{state.message}</FormMessage> : null}
           <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">

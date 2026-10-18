@@ -1,31 +1,97 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @theme inline {
   --font-sans: var(--font-onest), Arial, sans-serif;
   --font-display: var(--font-onest), Arial, sans-serif;
+  --color-brand: #166534;
+  --color-brand-strong: #14532d;
+  --color-accent: #1d4ed8;
 }
 
-:root { color-scheme: light; }
-*, *::before, *::after { box-sizing: border-box; }
-html { min-height: 100%; scroll-behavior: smooth; }
-body { min-height: 100vh; margin: 0; font-family: var(--font-onest), Arial, sans-serif; -webkit-font-smoothing: antialiased; }
-button, input, select, textarea { font: inherit; }
-button, a { -webkit-tap-highlight-color: transparent; }
-button, a, input, select, textarea, label, [role="menuitem"] { touch-action: manipulation; }
-input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]), select, textarea { border-color: #64748b; }
-input::placeholder, textarea::placeholder { color: #475569; opacity: 1; }
-::selection { background: #bfdbfe; color: #1e3a8a; }
-:focus-visible { outline: 3px solid #1d4ed8; outline-offset: 2px; }
-.skip-link { position: fixed; top: .5rem; left: .5rem; z-index: 100; transform: translateY(-150%); border-radius: .75rem; background: white; padding: .75rem 1rem; color: #0f172a; font-weight: 700; box-shadow: 0 4px 16px rgb(15 23 42 / 18%); }
-.skip-link:focus { transform: translateY(0); }
-dialog::backdrop { background: rgb(15 23 42 / 40%); backdrop-filter: blur(2px); }
-dialog[open] { animation: dialog-enter 140ms ease-out; }
-.time-grid-scroller { overscroll-behavior: contain; scrollbar-gutter: stable; }
-.calendar-time-grid { background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 67px, #e2e8f0 67px, #e2e8f0 68px); }
-.calendar-event[data-status="completed"] { text-decoration: underline; text-decoration-style: dotted; }
-.calendar-event[data-status="cancelled"] { text-decoration: line-through; }
-.quick-event-popover { position: fixed; z-index: 70; }
-@keyframes dialog-enter { from { transform: translateY(5px) scale(.99); opacity: .7 } to { transform: translateY(0) scale(1); opacity: 1 } }
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+  html {
+    min-height: 100%;
+    scroll-behavior: smooth;
+  }
+  body {
+    min-height: 100vh;
+    margin: 0;
+    font-family: var(--font-onest), Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+  button,
+  a,
+  input,
+  select,
+  textarea,
+  label,
+  [role='menuitem'] {
+    touch-action: manipulation;
+  }
+  input:not([type='checkbox']):not([type='radio']):not([type='hidden']),
+  select,
+  textarea {
+    border-color: #cbd5e1;
+  }
+  input::placeholder,
+  textarea::placeholder {
+    color: #475569;
+    opacity: 1;
+  }
+  ::selection {
+    background: #bbf7d0;
+    color: #14532d;
+  }
+  :focus-visible {
+    outline: 2px solid #166534;
+    outline-offset: 2px;
+  }
+  dialog::backdrop {
+    background: rgb(15 23 42 / 40%);
+    backdrop-filter: blur(2px);
+  }
+  dialog[open] {
+    animation: dialog-enter 140ms ease-out;
+  }
+  @keyframes dialog-enter {
+    from {
+      transform: translateY(5px) scale(0.99);
+      opacity: 0.7;
+    }
+    to {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+    }
+  }
+}
+
+@layer components {
+  .skip-link {
+    @apply fixed left-2 top-2 z-[100] -translate-y-[150%] rounded-xl bg-white px-4 py-3 font-bold text-slate-900 shadow-lg focus:translate-y-0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

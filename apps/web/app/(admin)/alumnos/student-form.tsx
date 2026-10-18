@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react'
 import { Button } from '../../../components/ui/button'
 import { Input } from '../../../components/ui/input'
+import { Select } from '../../../components/ui/select'
 import { DialogContent } from '../../../components/ui/dialog-shell'
 import { FormMessage } from '../../../components/ui/form-message'
 import { useToast } from '../../../components/ui/toast'
@@ -64,41 +65,30 @@ export function StudentForm({ clubs, tariffs }: Props) {
             </label>
             <label className="grid gap-1.5 text-sm font-medium text-slate-700">
               Categoría
-              <select
+              <Select
                 name="category"
                 value={category}
                 onChange={(event) => setCategory(event.target.value as 'adult' | 'child')}
-                className="min-h-10 rounded-xl border border-slate-300 bg-white px-3"
               >
                 <option value="adult">Adultos</option>
                 <option value="child">Infantil</option>
-              </select>
+              </Select>
             </label>
           </div>
           <label className="grid gap-1.5 text-sm font-medium text-slate-700">
             Club
-            <select
-              name="clubId"
-              required
-              defaultValue=""
-              className="min-h-10 rounded-xl border border-slate-300 bg-white px-3"
-            >
+            <Select name="clubId" required defaultValue="">
               <option value="">Selecciona un club</option>
               {clubs.map((club) => (
                 <option key={club.id} value={club.id}>
                   {club.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <label className="grid gap-1.5 text-sm font-medium text-slate-700">
             Tarifa mensual
-            <select
-              name="tariffId"
-              required
-              defaultValue=""
-              className="min-h-10 rounded-xl border border-slate-300 bg-white px-3"
-            >
+            <Select name="tariffId" required defaultValue="">
               <option value="">Selecciona una tarifa</option>
               {tariffs
                 .filter((tariff) => tariff.category === category)
@@ -111,7 +101,7 @@ export function StudentForm({ clubs, tariffs }: Props) {
                     })}
                   </option>
                 ))}
-            </select>
+            </Select>
           </label>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="grid gap-1.5 text-sm font-medium text-slate-700">
@@ -125,16 +115,12 @@ export function StudentForm({ clubs, tariffs }: Props) {
           </div>
           <label className="grid gap-1.5 text-sm font-medium text-slate-700">
             Género
-            <select
-              name="gender"
-              defaultValue="unspecified"
-              className="min-h-10 rounded-xl border border-slate-300 bg-white px-3"
-            >
+            <Select name="gender" defaultValue="unspecified">
               <option value="unspecified">Prefiero no indicarlo</option>
               <option value="female">Mujer</option>
               <option value="male">Hombre</option>
               <option value="other">Otro</option>
-            </select>
+            </Select>
           </label>
           <label className="grid gap-1.5 text-sm font-medium text-slate-700">
             Nivel

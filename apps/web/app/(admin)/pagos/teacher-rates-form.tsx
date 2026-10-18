@@ -3,6 +3,7 @@
 import { useActionState } from 'react'
 import { saveTeacherRates, setTeacherRateOverride } from './actions'
 import { Button } from '../../../components/ui/button'
+import { Input } from '../../../components/ui/input'
 import { FormMessage } from '../../../components/ui/form-message'
 import type { ActionResult } from '../../lib/action-result'
 
@@ -24,26 +25,26 @@ function RatesForm({ settings, target }: { settings: Settings; target: RateTarge
         <>
           <label className="grid gap-1.5 text-xs font-medium text-slate-700">
             Menos del umbral (€ / h)
-            <input
+            <Input
               name="below"
               type="number"
               inputMode="decimal"
               step="0.01"
               min="0"
               defaultValue={(settings.teacher_rate_below_cents / 100).toFixed(2)}
-              className="min-h-10 w-36 rounded-xl border border-slate-500 px-3 text-sm text-slate-900"
+              className="w-36"
             />
           </label>
           <label className="grid gap-1.5 text-xs font-medium text-slate-700">
             Desde el umbral (€ / h)
-            <input
+            <Input
               name="threshold"
               type="number"
               inputMode="decimal"
               step="0.01"
               min="0"
               defaultValue={(settings.teacher_rate_threshold_cents / 100).toFixed(2)}
-              className="min-h-10 w-36 rounded-xl border border-slate-500 px-3 text-sm text-slate-900"
+              className="w-36"
             />
           </label>
           <label className="flex min-h-11 items-center gap-2 text-xs text-slate-700">
@@ -55,37 +56,37 @@ function RatesForm({ settings, target }: { settings: Settings; target: RateTarge
         <>
           <label className="grid gap-1.5 text-xs font-medium text-slate-700">
             Menos de {settings.teacher_student_threshold} inscritos (€ / h)
-            <input
+            <Input
               name="belowEuros"
               type="number"
               inputMode="decimal"
               step="0.01"
               min="0"
               defaultValue={(settings.teacher_rate_below_cents / 100).toFixed(2)}
-              className="min-h-10 w-36 rounded-xl border border-slate-500 px-3 text-sm text-slate-900"
+              className="w-36"
             />
           </label>
           <label className="grid gap-1.5 text-xs font-medium text-slate-700">
             Desde {settings.teacher_student_threshold} inscritos (€ / h)
-            <input
+            <Input
               name="thresholdEuros"
               type="number"
               inputMode="decimal"
               step="0.01"
               min="0"
               defaultValue={(settings.teacher_rate_threshold_cents / 100).toFixed(2)}
-              className="min-h-10 w-36 rounded-xl border border-slate-500 px-3 text-sm text-slate-900"
+              className="w-36"
             />
           </label>
           <label className="grid gap-1.5 text-xs font-medium text-slate-700">
             Umbral de inscritos
-            <input
+            <Input
               name="studentThreshold"
               type="number"
               min="1"
               max="16"
               defaultValue={settings.teacher_student_threshold}
-              className="min-h-10 w-28 rounded-xl border border-slate-500 px-3 text-sm text-slate-900"
+              className="w-28"
             />
           </label>
         </>

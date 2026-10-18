@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { money } from '@aprende-padel/core'
 import { getSupabaseServer } from '@aprende-padel/db/server'
+import { PageHeader } from '../../../../components/ui/page-header'
 import { TariffForm } from '../tariffs-form'
 import { DefaultTeacherRatesForm, TeacherOverrideRatesForm } from '../teacher-rates-form'
 
@@ -33,19 +34,19 @@ export default async function TariffsPage() {
     teacher_student_threshold: 3,
   }
   return (
-    <main className="mx-auto w-full max-w-[1400px] space-y-5 px-4 py-7 sm:px-8">
-      <header className="flex items-center justify-between">
-        <div>
-          <p className="text-xs font-medium text-emerald-800">Configuración mensual</p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight">Tarifas</h1>
-        </div>
-        <Link
-          href="/pagos"
-          className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-        >
-          Volver a pagos
-        </Link>
-      </header>
+    <main className="mx-auto w-full max-w-7xl space-y-5 px-4 py-7 sm:px-8">
+      <PageHeader
+        title="Tarifas"
+        description="Configura las cuotas mensuales y las tarifas por hora del equipo docente."
+        actions={
+          <Link
+            href="/pagos"
+            className="inline-flex min-h-11 items-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 hover:bg-slate-50"
+          >
+            Volver a pagos
+          </Link>
+        }
+      />
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
         <header className="border-b border-slate-100 px-5 py-4">
           <h2 className="font-semibold">Tarifas de alumnos</h2>
@@ -56,9 +57,9 @@ export default async function TariffsPage() {
             className="grid grid-cols-3 border-b border-slate-100 px-5 py-4 text-sm last:border-0"
             key={tariff.id}
           >
-            <strong>{tariff.name}</strong>
+            <strong className="min-w-0 break-words">{tariff.name}</strong>
             <span className="text-slate-500">{tariff.category === 'adult' ? 'Adultos' : 'Infantil'}</span>
-            <strong className="text-right">{money(tariff.monthly_amount_cents)} / mes</strong>
+            <strong className="text-right tabular-nums">{money(tariff.monthly_amount_cents)} / mes</strong>
           </div>
         ))}
         {!tariffs?.length ? (

@@ -3,6 +3,9 @@
 import { useState, useTransition } from 'react'
 import { editSession } from '../actions'
 import { Button } from '../../../../components/ui/button'
+import { Input } from '../../../../components/ui/input'
+import { Select } from '../../../../components/ui/select'
+import { Textarea } from '../../../../components/ui/textarea'
 import { DialogContent } from '../../../../components/ui/dialog-shell'
 import { FormMessage } from '../../../../components/ui/form-message'
 import { useToast } from '../../../../components/ui/toast'
@@ -72,34 +75,24 @@ export function SessionEditForm({
         <form action={submit} className="space-y-4 px-5 py-5 sm:px-6">
           <label className="block space-y-1.5 text-sm font-medium text-slate-700">
             Fecha y hora
-            <input
+            <Input
               name="localStart"
               type="datetime-local"
               defaultValue={localInput(startsAt, timeZone)}
               required
-              className="w-full rounded-xl border border-slate-300 px-3 py-2.5"
             />
           </label>
           <label className="block space-y-1.5 text-sm font-medium text-slate-700">
             Duración
-            <select
-              name="duration"
-              defaultValue={duration}
-              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5"
-            >
+            <Select name="duration" defaultValue={duration}>
               <option value="60">60 min</option>
               <option value="90">90 min</option>
               <option value="120">120 min</option>
-            </select>
+            </Select>
           </label>
           <label className="block space-y-1.5 text-sm font-medium text-slate-700">
             Notas
-            <textarea
-              name="notes"
-              defaultValue={notes}
-              maxLength={500}
-              className="w-full rounded-xl border border-slate-300 px-3 py-2.5"
-            />
+            <Textarea name="notes" defaultValue={notes} maxLength={500} />
           </label>
           {state ? <FormMessage tone={state.ok ? 'success' : 'error'}>{state.message}</FormMessage> : null}
           <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">

@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from 'react'
 import { Button } from '../../../components/ui/button'
+import { Input } from '../../../components/ui/input'
+import { Select } from '../../../components/ui/select'
 import { DialogContent } from '../../../components/ui/dialog-shell'
 import { FormMessage } from '../../../components/ui/form-message'
 import { useToast } from '../../../components/ui/toast'
@@ -50,56 +52,38 @@ export function StudentEditForm({ student }: { student: Student }) {
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="grid gap-1.5 text-sm font-medium text-slate-700">
               Nombre
-              <input
-                name="firstName"
-                defaultValue={student.first_name}
-                required
-                className="min-h-10 rounded-xl border border-slate-300 px-3"
-              />
+              <Input name="firstName" defaultValue={student.first_name} required />
             </label>
             <label className="grid gap-1.5 text-sm font-medium text-slate-700">
               Apellidos
-              <input
-                name="lastName"
-                defaultValue={student.last_name}
-                required
-                className="min-h-10 rounded-xl border border-slate-300 px-3"
-              />
+              <Input name="lastName" defaultValue={student.last_name} required />
             </label>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="grid gap-1.5 text-sm font-medium text-slate-700">
               Email
-              <input
+              <Input
                 name="email"
                 type="email"
+                autoComplete="off"
+                spellCheck={false}
                 defaultValue={student.email ?? ''}
-                className="min-h-10 rounded-xl border border-slate-300 px-3"
               />
             </label>
             <label className="grid gap-1.5 text-sm font-medium text-slate-700">
               Teléfono
-              <input
-                name="phone"
-                type="tel"
-                defaultValue={student.phone ?? ''}
-                className="min-h-10 rounded-xl border border-slate-300 px-3"
-              />
+              <Input name="phone" type="tel" autoComplete="off" defaultValue={student.phone ?? ''} />
             </label>
           </div>
           <label className="grid gap-1.5 text-sm font-medium text-slate-700">
             Nivel
-            <select
-              name="level"
-              defaultValue={student.level}
-              className="min-h-10 rounded-xl border border-slate-300 bg-white px-3"
-            >
+            <Select name="level" defaultValue={student.level}>
               <option value="iniciacion">Iniciación</option>
               <option value="principiante">Principiante</option>
               <option value="medio">Medio</option>
               <option value="avanzado">Avanzado</option>
               <option value="competicion">Competición</option>
-            </select>
+            </Select>
           </label>
           {state ? <FormMessage tone={state.ok ? 'success' : 'error'}>{state.message}</FormMessage> : null}
           <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">

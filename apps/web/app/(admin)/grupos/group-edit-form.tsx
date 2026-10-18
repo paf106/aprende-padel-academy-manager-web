@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from 'react'
 import { Button } from '../../../components/ui/button'
+import { Input } from '../../../components/ui/input'
+import { Select } from '../../../components/ui/select'
 import { StudentPicker, type PickableStudent } from '../../../components/ui/student-picker'
 import { FormMessage } from '../../../components/ui/form-message'
 import { DialogContent } from '../../../components/ui/dialog-shell'
@@ -84,64 +86,41 @@ export function GroupEditForm({ group, refs }: { group: Group; refs: Refs }) {
         <form action={submit} className="space-y-4 px-5 py-5 sm:px-6">
           <label className="block space-y-1.5 text-sm font-medium text-slate-700">
             Nombre
-            <input
-              name="name"
-              defaultValue={group.name}
-              required
-              maxLength={100}
-              className="w-full rounded-xl border border-slate-300 px-3 py-2.5"
-            />
+            <Input name="name" defaultValue={group.name} required maxLength={100} />
           </label>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="space-y-1.5 text-sm font-medium text-slate-700">
               Club
-              <select
-                defaultValue={group.club_id}
-                disabled
-                className="w-full rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5"
-              >
+              <Select defaultValue={group.club_id} disabled>
                 {refs.clubs.map((club) => (
                   <option key={club.id} value={club.id}>
                     {club.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
             <label className="space-y-1.5 text-sm font-medium text-slate-700">
               Categoría
-              <select
-                defaultValue={group.category}
-                disabled
-                className="w-full rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5"
-              >
+              <Select defaultValue={group.category} disabled>
                 <option value="adult">Adultos</option>
                 <option value="child">Infantil</option>
-              </select>
+              </Select>
             </label>
           </div>
           <label className="block space-y-1.5 text-sm font-medium text-slate-700">
             Profesor
-            <select
-              name="teacherId"
-              defaultValue={group.teacher_id}
-              required
-              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5"
-            >
+            <Select name="teacherId" defaultValue={group.teacher_id} required>
               {teacherOptions.map((teacher) => (
                 <option key={teacher.id} value={teacher.id}>
                   {teacher.full_name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="space-y-1.5 text-sm font-medium text-slate-700">
               Nivel
-              <select
-                name="level"
-                defaultValue={group.level}
-                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5"
-              >
+              <Select name="level" defaultValue={group.level}>
                 {[
                   ['iniciacion', 'Iniciación'],
                   ['principiante', 'Principiante'],
@@ -153,15 +132,11 @@ export function GroupEditForm({ group, refs }: { group: Group; refs: Refs }) {
                     {label}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
             <label className="space-y-1.5 text-sm font-medium text-slate-700">
               Día
-              <select
-                name="weekday"
-                defaultValue={String(group.weekday)}
-                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5"
-              >
+              <Select name="weekday" defaultValue={String(group.weekday)}>
                 {['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'].map(
                   (day, index) => (
                     <option value={index} key={day}>
@@ -169,35 +144,25 @@ export function GroupEditForm({ group, refs }: { group: Group; refs: Refs }) {
                     </option>
                   ),
                 )}
-              </select>
+              </Select>
             </label>
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
             <label className="space-y-1.5 text-sm font-medium text-slate-700">
               Hora
-              <input
-                name="startTime"
-                type="time"
-                defaultValue={group.start_time.slice(0, 5)}
-                required
-                className="w-full rounded-xl border border-slate-300 px-3 py-2.5"
-              />
+              <Input name="startTime" type="time" defaultValue={group.start_time.slice(0, 5)} required />
             </label>
             <label className="space-y-1.5 text-sm font-medium text-slate-700">
               Duración
-              <select
-                name="duration"
-                defaultValue={String(group.duration_minutes)}
-                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5"
-              >
+              <Select name="duration" defaultValue={String(group.duration_minutes)}>
                 <option value="60">60 min</option>
                 <option value="90">90 min</option>
                 <option value="120">120 min</option>
-              </select>
+              </Select>
             </label>
             <label className="space-y-1.5 text-sm font-medium text-slate-700">
               Aforo
-              <input
+              <Input
                 name="capacity"
                 type="number"
                 min="1"
@@ -205,29 +170,17 @@ export function GroupEditForm({ group, refs }: { group: Group; refs: Refs }) {
                 value={capacity}
                 onChange={(event) => setCapacity(Number(event.target.value))}
                 required
-                className="w-full rounded-xl border border-slate-300 px-3 py-2.5"
               />
             </label>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="space-y-1.5 text-sm font-medium text-slate-700">
               Desde
-              <input
-                name="startsOn"
-                type="date"
-                defaultValue={group.starts_on}
-                required
-                className="w-full rounded-xl border border-slate-300 px-3 py-2.5"
-              />
+              <Input name="startsOn" type="date" defaultValue={group.starts_on} required />
             </label>
             <label className="space-y-1.5 text-sm font-medium text-slate-700">
               Hasta (opcional)
-              <input
-                name="endsOn"
-                type="date"
-                defaultValue={group.ends_on ?? ''}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2.5"
-              />
+              <Input name="endsOn" type="date" defaultValue={group.ends_on ?? ''} />
             </label>
           </div>
           {studentsLoading ? (

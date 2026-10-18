@@ -7,6 +7,8 @@ import {
   recordTeacherPayment,
 } from './actions'
 import { Button } from '../../../components/ui/button'
+import { Input } from '../../../components/ui/input'
+import { Select } from '../../../components/ui/select'
 import { FormMessage } from '../../../components/ui/form-message'
 import type { ActionResult } from '../../lib/action-result'
 
@@ -18,7 +20,7 @@ function PaymentForm({ id, balance, teacher }: { id: string; balance: number; te
       <input type="hidden" name={teacher ? 'settlementId' : 'chargeId'} value={id} />
       <label className="grid gap-1 text-xs font-medium text-slate-600">
         <span>Importe (€)</span>
-        <input
+        <Input
           name="amount"
           type="number"
           min="0.01"
@@ -27,18 +29,15 @@ function PaymentForm({ id, balance, teacher }: { id: string; balance: number; te
           inputMode="decimal"
           placeholder={`Saldo ${new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(balance / 100)}…`}
           required
-          className="min-h-10 w-32 rounded-lg border border-slate-400 px-2.5 text-sm text-slate-900"
+          className="w-32"
         />
       </label>
       <label className="grid gap-1 text-xs font-medium text-slate-600">
         <span>Método</span>
-        <select
-          name="method"
-          className="min-h-10 rounded-lg border border-slate-400 bg-white px-2 text-sm text-slate-900"
-        >
+        <Select name="method" className="w-auto min-w-32">
           <option value="cash">Efectivo</option>
           <option value="bizum">Bizum</option>
-        </select>
+        </Select>
       </label>
       <Button type="submit" size="sm" disabled={pending || balance <= 0}>
         {pending ? 'Guardando…' : 'Registrar pago'}
@@ -70,7 +69,7 @@ function AdjustmentForm({
       <input type="hidden" name={teacher ? 'settlementId' : 'chargeId'} value={id} />
       <label className="grid gap-1 text-xs font-medium text-slate-600">
         Ajustar total (€)
-        <input
+        <Input
           name="override"
           type="number"
           min="0"
@@ -78,18 +77,18 @@ function AdjustmentForm({
           inputMode="decimal"
           defaultValue={(currentAmount / 100).toFixed(2)}
           required
-          className="min-h-10 w-32 rounded-lg border border-slate-400 px-2.5 text-sm text-slate-900"
+          className="w-32"
         />
       </label>
       <label className="grid gap-1 text-xs font-medium text-slate-600">
         Motivo
-        <input
+        <Input
           name="reason"
           minLength={3}
           maxLength={300}
           required
           placeholder="Motivo del ajuste…"
-          className="min-h-10 w-56 rounded-lg border border-slate-400 px-2.5 text-sm text-slate-900"
+          className="w-56"
         />
       </label>
       <Button type="submit" size="sm" variant="secondary" disabled={pending}>

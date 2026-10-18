@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from 'react'
 import { Button } from '../../../components/ui/button'
+import { Input } from '../../../components/ui/input'
+import { Select } from '../../../components/ui/select'
 import { StudentPicker } from '../../../components/ui/student-picker'
 import { FormMessage } from '../../../components/ui/form-message'
 import { useToast } from '../../../components/ui/toast'
@@ -18,6 +20,7 @@ export function GroupForm({ clubs, teachers }: Props) {
   const [busy, start] = useTransition()
   const [open, setOpen] = useState(false)
   const [clubId, setClubId] = useState('')
+  const [teacherId, setTeacherId] = useState('')
   const [category, setCategory] = useState<'adult' | 'child'>('adult')
   const [selected, setSelected] = useState<string[]>([])
   const [studentChoices, setStudentChoices] = useState<
@@ -56,6 +59,7 @@ export function GroupForm({ clubs, teachers }: Props) {
           setOpen(true)
           setState(null)
           setClubId('')
+          setTeacherId('')
           setCategory('adult')
           setSelected([])
           setStudentChoices([])
@@ -72,27 +76,22 @@ export function GroupForm({ clubs, teachers }: Props) {
         <form action={submit} className="space-y-4 px-5 py-5 sm:px-6">
           <label className="block space-y-1.5 text-sm font-medium text-slate-700">
             Nombre
-            <input
-              name="name"
-              required
-              maxLength={100}
-              className="w-full rounded-xl border border-slate-300 px-3 py-2.5"
-            />
+            <Input name="name" required maxLength={100} />
           </label>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="space-y-1.5 text-sm font-medium text-slate-700">
               Club
-              <select
+              <Select
                 name="clubId"
                 required
                 value={clubId}
                 onChange={(event) => {
                   const nextClub = event.target.value
                   setClubId(nextClub)
+                  setTeacherId('')
                   setSelected([])
                   void loadStudents(nextClub, category)
                 }}
-                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5"
               >
                 <option value="">Selecciona un club</option>
                 {clubs.map((club) => (
@@ -100,11 +99,11 @@ export function GroupForm({ clubs, teachers }: Props) {
                     {club.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
             <label className="space-y-1.5 text-sm font-medium text-slate-700">
               Categoría
-              <select
+              <Select
                 name="category"
                 value={category}
                 onChange={(event) => {
@@ -113,20 +112,19 @@ export function GroupForm({ clubs, teachers }: Props) {
                   setSelected([])
                   void loadStudents(clubId, nextCategory)
                 }}
-                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5"
               >
                 <option value="adult">Adultos</option>
                 <option value="child">Infantil</option>
-              </select>
+              </Select>
             </label>
           </div>
           <label className="block space-y-1.5 text-sm font-medium text-slate-700">
             Profesor
-            <select
+            <Select
               name="teacherId"
               required
-              defaultValue=""
-              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5"
+              value={teacherId}
+              onChange={(event) => setTeacherId(event.target.value)}
             >
               <option value="">Selecciona un profesor</option>
               {teacherChoices.map((teacher) => (
@@ -134,16 +132,12 @@ export function GroupForm({ clubs, teachers }: Props) {
                   {teacher.full_name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="space-y-1.5 text-sm font-medium text-slate-700">
               Nivel
-              <select
-                name="level"
-                defaultValue="iniciacion"
-                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5"
-              >
+              <Select name="level" defaultValue="iniciacion">
                 {[
                   ['iniciacion', 'Iniciación'],
                   ['principiante', 'Principiante'],
@@ -155,15 +149,11 @@ export function GroupForm({ clubs, teachers }: Props) {
                     {label}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
             <label className="space-y-1.5 text-sm font-medium text-slate-700">
               Día
-              <select
-                name="weekday"
-                defaultValue="1"
-                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5"
-              >
+              <Select name="weekday" defaultValue="1">
                 {['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'].map(
                   (day, index) => (
                     <option value={index} key={day}>
@@ -171,62 +161,35 @@ export function GroupForm({ clubs, teachers }: Props) {
                     </option>
                   ),
                 )}
-              </select>
+              </Select>
             </label>
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
             <label className="space-y-1.5 text-sm font-medium text-slate-700">
               Hora
-              <input
-                name="startTime"
-                type="time"
-                required
-                defaultValue="18:00"
-                className="w-full rounded-xl border border-slate-300 px-3 py-2.5"
-              />
+              <Input name="startTime" type="time" required defaultValue="18:00" />
             </label>
             <label className="space-y-1.5 text-sm font-medium text-slate-700">
               Duración
-              <select
-                name="duration"
-                defaultValue="60"
-                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5"
-              >
+              <Select name="duration" defaultValue="60">
                 <option value="60">60 min</option>
                 <option value="90">90 min</option>
                 <option value="120">120 min</option>
-              </select>
+              </Select>
             </label>
             <label className="space-y-1.5 text-sm font-medium text-slate-700">
               Aforo
-              <input
-                name="capacity"
-                type="number"
-                min="1"
-                max="16"
-                defaultValue="8"
-                required
-                className="w-full rounded-xl border border-slate-300 px-3 py-2.5"
-              />
+              <Input name="capacity" type="number" min="1" max="16" defaultValue="8" required />
             </label>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="space-y-1.5 text-sm font-medium text-slate-700">
               Desde
-              <input
-                name="startsOn"
-                type="date"
-                required
-                className="w-full rounded-xl border border-slate-300 px-3 py-2.5"
-              />
+              <Input name="startsOn" type="date" required />
             </label>
             <label className="space-y-1.5 text-sm font-medium text-slate-700">
               Hasta (opcional)
-              <input
-                name="endsOn"
-                type="date"
-                className="w-full rounded-xl border border-slate-300 px-3 py-2.5"
-              />
+              <Input name="endsOn" type="date" />
             </label>
           </div>
           {clubId ? (
@@ -235,7 +198,12 @@ export function GroupForm({ clubs, teachers }: Props) {
                 Cargando alumnos…
               </p>
             ) : (
-              <StudentPicker students={studentChoices} selected={selected} onChange={setSelected} />
+              <StudentPicker
+                students={studentChoices}
+                selected={selected}
+                onChange={setSelected}
+                capacity={8}
+              />
             )
           ) : (
             <p className="text-sm text-slate-600">Selecciona un club para ver alumnos disponibles.</p>

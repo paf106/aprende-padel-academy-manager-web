@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { Button } from '../../../components/ui/button'
+import { Input } from '../../../components/ui/input'
 import { DialogContent } from '../../../components/ui/dialog-shell'
 import { FormMessage } from '../../../components/ui/form-message'
 import { useToast } from '../../../components/ui/toast'
@@ -42,43 +43,19 @@ export function TeacherForm({ clubs }: { clubs: { id: string; name: string }[] }
         <form action={submit} className="space-y-4 px-5 py-5 sm:px-6">
           <label className="grid gap-1.5 text-sm font-medium text-slate-700">
             Nombre completo
-            <input
-              name="fullName"
-              required
-              maxLength={140}
-              className="min-h-10 rounded-xl border border-slate-300 px-3"
-            />
+            <Input name="fullName" required maxLength={140} />
           </label>
           <label className="grid gap-1.5 text-sm font-medium text-slate-700">
             Email
-            <input
-              name="email"
-              type="email"
-              required
-              autoComplete="off"
-              spellCheck={false}
-              className="min-h-10 rounded-xl border border-slate-300 px-3"
-            />
+            <Input name="email" type="email" required autoComplete="off" spellCheck={false} />
           </label>
           <label className="grid gap-1.5 text-sm font-medium text-slate-700">
             Teléfono
-            <input
-              name="phone"
-              type="tel"
-              autoComplete="off"
-              className="min-h-10 rounded-xl border border-slate-300 px-3"
-            />
+            <Input name="phone" type="tel" autoComplete="off" />
           </label>
           <label className="grid gap-1.5 text-sm font-medium text-slate-700">
             Contraseña inicial
-            <input
-              name="password"
-              type="password"
-              minLength={10}
-              required
-              autoComplete="new-password"
-              className="min-h-10 rounded-xl border border-slate-300 px-3"
-            />
+            <Input name="password" type="password" minLength={10} required autoComplete="new-password" />
           </label>
           <fieldset className="grid gap-2 rounded-xl border border-slate-200 p-3">
             <legend className="px-1 text-sm font-medium text-slate-700">Clubes</legend>

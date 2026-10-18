@@ -3,6 +3,8 @@
 import { useState, useTransition } from 'react'
 import { Button } from '../../../components/ui/button'
 import { DialogContent } from '../../../components/ui/dialog-shell'
+import { Input } from '../../../components/ui/input'
+import { Select } from '../../../components/ui/select'
 import { FormMessage } from '../../../components/ui/form-message'
 import { changeStudentTariff } from './actions'
 import type { ActionResult } from '../../lib/action-result'
@@ -57,12 +59,7 @@ export function StudentTariffForm({
         <form action={submit} className="space-y-4 px-5 py-5 sm:px-6">
           <label className="grid gap-1.5 text-sm font-medium text-slate-700">
             Nueva tarifa
-            <select
-              name="tariffId"
-              defaultValue=""
-              required
-              className="min-h-10 rounded-xl border border-slate-300 bg-white px-3"
-            >
+            <Select name="tariffId" defaultValue="" required>
               <option value="">Selecciona una tarifa</option>
               {tariffs
                 .filter((tariff) => tariff.category === category)
@@ -71,16 +68,15 @@ export function StudentTariffForm({
                     {tariff.name} · {money(tariff.monthly_amount_cents)}
                   </option>
                 ))}
-            </select>
+            </Select>
           </label>
           <label className="grid gap-1.5 text-sm font-medium text-slate-700">
             Vigente desde
-            <input
+            <Input
               name="startsOn"
               type="date"
               required
               defaultValue={localTodayInTimeZone('Europe/Madrid')}
-              className="min-h-10 rounded-xl border border-slate-300 px-3"
             />
           </label>
           {current ? <p className="text-xs text-slate-500">El alumno ya tiene una tarifa asignada.</p> : null}

@@ -3,6 +3,8 @@ import { addMonths, format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { getSupabaseServer } from '@aprende-padel/db/server'
 import { localDateInTimeZone, money, paymentBalance } from '@aprende-padel/core'
+import { Button } from '../../../components/ui/button'
+import { PageHeader } from '../../../components/ui/page-header'
 import { ClosePeriod, GeneratePayments } from './payment-client'
 import {
   StudentAdjustmentForm,
@@ -105,30 +107,31 @@ export default async function PaymentsPage({
   }
 
   return (
-    <main className="mx-auto w-full max-w-[1500px] px-4 py-7 sm:px-8">
-      <header className="mb-5 flex flex-col justify-between gap-4 sm:flex-row sm:flex-wrap sm:items-center">
-        <div>
-          <p className="text-xs font-medium text-emerald-800">Facturación mensual</p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight">Pagos</h1>
-          <p className="mt-2 text-sm capitalize text-slate-600">
+    <main className="mx-auto w-full max-w-7xl px-4 py-7 sm:px-8">
+      <PageHeader
+        title="Pagos"
+        description={
+          <span className="capitalize">
             {format(parseISO(start), 'MMMM yyyy', { locale: es })} · {closed ? 'Cerrado' : 'Abierto'}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Link
-            className="inline-flex min-h-11 items-center rounded-xl border border-slate-400 bg-white px-4 text-sm font-semibold text-slate-800 hover:bg-slate-100"
-            href="/pagos/tarifas"
-          >
-            Tarifas
-          </Link>
-          {!closed ? (
-            <>
-              <GeneratePayments period={current} />
-              <ClosePeriod period={current} />
-            </>
-          ) : null}
-        </div>
-      </header>
+          </span>
+        }
+        actions={
+          <>
+            <Link
+              className="inline-flex min-h-11 items-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 hover:bg-slate-50"
+              href="/pagos/tarifas"
+            >
+              Tarifas
+            </Link>
+            {!closed ? (
+              <>
+                <GeneratePayments period={current} />
+                <ClosePeriod period={current} />
+              </>
+            ) : null}
+          </>
+        }
+      />
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <nav aria-label="Navegación entre meses" className="flex flex-wrap gap-2">
           <Link
@@ -161,23 +164,20 @@ export default async function PaymentsPage({
               className="min-h-11 rounded-xl border border-slate-500 bg-white px-3 text-sm"
             />
           </label>
-          <button
-            type="submit"
-            className="min-h-11 rounded-xl bg-emerald-800 px-4 text-sm font-semibold text-white hover:bg-emerald-900"
-          >
-            Ver
-          </button>
+          <Button type="submit" size="sm">
+            Ver mes
+          </Button>
         </form>
       </div>
       <section aria-label="Resumen de importes visibles" className="mb-5 grid gap-4 sm:grid-cols-2">
-        <article className="rounded-2xl border border-slate-300 bg-white p-5">
+        <article className="rounded-2xl border border-slate-200 bg-white p-5">
           <span className="text-sm text-slate-700">Cobros de alumnos · esta página</span>
           <p className="mb-0 mt-3 text-3xl font-semibold tabular-nums">{money(studentDue)}</p>
           <p className="mb-0 mt-1 text-xs text-slate-600">
             {countLabel(chargeCount ?? 0, 'cuenta', 'cuentas')} en total
           </p>
         </article>
-        <article className="rounded-2xl border border-slate-300 bg-white p-5">
+        <article className="rounded-2xl border border-slate-200 bg-white p-5">
           <span className="text-sm text-slate-700">Liquidaciones · esta página</span>
           <p className="mb-0 mt-3 text-3xl font-semibold tabular-nums">{money(teacherDue)}</p>
           <p className="mb-0 mt-1 text-xs text-slate-600">
