@@ -1,11 +1,13 @@
 import { addDays, endOfWeek, format, parseISO, startOfMonth, startOfWeek } from 'date-fns'
 import { Suspense } from 'react'
 import { getClassReferenceData, getSessions } from '../../../lib/classes-data'
+import type { CalendarView } from '@aprende-padel/core'
 import { CalendarToolbar } from './calendar-toolbar'
 import { NewSessionDialog } from './new-session-dialog'
 import { localTodayInTimeZone } from '@aprende-padel/core'
 import { WeekCalendar } from './week-calendar'
 import { MonthCalendar } from './month-calendar'
+import { YearCalendar } from './year-calendar'
 
 function validDate(value?: string) {
   if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return parseISO(localTodayInTimeZone('Europe/Madrid'))
@@ -29,7 +31,9 @@ export default async function ClassesPage({
   }>
 }) {
   const params = await searchParams
-  const view = params.view === 'day' ? 'day' : params.view === 'month' ? 'month' : 'week'
+  const view: CalendarView = ['day', 'week', 'month', 'year'].includes(params.view ?? '')
+    ? (params.view as CalendarView)
+    : 'week'
   const date = validDate(params.date ?? params.week)
   const periodStart =
     view === 'day'
@@ -48,15 +52,18 @@ export default async function ClassesPage({
     status,
   }
   const now = new Date().toISOString()
-  const sessionsPromise = getSessions(
-    `${format(addDays(periodStart, -1), 'yyyy-MM-dd')}T00:00:00`,
-    `${format(addDays(periodEnd, 2), 'yyyy-MM-dd')}T00:00:00`,
-    1000,
-    filters,
-  )
+  const sessionsPromise =
+    view === 'year'
+      ? Promise.resolve([])
+      : getSessions(
+          `${format(addDays(periodStart, -1), 'yyyy-MM-dd')}T00:00:00`,
+          `${format(addDays(periodEnd, 2), 'yyyy-MM-dd')}T00:00:00`,
+          1000,
+          filters,
+        )
   const reference = await getClassReferenceData()
   return (
-    <main className="min-w-0 overflow-hidden pb-10">
+    <main className="fixed inset-x-0 top-0 bottom-[calc(3.5rem_+_env(safe-area-inset-bottom))] flex min-h-0 min-w-0 flex-col overflow-hidden md:bottom-0 md:left-[248px]">
       <CalendarToolbar
         date={format(date, 'yyyy-MM-dd')}
         view={view}
@@ -67,7 +74,7 @@ export default async function ClassesPage({
         teachers={reference.teachers}
         action={<NewSessionDialog refs={reference} />}
       />
-      <Suspense fallback={<CalendarLoading />}>
+      <Suspense fallback={<CalendarLoading view={view} />}>
         <CalendarResults
           sessionsPromise={sessionsPromise}
           now={now}
@@ -93,29 +100,30 @@ async function CalendarResults({
   now: string
   periodStart: string
   month: string
-  view: 'day' | 'week' | 'month'
+  view: CalendarView
   clubs: { id: string; name: string }[]
 }) {
   const sessions = await sessionsPromise
   return (
-    <div className="px-2 py-3 sm:px-4">
+    <div className="flex min-h-0 min-w-0 flex-1 px-1 pb-1 pt-1 sm:px-2 sm:pb-2">
       {view === 'week' || view === 'day' ? (
         <WeekCalendar now={now} startDate={periodStart} sessions={sessions} clubs={clubs} view={view} />
-      ) : (
+      ) : view === 'month' ? (
         <MonthCalendar month={month} now={now} sessions={sessions} clubs={clubs} />
+      ) : (
+        <YearCalendar year={Number(month.slice(0, 4))} />
       )}
     </div>
   )
 }
 
-function CalendarLoading() {
+function CalendarLoading({ view }: { view: CalendarView }) {
   return (
-    <div role="status" className="space-y-3 px-2 py-3 sm:px-4">
+    <div role="status" className="flex min-h-0 min-w-0 flex-1 px-1 pb-1 pt-1 sm:px-2 sm:pb-2">
       <span className="sr-only">Cargando calendario…</span>
-      <div aria-hidden="true" className="h-5 w-40 animate-pulse rounded bg-slate-200" />
       <div
         aria-hidden="true"
-        className="h-[650px] animate-pulse rounded-2xl border border-slate-200 bg-white"
+        className={`min-h-0 flex-1 animate-pulse rounded-xl border border-slate-200 bg-white ${view === 'year' ? 'grid grid-cols-2 gap-2 p-3 sm:grid-cols-3 lg:grid-cols-4' : ''}`}
       />
     </div>
   )

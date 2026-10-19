@@ -2,14 +2,18 @@
 
 import { useCallback, useEffect, useMemo, useTransition } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { addDays, addMonths, format, parseISO, startOfMonth, startOfWeek } from 'date-fns'
-import { es } from 'date-fns/locale'
-import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
-import { clubCalendarColor, localTodayInTimeZone } from '@aprende-padel/core'
+import { addDays, addMonths, format, parseISO, startOfMonth } from 'date-fns'
+import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
+import {
+  calendarHeadingLabel,
+  clubCalendarColor,
+  localTodayInTimeZone,
+  type CalendarView,
+} from '@aprende-padel/core'
 
 type Props = {
   date: string
-  view: 'day' | 'week' | 'month'
+  view: CalendarView
   club?: string
   teacher?: string
   status?: string
@@ -39,14 +43,7 @@ export function CalendarToolbar({
   )
   const activeFilters = Number(Boolean(club)) + Number(Boolean(teacher)) + Number(Boolean(status))
   const parsed = useMemo(() => parseISO(date), [date])
-  const weekStart = startOfWeek(parsed, { weekStartsOn: 1 })
-  const weekEnd = addDays(weekStart, 6)
-  const label =
-    view === 'day'
-      ? format(parsed, 'EEEE d MMMM yyyy', { locale: es })
-      : view === 'week'
-        ? `${format(weekStart, 'd MMM', { locale: es })} – ${format(weekEnd, 'd MMM yyyy', { locale: es })}`
-        : format(parsed, 'MMMM yyyy', { locale: es })
+  const label = calendarHeadingLabel(date, view)
 
   const update = useCallback(
     (values: Record<string, string>, push = false) => {
@@ -67,7 +64,9 @@ export function CalendarToolbar({
           ? addDays(parsed, amount)
           : view === 'week'
             ? addDays(parsed, 7 * amount)
-            : addMonths(startOfMonth(parsed), amount)
+            : view === 'month'
+              ? addMonths(startOfMonth(parsed), amount)
+              : new Date(parsed.getFullYear() + amount, parsed.getMonth(), 1)
       update({ date: format(next, 'yyyy-MM-dd') }, true)
     },
     [view, parsed, update],
@@ -82,9 +81,10 @@ export function CalendarToolbar({
       )
         return
       if (event.ctrlKey || event.metaKey || event.shiftKey) return
-      const letterShortcut = ['t', 'd', 'w', 'm', 'n'].includes(event.key.toLowerCase())
+      const letterShortcut = ['t', 'd', 'w', 'm', 'y', 'n'].includes(event.key.toLowerCase())
       if (letterShortcut !== event.altKey) return
       if (!letterShortcut && event.altKey) return
+      if (letterShortcut) event.preventDefault()
       if (
         !letterShortcut &&
         target instanceof HTMLElement &&
@@ -103,6 +103,7 @@ export function CalendarToolbar({
       } else if (event.key.toLowerCase() === 'd') update({ view: 'day' })
       else if (event.key.toLowerCase() === 'w') update({ view: 'week' })
       else if (event.key.toLowerCase() === 'm') update({ view: 'month' })
+      else if (event.key.toLowerCase() === 'y') update({ view: 'year' })
       else if (event.key.toLowerCase() === 'n')
         update(
           {
@@ -123,7 +124,7 @@ export function CalendarToolbar({
 
   return (
     <div aria-busy={pending} className={`w-full bg-white ${pending ? 'opacity-70' : ''}`}>
-      <div className="flex min-h-[68px] flex-wrap items-center gap-2 border-b border-slate-200 px-2 py-2 sm:gap-4 sm:px-5">
+      <div className="flex min-h-[60px] shrink-0 flex-wrap items-center gap-1.5 border-b border-slate-200 px-2 py-1.5 sm:gap-3 sm:px-4">
         <button
           type="button"
           title="Atajo: Alt+T"
@@ -154,21 +155,10 @@ export function CalendarToolbar({
         </div>
         <h1
           aria-live="polite"
-          className="min-w-0 flex-1 truncate text-xl font-normal capitalize tracking-tight text-slate-800 sm:text-2xl"
+          className="min-w-0 flex-1 truncate text-xl font-normal tracking-tight text-slate-800 sm:text-2xl"
         >
           {label}
         </h1>
-        <label className="flex min-h-11 items-center gap-2 rounded-xl border border-slate-400 bg-white px-3 text-sm text-slate-700 focus-within:ring-2 focus-within:ring-accent">
-          <CalendarDays size={16} aria-hidden="true" className="text-slate-600" />
-          <span className="sr-only">Ir a fecha</span>
-          <input
-            aria-label="Ir a fecha"
-            type="date"
-            value={date}
-            onChange={(event) => update({ date: event.target.value }, true)}
-            className="w-[8.5rem] bg-transparent outline-none"
-          />
-        </label>
         <label className="relative flex min-h-11 min-w-[112px] items-center gap-3 rounded-xl border border-slate-400 bg-white pl-4 pr-9 text-sm font-medium text-slate-700 focus-within:ring-2 focus-within:ring-blue-700">
           <select
             aria-label="Cambiar vista"
@@ -181,6 +171,7 @@ export function CalendarToolbar({
                 ['day', 'Día'],
                 ['week', 'Semana'],
                 ['month', 'Mes'],
+                ['year', 'Año'],
               ] as const
             ).map(([value, label]) => (
               <option value={value} key={value}>
@@ -188,13 +179,15 @@ export function CalendarToolbar({
               </option>
             ))}
           </select>
-          <span aria-hidden="true">{view === 'day' ? 'Día' : view === 'week' ? 'Semana' : 'Mes'}</span>
+          <span aria-hidden="true">{{ day: 'Día', week: 'Semana', month: 'Mes', year: 'Año' }[view]}</span>
           <ChevronDown aria-hidden="true" className="absolute right-3 text-slate-600" size={16} />
         </label>
         <div>{action}</div>
       </div>
-      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 px-3 py-3 sm:px-5">
-        <label className="inline-flex min-h-11 items-center gap-2 rounded-full border border-slate-400 bg-white px-3 text-xs text-slate-700">
+      <div
+        className={`${view === 'year' ? 'hidden' : 'flex'} shrink-0 flex-wrap items-center gap-1.5 border-b border-slate-200 px-2 py-1.5 sm:gap-2 sm:px-4`}
+      >
+        <label className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-slate-400 bg-white px-2.5 text-xs text-slate-700 sm:min-h-10">
           <span>Club</span>
           <select
             aria-label="Filtrar por club"
@@ -210,7 +203,7 @@ export function CalendarToolbar({
             ))}
           </select>
         </label>
-        <label className="inline-flex min-h-11 items-center gap-2 rounded-full border border-slate-400 bg-white px-3 text-xs text-slate-700">
+        <label className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-slate-400 bg-white px-2.5 text-xs text-slate-700 sm:min-h-10">
           <span>Profesor</span>
           <select
             aria-label="Filtrar por profesor"
@@ -226,7 +219,7 @@ export function CalendarToolbar({
             ))}
           </select>
         </label>
-        <label className="inline-flex min-h-11 items-center gap-2 rounded-full border border-slate-400 bg-white px-3 text-xs text-slate-700">
+        <label className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-slate-400 bg-white px-2.5 text-xs text-slate-700 sm:min-h-10">
           <span>Estado</span>
           <select
             aria-label="Filtrar por estado"
@@ -244,17 +237,16 @@ export function CalendarToolbar({
           <button
             type="button"
             onClick={() => update({ club: '', teacher: '', status: '' })}
-            className="min-h-11 rounded-full px-3 py-2 text-xs font-semibold text-blue-800 hover:bg-blue-50"
+            className="min-h-9 rounded-full px-2.5 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-50"
           >
             Limpiar filtros <span className="tabular-nums">({activeFilters})</span>
           </button>
         ) : null}
-        <span className="hidden text-xs text-slate-600 xl:inline">
-          Atajos: Alt+T hoy · ←/→ periodo · Alt+D/W/M vista · Alt+N nueva clase
-        </span>
       </div>
-      <details className="group border-b border-slate-100 px-3 py-2 sm:px-5">
-        <summary className="min-h-9 w-fit cursor-pointer list-none rounded-full px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+      <details
+        className={`${view === 'year' ? 'hidden' : 'block'} group max-h-24 shrink-0 overflow-auto border-b border-slate-100 px-2 py-1 sm:px-4`}
+      >
+        <summary className="min-h-8 w-fit cursor-pointer list-none rounded-full px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
           Colores de clubes
         </summary>
         <ul aria-label="Leyenda de colores por club" className="mt-2 flex flex-wrap gap-x-4 gap-y-2 pb-1">

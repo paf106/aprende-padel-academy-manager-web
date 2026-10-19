@@ -85,14 +85,62 @@ export function localTodayInTimeZone(timeZone: string, now = new Date()) {
 
 export function calendarMonthGrid(month: string) {
   const [year, monthNumber] = month.split('-').map(Number)
-  const first = new Date(year, monthNumber - 1, 1, 12)
-  const offset = (first.getDay() + 6) % 7
-  const start = new Date(year, monthNumber - 1, 1 - offset, 12)
-  return Array.from({ length: 42 }, (_, index) => {
+  const first = new Date(Date.UTC(year, monthNumber - 1, 1))
+  const offset = (first.getUTCDay() + 6) % 7
+  const daysInMonth = new Date(Date.UTC(year, monthNumber, 0)).getUTCDate()
+  const rowCount = Math.ceil((offset + daysInMonth) / 7)
+  const start = new Date(Date.UTC(year, monthNumber - 1, 1 - offset))
+  return Array.from({ length: rowCount * 7 }, (_, index) => {
     const date = new Date(start)
-    date.setDate(start.getDate() + index)
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+    date.setUTCDate(start.getUTCDate() + index)
+    return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`
   })
+}
+
+export type CalendarView = 'day' | 'week' | 'month' | 'year'
+
+export function calendarHeadingLabel(date: string, view: CalendarView) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date)
+  if (!match) return ''
+  const [, yearText, monthText, dayText] = match
+  const year = Number(yearText)
+  const month = Number(monthText)
+  const day = Number(dayText)
+  const value = new Date(Date.UTC(year, month - 1, day))
+  if (value.getUTCFullYear() !== year || value.getUTCMonth() !== month - 1 || value.getUTCDate() !== day)
+    return ''
+
+  const monthName = (date: Date, long = false) => {
+    const name = new Intl.DateTimeFormat('es-ES', {
+      month: long ? 'long' : 'short',
+      timeZone: 'UTC',
+    }).format(date)
+    return long ? name : name.replace(/\.$/, '')
+  }
+  if (view === 'year') return String(year)
+  if (view === 'month') return `${monthName(value, true)} de ${year}`
+  if (view === 'day') {
+    return new Intl.DateTimeFormat('es-ES', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'UTC',
+    }).format(value)
+  }
+
+  const mondayOffset = (value.getUTCDay() + 6) % 7
+  const start = new Date(value)
+  start.setUTCDate(value.getUTCDate() - mondayOffset)
+  const end = new Date(start)
+  end.setUTCDate(start.getUTCDate() + 6)
+  if (start.getUTCMonth() === end.getUTCMonth() && start.getUTCFullYear() === end.getUTCFullYear()) {
+    return `${monthName(start, true)} de ${start.getUTCFullYear()}`
+  }
+  if (start.getUTCFullYear() === end.getUTCFullYear()) {
+    return `${monthName(start)} – ${monthName(end)} de ${end.getUTCFullYear()}`
+  }
+  return `${monthName(start)} ${start.getUTCFullYear()} – ${monthName(end)} ${end.getUTCFullYear()}`
 }
 
 export { layoutDayEvents, clubCalendarColor } from './calendar'

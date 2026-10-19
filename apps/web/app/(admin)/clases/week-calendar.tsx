@@ -5,7 +5,6 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { addDays, format, parseISO, startOfWeek } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { Check } from 'lucide-react'
 import {
   clubCalendarColor,
   formatInClubTime,
@@ -13,14 +12,13 @@ import {
   localDateInTimeZone,
   localTimeInTimeZone,
   statusLabels,
-  timeZoneOffsetLabel,
   type CalendarEventPlacement,
 } from '@aprende-padel/core'
 import { EventPopover, type CalendarEventInfo } from '../../../components/ui/event-popover'
 
 const OPEN_HOUR = 0
 const CLOSE_HOUR = 24
-const PIXELS_PER_HOUR = 68
+const PIXELS_PER_HOUR = 48
 const hours = Array.from({ length: CLOSE_HOUR - OPEN_HOUR }, (_, index) => index + OPEN_HOUR)
 const slots = Array.from({ length: (CLOSE_HOUR - OPEN_HOUR) * 2 }, (_, index) => index * 30)
 const CALENDAR_TIME_ZONE = 'Europe/Madrid'
@@ -122,7 +120,7 @@ export function WeekCalendar({
     <div
       role="region"
       aria-label={view === 'day' ? 'Agenda del día' : 'Calendario semanal'}
-      className="relative min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white"
+      className="relative flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white"
     >
       {view === 'day' ? (
         <nav
@@ -156,9 +154,9 @@ export function WeekCalendar({
 
       <div
         ref={scroller}
-        className="max-h-[min(72vh,850px)] overflow-auto overscroll-contain [scrollbar-gutter:stable]"
+        className="min-h-0 flex-1 overflow-auto overscroll-contain [scrollbar-gutter:stable]"
       >
-        <div className="sticky top-0 z-30 grid grid-cols-[58px_minmax(0,1fr)] border-b border-slate-200 bg-white">
+        <div className="sticky top-0 z-30 grid grid-cols-[48px_minmax(0,1fr)] border-b border-slate-200 bg-white">
           <div className="border-r border-slate-200" />
           <div className={`grid ${columnGrid}`}>
             {days.map((day) => {
@@ -176,7 +174,7 @@ export function WeekCalendar({
                   key={key}
                   href={`/clases?${new URLSearchParams({ ...Object.fromEntries(search.entries()), view: 'day', date: key })}`}
                   aria-current={isToday ? 'date' : undefined}
-                  className="flex min-h-[72px] flex-col items-center justify-center gap-1 border-r border-slate-200 text-slate-600 last:border-r-0 hover:bg-slate-50 focus-visible:z-10"
+                  className="flex min-h-14 flex-col items-center justify-center gap-0.5 border-r border-slate-200 text-slate-600 last:border-r-0 hover:bg-slate-50 focus-visible:z-10"
                 >
                   <span
                     className={`text-[11px] font-semibold uppercase tracking-[.12em] ${isToday ? 'text-accent' : ''}`}
@@ -184,7 +182,7 @@ export function WeekCalendar({
                     {weekday}
                   </span>
                   <strong
-                    className={`grid size-10 place-items-center rounded-full text-xl font-normal ${isToday ? 'bg-accent text-white' : 'text-slate-900'}`}
+                    className={`grid size-9 place-items-center rounded-full text-lg font-normal ${isToday ? 'bg-accent text-white' : 'text-slate-900'}`}
                   >
                     {format(day, 'd')}
                   </strong>
@@ -194,17 +192,15 @@ export function WeekCalendar({
           </div>
         </div>
 
-        <div className="grid min-h-9 grid-cols-[58px_minmax(0,1fr)] border-b border-slate-200 bg-white">
-          <span className="flex items-center justify-center text-[10px] font-medium tabular-nums text-slate-600">
-            {timeZoneOffsetLabel(CALENDAR_TIME_ZONE, clock)}
-          </span>
+        <div className="grid min-h-8 grid-cols-[48px_minmax(0,1fr)] border-b border-slate-200 bg-white">
+          <span aria-hidden="true" />
           <div className={`grid ${columnGrid}`}>
             {days.map((day) => {
               const entries = allDayEvents(day)
               return (
                 <div
                   key={format(day, 'yyyy-MM-dd')}
-                  className="grid min-h-9 content-start gap-1 border-r border-slate-200 p-1 last:border-r-0"
+                  className="grid min-h-8 content-start gap-0.5 border-r border-slate-200 p-1 last:border-r-0"
                 >
                   {entries.map((event) => {
                     const color = colors[event.club_id] ?? clubCalendarColor(event.club_id)
@@ -232,15 +228,17 @@ export function WeekCalendar({
             className="relative border-r border-slate-200 bg-white"
             style={{ height: (CLOSE_HOUR - OPEN_HOUR) * PIXELS_PER_HOUR }}
           >
-            {hours.map((hour) => (
-              <span
-                key={hour}
-                className="absolute right-2 -translate-y-1/2 text-[11px] tabular-nums text-slate-600"
-                style={{ top: (hour - OPEN_HOUR) * PIXELS_PER_HOUR }}
-              >
-                {String(hour).padStart(2, '0')}:00
-              </span>
-            ))}
+            {hours
+              .filter((hour) => hour > OPEN_HOUR)
+              .map((hour) => (
+                <span
+                  key={hour}
+                  className="absolute right-1.5 -translate-y-1/2 text-[10px] tabular-nums text-slate-600"
+                  style={{ top: (hour - OPEN_HOUR) * PIXELS_PER_HOUR }}
+                >
+                  {String(hour).padStart(2, '0')}:00
+                </span>
+              ))}
           </div>
           <div data-calendar-grid className={`grid ${columnGrid}`}>
             {days.map((day, dayIndex) => {
@@ -254,7 +252,7 @@ export function WeekCalendar({
                   style={{
                     height: (CLOSE_HOUR - OPEN_HOUR) * PIXELS_PER_HOUR,
                     backgroundImage:
-                      'repeating-linear-gradient(to bottom, transparent 0, transparent 67px, #e2e8f0 67px, #e2e8f0 68px)',
+                      'repeating-linear-gradient(to bottom, transparent 0, transparent 47px, #e2e8f0 47px, #e2e8f0 48px)',
                   }}
                 >
                   {slots.map((minute, slotIndex) => (
@@ -265,7 +263,7 @@ export function WeekCalendar({
                       tabIndex={focusedCell.day === dayIndex && focusedCell.slot === slotIndex ? 0 : -1}
                       type="button"
                       aria-label={`Crear clase el ${format(day, 'd MMMM', { locale: es })} a las ${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`}
-                      className="absolute inset-x-0 z-0 h-[34px] bg-transparent focus-visible:z-10 focus-visible:bg-emerald-50"
+                      className="absolute inset-x-0 z-0 h-6 bg-transparent focus-visible:z-10 focus-visible:bg-emerald-50"
                       style={{ top: (minute / 60) * PIXELS_PER_HOUR }}
                       onFocus={() => setFocusedCell({ day: dayIndex, slot: slotIndex })}
                       onKeyDown={(event) => {
@@ -307,19 +305,18 @@ export function WeekCalendar({
                     if (!placement) return null
                     const color = colors[event.club_id] ?? clubCalendarColor(event.club_id)
                     const zone = event.club?.timezone ?? CALENDAR_TIME_ZONE
-                    const start = formatInClubTime(event.starts_at, zone, { timeOnly: true })
-                    const end = formatInClubTime(event.ends_at, zone, { timeOnly: true })
                     const title = event.groupName ?? 'Clase suelta'
+                    const clubName = event.club?.name ?? 'Club'
                     const isPast = new Date(event.ends_at).getTime() < new Date(clock).getTime()
-                    const compact = placement.height < 48
+                    const compact = placement.height < 40
                     return (
                       <button
                         key={event.id}
                         data-session-id={event.id}
                         type="button"
-                        aria-label={`${title}, ${formatInClubTime(event.starts_at, zone)}, ${start}–${end}, ${statusLabels[event.status]}, ${event.studentCount} de ${event.capacity} alumnos`}
+                        aria-label={`${title}, ${clubName}, ${formatInClubTime(event.starts_at, zone)}, ${statusLabels[event.status]}, ${event.studentCount} de ${event.capacity} alumnos`}
                         onClick={() => setSelectedEvent(event)}
-                        className={`calendar-event absolute grid min-w-0 cursor-pointer content-start gap-0.5 overflow-hidden rounded-lg border px-2 py-1 text-left text-xs leading-tight outline-none transition-shadow hover:z-20 hover:shadow-sm focus-visible:z-20 focus-visible:ring-2 focus-visible:ring-accent ${event.status === 'cancelled' ? 'opacity-50 line-through' : event.status === 'completed' || isPast ? 'opacity-65' : ''}`}
+                        className={`calendar-event absolute grid min-w-0 cursor-pointer content-start gap-0.5 overflow-hidden rounded-md border px-1.5 py-0.5 text-left text-[10px] leading-tight outline-none transition-shadow hover:z-20 hover:shadow-sm focus-visible:z-20 focus-visible:ring-2 focus-visible:ring-accent sm:text-[11px] ${event.status === 'cancelled' ? 'opacity-50 line-through' : event.status === 'completed' || isPast ? 'opacity-65' : ''}`}
                         data-status={event.status}
                         style={{
                           top: placement.top,
@@ -334,27 +331,12 @@ export function WeekCalendar({
                       >
                         {compact ? (
                           <span className="truncate">
-                            <strong>{title}</strong>, {start}
+                            <strong>{title}</strong>, {clubName}
                           </span>
                         ) : (
                           <>
-                            <span className="flex min-w-0 items-center gap-1">
-                              <strong className="min-w-0 flex-1 truncate font-semibold">{title}</strong>
-                              {event.status === 'completed' ? (
-                                <Check size={13} aria-label="Terminada" />
-                              ) : null}
-                            </span>
-                            <span className="truncate tabular-nums">
-                              {start} – {end}
-                            </span>
-                            {placement.height >= 66 ? (
-                              <span className="truncate">
-                                {event.club?.name ?? 'Club'} · {event.studentCount}/{event.capacity}
-                              </span>
-                            ) : null}
-                            {placement.height >= 100 && event.teacher ? (
-                              <span className="truncate">{event.teacher.full_name}</span>
-                            ) : null}
+                            <strong className="min-w-0 truncate font-semibold">{title}</strong>
+                            <span className="min-w-0 truncate text-[10px] opacity-90">{clubName}</span>
                           </>
                         )}
                       </button>
