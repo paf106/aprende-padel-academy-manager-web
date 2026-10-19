@@ -76,11 +76,11 @@ export function MonthCalendar({
         return (
           <section
             aria-label={`${label}, ${daily.length} ${daily.length === 1 ? 'clase' : 'clases'}`}
-            className={`min-h-[82px] min-w-0 border-b border-r border-slate-200 p-1.5 sm:min-h-[116px] sm:p-2 ${!inMonth ? 'bg-slate-50' : 'bg-white'} ${index % 7 === 6 ? 'border-r-0' : ''}`}
+            className={`min-h-24 min-w-0 border-b border-r border-slate-200 p-1.5 sm:min-h-36 sm:p-2 ${!inMonth ? 'bg-slate-50' : 'bg-white'} ${index % 7 === 6 ? 'border-r-0' : ''}`}
             key={dayKey}
           >
             <button
-              className={`mb-1 grid size-9 place-items-center rounded-full text-sm font-medium ${isToday ? 'bg-accent text-white' : inMonth ? 'text-slate-900 hover:bg-slate-100' : 'text-slate-500 hover:bg-slate-100'}`}
+              className={`mb-1 grid size-11 place-items-center rounded-full text-sm font-medium ${isToday ? 'bg-accent text-white' : inMonth ? 'text-slate-900 hover:bg-slate-100' : 'text-slate-500 hover:bg-slate-100'}`}
               onClick={() => viewDay(dayKey)}
               type="button"
               aria-current={isToday ? 'date' : undefined}
@@ -105,7 +105,7 @@ export function MonthCalendar({
                     onClick={() => setSelectedEvent(session)}
                     aria-label={`${fullTitle}, ${label}`}
                     title={`${start} · ${title} · ${session.club?.name ?? 'Club'} · ${session.studentCount}/${session.capacity}`}
-                    className={`flex min-h-7 min-w-0 items-center gap-1.5 rounded-md px-1.5 text-left text-xs hover:bg-slate-100 focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-accent ${session.status === 'cancelled' ? 'opacity-55 line-through' : session.status === 'completed' || past ? 'opacity-65' : ''}`}
+                    className={`flex min-h-11 min-w-0 items-center gap-1.5 rounded-md px-1.5 text-left text-xs hover:bg-slate-100 focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-accent sm:min-h-8 ${session.status === 'cancelled' ? 'opacity-55 line-through' : session.status === 'completed' || past ? 'opacity-65' : ''}`}
                   >
                     <span
                       aria-hidden="true"

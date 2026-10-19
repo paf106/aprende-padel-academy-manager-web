@@ -1,3 +1,15 @@
 export default function AdminLoading() {
-  return <main className="mx-auto w-full max-w-[1500px] space-y-6 px-4 py-8 sm:px-8" aria-busy="true"><span role="status" className="sr-only">Cargando…</span><div aria-hidden="true" className="h-10 w-64 animate-pulse rounded-lg bg-slate-200"/><div aria-hidden="true" className="grid gap-4 sm:grid-cols-3"><div className="h-28 animate-pulse rounded-2xl bg-slate-200"/><div className="h-28 animate-pulse rounded-2xl bg-slate-200"/><div className="h-28 animate-pulse rounded-2xl bg-slate-200"/></div><div aria-hidden="true" className="h-[360px] animate-pulse rounded-2xl bg-slate-200"/></main>
+  return (
+    <main className="mx-auto w-full max-w-7xl space-y-6 px-4 py-7 pb-24 sm:px-8 md:pb-7" aria-busy="true">
+      <span role="status" className="sr-only">
+        Cargando resumen…
+      </span>
+      <div aria-hidden="true" className="h-16 w-full animate-pulse rounded-2xl bg-white" />
+      <div aria-hidden="true" className="h-48 animate-pulse rounded-2xl bg-white" />
+      <div aria-hidden="true" className="grid gap-5 lg:grid-cols-[1.5fr_1fr]">
+        <div className="h-[360px] animate-pulse rounded-2xl bg-white" />
+        <div className="h-[360px] animate-pulse rounded-2xl bg-white" />
+      </div>
+    </main>
+  )
 }

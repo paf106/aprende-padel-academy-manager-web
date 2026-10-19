@@ -1,5 +1,5 @@
 begin;
-select plan(10);
+select plan(13);
 
 insert into core.organizations(id, name, slug) values
   ('41000000-0000-0000-0000-000000000001', 'Payments reporting test', 'payments-reporting-test');
@@ -33,6 +33,8 @@ insert into payments.student_transactions(id, charge_id, amount_cents, method, c
   ('47000000-0000-0000-0000-000000000001', '46000000-0000-0000-0000-000000000001', 1000, 'cash', '43000000-0000-0000-0000-000000000001');
 insert into classes.sessions(id, organization_id, club_id, teacher_id, category, starts_at, ends_at, status) values
   ('48000000-0000-0000-0000-000000000001', '41000000-0000-0000-0000-000000000001', '42000000-0000-0000-0000-000000000001', '43000000-0000-0000-0000-000000000002', 'adult', '2026-10-15 17:00+00', '2026-10-15 18:00+00', 'completed');
+insert into classes.session_students(session_id, student_id)
+values ('48000000-0000-0000-0000-000000000001', '44000000-0000-0000-0000-000000000001');
 insert into payments.teacher_settlements(id, organization_id, teacher_id, period, calculated_amount_cents) values
   ('49000000-0000-0000-0000-000000000001', '41000000-0000-0000-0000-000000000001', '43000000-0000-0000-0000-000000000002', '2026-10-01', 3000),
   ('49000000-0000-0000-0000-000000000002', '41000000-0000-0000-0000-000000000001', '43000000-0000-0000-0000-000000000003', '2026-10-01', 2000);
@@ -55,6 +57,9 @@ select is((select student_paid_cents from payments.period_totals('2026-10-01')),
 select is((select total_count from payments.period_payment_rows('2026-10-01', 'student', 'partial', 'active student', 50, 0)), 1::bigint, 'student payment rows filter by name and payment status');
 select is((select total_count from payments.period_payment_rows('2026-10-01', 'teacher', 'partial', 'payments teacher', 50, 0)), 1::bigint, 'teacher payment rows filter by name and payment status');
 select is((select total_count from payments.period_payment_rows('2026-10-01', 'student', 'none', null, 50, 0)), 1::bigint, 'zero-value charges have their own payment status');
+select is((select students_without_tariff from core.dashboard_action_metrics('2026-10-01')), 1::bigint, 'dashboard counts active students without a current tariff');
+select is((select pending_attendance_sessions from core.dashboard_action_metrics('2026-10-01')), 1::bigint, 'dashboard counts completed sessions with unmarked attendance');
+select is((select outstanding_student_cents from core.dashboard_action_metrics('2026-10-01')), 4000::bigint, 'dashboard reports the outstanding amount for the whole period');
 select throws_ok($$select classes.set_session_status('48000000-0000-0000-0000-000000000001', 'cancelled', 'Already settled')$$, '55000', null, 'a session included in a settlement cannot change status');
 select throws_ok($$select classes.reschedule_session('48000000-0000-0000-0000-000000000001', '2026-10-16 18:00'::timestamp, 60::smallint, null::text)$$, '55000', null, 'a session included in a settlement cannot be rescheduled');
 

@@ -51,7 +51,7 @@ export default async function ClassesPage({
   const sessionsPromise = getSessions(
     `${format(addDays(periodStart, -1), 'yyyy-MM-dd')}T00:00:00`,
     `${format(addDays(periodEnd, 2), 'yyyy-MM-dd')}T00:00:00`,
-    500,
+    1000,
     filters,
   )
   const reference = await getClassReferenceData()

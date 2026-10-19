@@ -346,23 +346,10 @@ export async function deleteSession(id: string): Promise<ActionResult> {
   } catch {
     return { ok: false, message: 'No autorizado.' }
   }
-  const { data: session } = await auth.supabase
-    .schema('classes')
-    .from('sessions')
-    .select('id')
-    .eq('id', id)
-    .maybeSingle()
-  if (!session) return { ok: false, message: 'Clase no encontrada.' }
-  const { data: billed, error: billedError } = await auth.supabase
-    .schema('payments')
-    .from('teacher_settlement_lines')
-    .select('id')
-    .eq('session_id', id)
-    .limit(1)
-  if (billedError) return { ok: false, message: 'No se pudo verificar si la clase está liquidada.' }
-  if (billed?.length)
+  const { error } = await auth.supabase.schema('classes').rpc('delete_session', { p_session_id: id })
+  if (error?.code === '55000')
     return { ok: false, message: 'No se puede eliminar: esta clase ya está incluida en una liquidación.' }
-  const { error } = await auth.supabase.schema('classes').from('sessions').delete().eq('id', id)
+  if (error?.code === 'P0002') return { ok: false, message: 'Clase no encontrada.' }
   if (error) return { ok: false, message: 'No se pudo eliminar la clase.' }
   revalidatePath('/clases')
   revalidatePath('/')

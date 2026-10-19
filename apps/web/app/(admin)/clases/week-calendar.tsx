@@ -294,6 +294,7 @@ export function WeekCalendar({
                   ))}
                   {isToday && currentMinute >= OPEN_HOUR * 60 && currentMinute < CLOSE_HOUR * 60 ? (
                     <div
+                      role="img"
                       aria-label={`Hora actual ${String(Math.floor(currentMinute / 60)).padStart(2, '0')}:${String(currentMinute % 60).padStart(2, '0')}`}
                       className="pointer-events-none absolute inset-x-0 z-30 h-0.5 bg-rose-600"
                       style={{ top: ((currentMinute - OPEN_HOUR * 60) / 60) * PIXELS_PER_HOUR }}

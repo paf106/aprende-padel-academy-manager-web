@@ -132,7 +132,7 @@ export function SessionDetail({
         showToast(result.message)
         setShowAdd(false)
         router.refresh()
-      } else showToast(result.message, 'error')
+      }
     })
   }
   function submitCancel(formData: FormData) {
@@ -144,7 +144,7 @@ export function SessionDetail({
       if (result.ok) {
         showToast(result.message)
         setCancelOpen(false)
-      } else showToast(result.message, 'error')
+      }
     })
   }
 

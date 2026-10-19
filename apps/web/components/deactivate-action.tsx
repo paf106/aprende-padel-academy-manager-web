@@ -16,8 +16,10 @@ export function DeactivateAction({ action, label }: { action: () => Promise<Acti
     startTransition(async () => {
       const response = await action()
       setResult(response)
-      showToast(response.message, response.ok ? 'success' : 'error')
-      if (response.ok) setOpen(false)
+      if (response.ok) {
+        showToast(response.message)
+        setOpen(false)
+      }
     })
   }
   return (
@@ -25,9 +27,10 @@ export function DeactivateAction({ action, label }: { action: () => Promise<Acti
       <Button
         type="button"
         size="sm"
-        variant="destructive"
+        variant="ghost"
         aria-label={`Desactivar ${label}`}
         disabled={pending}
+        className="text-rose-800 hover:bg-rose-50"
         onClick={() => {
           setResult(null)
           setOpen(true)
@@ -41,7 +44,11 @@ export function DeactivateAction({ action, label }: { action: () => Promise<Acti
         title={`Desactivar ${label}`}
         description="La desactivación oculta este elemento de la gestión diaria; sus registros históricos se conservan."
       >
-        {result && !result.ok ? <FormMessage>{result.message}</FormMessage> : null}
+        {result && !result.ok ? (
+          <div className="px-5 pt-5 sm:px-6">
+            <FormMessage>{result.message}</FormMessage>
+          </div>
+        ) : null}
         <div className="flex justify-end gap-2 px-5 py-5 sm:px-6">
           <Button type="button" variant="secondary" disabled={pending} onClick={() => setOpen(false)}>
             Cancelar

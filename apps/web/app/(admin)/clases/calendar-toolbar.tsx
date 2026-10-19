@@ -78,11 +78,19 @@ export function CalendarToolbar({
       if (document.querySelector('dialog[open]')) return
       if (
         target instanceof HTMLElement &&
-        (target.isContentEditable ||
-          target.closest('input,textarea,select,button,a,[role="button"],[role="menuitem"]'))
+        (target.isContentEditable || target.closest('input,textarea,select'))
       )
         return
-      if (event.altKey || event.ctrlKey || event.metaKey) return
+      if (event.ctrlKey || event.metaKey || event.shiftKey) return
+      const letterShortcut = ['t', 'd', 'w', 'm', 'n'].includes(event.key.toLowerCase())
+      if (letterShortcut !== event.altKey) return
+      if (!letterShortcut && event.altKey) return
+      if (
+        !letterShortcut &&
+        target instanceof HTMLElement &&
+        target.closest('button,a,[role="button"],[role="menuitem"]')
+      )
+        return
       if (event.key.toLowerCase() === 't') {
         event.preventDefault()
         update({ date: localTodayInTimeZone('Europe/Madrid') }, true)
@@ -118,7 +126,7 @@ export function CalendarToolbar({
       <div className="flex min-h-[68px] flex-wrap items-center gap-2 border-b border-slate-200 px-2 py-2 sm:gap-4 sm:px-5">
         <button
           type="button"
-          title="Atajo: T"
+          title="Atajo: Alt+T"
           onClick={() => update({ date: localTodayInTimeZone('Europe/Madrid') }, true)}
           className="min-h-11 rounded-full border border-slate-400 bg-white px-5 text-sm font-medium text-slate-700 hover:bg-slate-100"
         >
@@ -150,7 +158,7 @@ export function CalendarToolbar({
         >
           {label}
         </h1>
-        <label className="flex min-h-11 items-center gap-2 rounded-xl border border-slate-400 bg-white px-3 text-sm text-slate-700">
+        <label className="flex min-h-11 items-center gap-2 rounded-xl border border-slate-400 bg-white px-3 text-sm text-slate-700 focus-within:ring-2 focus-within:ring-accent">
           <CalendarDays size={16} aria-hidden="true" className="text-slate-600" />
           <span className="sr-only">Ir a fecha</span>
           <input
@@ -242,7 +250,7 @@ export function CalendarToolbar({
           </button>
         ) : null}
         <span className="hidden text-xs text-slate-600 xl:inline">
-          Atajos: T hoy · ←/→ periodo · D/W/M vista · N nueva clase
+          Atajos: Alt+T hoy · ←/→ periodo · Alt+D/W/M vista · Alt+N nueva clase
         </span>
       </div>
       <details className="group border-b border-slate-100 px-3 py-2 sm:px-5">

@@ -83,13 +83,13 @@ isOneToOne: false
                   ]
                 },"sessions": {
                   Row: {
-                    "cancellation_reason": string | null,"category": Database["core"]['Enums']["student_category"],"club_id": string,"court_id": string | null,"created_at": string,"ends_at": string,"group_id": string | null,"id": string,"notes": string | null,"organization_id": string,"starts_at": string,"status": Database["classes"]['Enums']["session_status"],"teacher_id": string,"updated_at": string
+                    "cancellation_reason": string | null,"category": Database["core"]['Enums']["student_category"],"club_id": string,"court_id": string | null,"created_at": string,"ends_at": string,"group_id": string | null,"group_slot_date": string | null,"id": string,"notes": string | null,"organization_id": string,"starts_at": string,"status": Database["classes"]['Enums']["session_status"],"teacher_id": string,"updated_at": string
                   }
                   Insert: {
-                    "cancellation_reason"?: string | null,"category": Database["core"]['Enums']["student_category"],"club_id": string,"court_id"?: string | null,"created_at"?: string,"ends_at": string,"group_id"?: string | null,"id"?: string,"notes"?: string | null,"organization_id": string,"starts_at": string,"status"?: Database["classes"]['Enums']["session_status"],"teacher_id": string,"updated_at"?: string
+                    "cancellation_reason"?: string | null,"category": Database["core"]['Enums']["student_category"],"club_id": string,"court_id"?: string | null,"created_at"?: string,"ends_at": string,"group_id"?: string | null,"group_slot_date"?: string | null,"id"?: string,"notes"?: string | null,"organization_id": string,"starts_at": string,"status"?: Database["classes"]['Enums']["session_status"],"teacher_id": string,"updated_at"?: string
                   }
                   Update: {
-                    "cancellation_reason"?: string | null,"category"?: Database["core"]['Enums']["student_category"],"club_id"?: string,"court_id"?: string | null,"created_at"?: string,"ends_at"?: string,"group_id"?: string | null,"id"?: string,"notes"?: string | null,"organization_id"?: string,"starts_at"?: string,"status"?: Database["classes"]['Enums']["session_status"],"teacher_id"?: string,"updated_at"?: string
+                    "cancellation_reason"?: string | null,"category"?: Database["core"]['Enums']["student_category"],"club_id"?: string,"court_id"?: string | null,"created_at"?: string,"ends_at"?: string,"group_id"?: string | null,"group_slot_date"?: string | null,"id"?: string,"notes"?: string | null,"organization_id"?: string,"starts_at"?: string,"status"?: Database["classes"]['Enums']["session_status"],"teacher_id"?: string,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -113,6 +113,9 @@ isOneToOne: false
                 }
           }
           Functions: {
+            "delete_session":
+{ Args: { "p_session_id": string }; Returns: undefined
+                           },
             "create_group":
 { Args: { "p_capacity": number,"p_category": Database["core"]['Enums']["student_category"],"p_club_id": string,"p_duration_minutes": number,"p_ends_on": string | null,"p_level": Database["core"]['Enums']["student_level"],"p_name": string,"p_start_time": string,"p_starts_on": string,"p_student_ids": (string)[] | null,"p_teacher_id": string,"p_weekday": number }; Returns: string
                            },
@@ -381,10 +384,19 @@ isOneToOne: false
 "current_app_role":
 { Args: Record<PropertyKey, never>; Returns: Database["core"]['Enums']["app_role"]
                            },
-"current_org":
+            "current_org":
 { Args: Record<PropertyKey, never>; Returns: string
                            },
-"is_admin":
+            "dashboard_action_metrics": {
+              Args: { "p_period": string }
+              Returns: {
+                "pending_attendance_sessions": number,
+                "students_without_tariff": number,
+                "unpaid_student_charges": number,
+                "outstanding_student_cents": number
+              }[]
+            },
+            "is_admin":
 { Args: Record<PropertyKey, never>; Returns: boolean
                            },
 "module_enabled":
