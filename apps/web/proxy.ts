@@ -40,21 +40,48 @@ export async function proxy(request: NextRequest) {
     if (profile) return NextResponse.redirect(new URL('/', request.url))
   }
   if (!isLogin && (error || !data?.claims)) {
-    const redirect = NextResponse.redirect(new URL('/login', request.url))
-    response.cookies
-      .getAll()
-      .forEach(({ name, value, ...options }) => redirect.cookies.set(name, value, options))
-    redirect.headers.set('Cache-Control', 'private, no-store')
-    return redirect
+    return redirectToLogin(request, response)
   }
   if (!isLogin && data?.claims && role !== 'admin') {
-    return new NextResponse('No autorizado', {
-      status: 403,
-      headers: { 'Cache-Control': 'private, no-store' },
-    })
+    await supabase.auth.signOut()
+    return redirectToLogin(request, response, 'unauthorized', true)
   }
   response.headers.set('Cache-Control', 'private, no-store')
   return response
+}
+
+function redirectToLogin(request: NextRequest, response: NextResponse, error?: string, clearAuth = false) {
+  const url = new URL('/login', request.url)
+  if (error) url.searchParams.set('error', error)
+  const redirect = NextResponse.redirect(url)
+  for (const { name, value } of response.cookies.getAll()) {
+    redirect.cookies.set(name, value, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      ...(clearAuth && name.startsWith('sb-') && name.includes('-auth-token')
+        ? { maxAge: 0 }
+        : value
+          ? {}
+          : { maxAge: 0 }),
+    })
+  }
+  if (clearAuth) {
+    for (const { name } of request.cookies.getAll()) {
+      if (name.startsWith('sb-') && name.includes('-auth-token')) {
+        redirect.cookies.set(name, '', {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          path: '/',
+          maxAge: 0,
+        })
+      }
+    }
+  }
+  redirect.headers.set('Cache-Control', 'private, no-store')
+  return redirect
 }
 
 export const config = {
