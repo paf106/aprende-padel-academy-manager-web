@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import localFont from 'next/font/local'
 import './globals.css'
 import { ToastProvider } from '../components/ui/toast'
+import { themeInitScript } from '../components/ds/theme-toggle'
 
 const onest = localFont({
   src: './onest-latin-wght-normal.woff2',
@@ -16,8 +17,11 @@ export const metadata: Metadata = {
 export const viewport: Viewport = { themeColor: '#f8fafc' }
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="es">
-      <body className={`${onest.variable} min-h-screen bg-slate-50 font-sans text-slate-900 antialiased`}>
+    <html lang="es" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
+      <body className={`${onest.variable} min-h-screen bg-background font-sans text-foreground antialiased`}>
         <ToastProvider>
           <a
             className="fixed left-2 top-2 z-[100] -translate-y-[150%] rounded-xl bg-white px-4 py-3 font-bold text-slate-900 shadow-lg focus:translate-y-0"
