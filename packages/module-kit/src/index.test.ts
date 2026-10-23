@@ -18,6 +18,7 @@ describe('module route registry', () => {
       '/clubes',
       '/importar',
       '/configuracion-inicial',
+      '/ajustes',
     ])
     expect(getModuleRoutes(['payments'], 'secondary')).toEqual([])
   })

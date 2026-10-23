@@ -35,6 +35,7 @@ const icons: Record<string, LucideIcon> = {
   '/pagos': CreditCard,
   '/importar': FileUp,
   '/configuracion-inicial': Settings,
+  '/ajustes': Settings,
 }
 
 const COLLAPSE_KEY = 'sidebar-collapsed'

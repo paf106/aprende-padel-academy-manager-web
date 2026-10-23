@@ -5,7 +5,10 @@ import { isModuleRoute } from '@aprende-padel/module-kit'
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request })
   const isLogin = request.nextUrl.pathname.startsWith('/login')
-  const isProtected = request.nextUrl.pathname === '/' || isModuleRoute(request.nextUrl.pathname)
+  const isProtected =
+    request.nextUrl.pathname === '/' ||
+    request.nextUrl.pathname.startsWith('/plataforma') ||
+    isModuleRoute(request.nextUrl.pathname)
   if (!isLogin && !isProtected) return response
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
@@ -42,7 +45,7 @@ export async function proxy(request: NextRequest) {
   if (!isLogin && (error || !data?.claims)) {
     return redirectToLogin(request, response)
   }
-  if (!isLogin && data?.claims && role !== 'admin') {
+  if (!isLogin && data?.claims && role !== 'admin' && data.claims.app_metadata?.is_platform_admin !== true) {
     await supabase.auth.signOut()
     return redirectToLogin(request, response, 'unauthorized', true)
   }

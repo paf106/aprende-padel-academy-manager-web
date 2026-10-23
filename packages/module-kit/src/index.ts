@@ -27,6 +27,7 @@ export const modules: readonly ModuleDefinition[] = [
       { href: '/clubes', label: 'Sedes', section: 'secondary' },
       { href: '/importar', label: 'Importar', section: 'secondary' },
       { href: '/configuracion-inicial', label: 'Configuración', section: 'secondary' },
+      { href: '/ajustes', label: 'Ajustes', section: 'secondary' },
     ],
   },
   {
