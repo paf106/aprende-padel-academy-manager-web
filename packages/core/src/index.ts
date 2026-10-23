@@ -170,3 +170,5 @@ export { accountStatement, allocateToMembers, accountDebt } from './account-bill
 export type { MemberCharge, AccountMonth, AccountStatus } from './account-billing'
 
 export { addDays, weekDays, shiftDate, visibleRange } from './calendar-nav'
+export { parseStudentsCsv, studentCsvTemplate, studentCsvHeader } from './csv-import'
+export type { ImportRow, ImportedStudent } from './csv-import'

@@ -5,6 +5,8 @@ import {
   ChevronsLeft,
   ChevronsRight,
   CreditCard,
+  FileUp,
+  Settings,
   GraduationCap,
   LayoutDashboard,
   MapPin,
@@ -31,6 +33,8 @@ const icons: Record<string, LucideIcon> = {
   '/profesores': UserRound,
   '/clubes': MapPin,
   '/pagos': CreditCard,
+  '/importar': FileUp,
+  '/configuracion-inicial': Settings,
 }
 
 const COLLAPSE_KEY = 'sidebar-collapsed'
