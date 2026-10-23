@@ -168,3 +168,5 @@ export type { TeacherRate, TeacherRates, TeacherRateOverrides } from './teacher-
 export { defaultCapacity, hasFreeSpot, freeSpots } from './capacity'
 export { accountStatement, allocateToMembers, accountDebt } from './account-billing'
 export type { MemberCharge, AccountMonth, AccountStatus } from './account-billing'
+
+export { addDays, weekDays, shiftDate, visibleRange } from './calendar-nav'
