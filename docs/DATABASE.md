@@ -1,12 +1,12 @@
-# Esquema de base de datos v2
+# Database schema v2
 
-Postgres (Supabase). Un schema por módulo; `core` contiene identidad, organización y sedes.
-Importes en céntimos enteros. Zona horaria `Europe/Madrid`. Todas las tablas llevan
-`organization_id` y RLS; las tablas de módulo comprueban además `core.module_enabled('<id>')`.
-Los módulos no se enlazan con foreign keys entre sí: `classes` y `payments` solo referencian `core`
-(los identificadores de sesión o grupo en `payments` son referencias lógicas, sin FK).
+Postgres (Supabase). One schema per module; `core` holds identity, organization and clubs.
+Amounts are integer cents. Time zone `Europe/Madrid`. Every table carries `organization_id` and RLS;
+module tables also check `core.module_enabled('<id>')`.
+Modules never link to each other with foreign keys: `classes` and `payments` only reference `core`
+(session or group ids inside `payments` are logical references, without FK).
 
-## 1. Core: plataforma, organización y sedes
+## 1. Core: platform, organization and clubs
 
 ```mermaid
 erDiagram
@@ -61,7 +61,7 @@ erDiagram
     clubs {
         uuid id PK
         uuid organization_id FK
-        text name "sede"
+        text name "club (school)"
         text city
         text address
         text color
@@ -77,10 +77,10 @@ erDiagram
     club_closures {
         uuid id PK
         uuid organization_id FK
-        uuid club_id FK "null = toda la organización"
+        uuid club_id FK "null = whole organization"
         date starts_on
         date ends_on
-        text reason "festivo|vacaciones"
+        text reason "holiday|vacation"
     }
     teachers {
         uuid id PK
@@ -92,14 +92,14 @@ erDiagram
     }
 ```
 
-## 2. Core: alumnos y cuentas de cobro
+## 2. Core: students and billing accounts
 
 ```mermaid
 erDiagram
     organizations ||--o{ students : tiene
     clubs ||--o{ student_clubs : acoge
     students ||--o{ student_clubs : asiste
-    students ||--o| guardians : "tutor (menores)"
+    students ||--o| guardians : "guardian (minors)"
     students ||--o{ student_level_history : evoluciona
     billing_accounts ||--o{ billing_account_members : agrupa
     students ||--o{ billing_account_members : pertenece
@@ -107,13 +107,13 @@ erDiagram
     students {
         uuid id PK
         uuid organization_id FK
-        uuid membership_id FK "opcional, acceso futuro app"
+        uuid membership_id FK "optional, future mobile access"
         text first_name
         text last_name
         date birth_date
         text gender "female|male|other|unspecified"
         text category "adult|child"
-        text level "iniciacion|principiante|medio|avanzado|competicion"
+        text level "starter|beginner|intermediate|advanced|competition"
         text email
         text phone
         text status "active|inactive"
@@ -123,7 +123,7 @@ erDiagram
     student_clubs {
         uuid student_id PK,FK
         uuid club_id PK,FK
-        boolean is_home "sede habitual"
+        boolean is_home "home club"
     }
     student_level_history {
         uuid id PK
@@ -145,7 +145,7 @@ erDiagram
     billing_accounts {
         uuid id PK
         uuid organization_id FK
-        text name "Familia García | Pareja X"
+        text name "Garcia family | Couple X"
         text kind "individual|couple|family"
         text payment_reference UK
         boolean active
@@ -159,12 +159,12 @@ erDiagram
     }
 ```
 
-## 3. Clases
+## 3. Classes
 
 ```mermaid
 erDiagram
     groups ||--o{ group_members : incluye
-    groups ||--o{ group_schedules : "se repite"
+    groups ||--o{ group_schedules : "repeats"
     groups ||--o{ sessions : genera
     sessions ||--o{ session_attendees : inscribe
     sessions ||--o{ session_audit : registra
@@ -185,7 +185,7 @@ erDiagram
         text category "adult|child"
         text level
         date starts_on
-        date ends_on "opcional"
+        date ends_on "optional"
         int capacity
         boolean active
     }
@@ -207,15 +207,15 @@ erDiagram
         uuid organization_id FK
         uuid group_id FK
         uuid club_id FK
-        uuid teacher_id FK "quien imparte (sustitución)"
-        uuid court_id FK "opcional"
+        uuid teacher_id FK "who teaches (substitution)"
+        uuid court_id FK "optional"
         timestamptz starts_at
         smallint duration_minutes
         text category
         text status "pending|completed|cancelled"
         text cancel_reason "rain|bad_weather|other"
         text cancel_note
-        int enrolled_snapshot "alumnos al cerrar"
+        int enrolled_snapshot "students when closed"
         boolean attendance_taken
     }
     session_attendees {
@@ -237,20 +237,20 @@ erDiagram
     }
 ```
 
-Reglas de BD (triggers/funciones transaccionales):
+Database rules (triggers and transactional functions):
 
-- Capacidad: `count(session_attendees) <= capacity` por categoría; no se mezclan categorías.
-- Sin solapes: un profesor no puede tener dos sesiones que se solapen.
-- Sin sesiones en días de `club_closures`; generar sesiones omite esos días.
-- `cancel_by_range(club, from, to, reason)`: cancelación masiva por lluvia en una transacción.
-- Al marcar `completed` se guarda `enrolled_snapshot` (base del pago al profesor).
-- Editar "solo esta" actualiza una sesión; "esta y las siguientes" regenera las futuras del grupo.
+- Capacity: `count(session_attendees) <= capacity` per category; categories are never mixed.
+- No overlaps: a teacher cannot have two overlapping sessions.
+- No sessions on `club_closures` days; session generation skips those days.
+- `cancel_by_range(club, from, to, reason)`: bulk rain cancellation in one transaction.
+- Marking a session `completed` stores `enrolled_snapshot` (basis of teacher pay).
+- Editing "only this one" updates a single session; "this and following" regenerates the group's future sessions.
 
-## 4. Pagos
+## 4. Payments
 
 ```mermaid
 erDiagram
-    fee_plans ||--o{ billing_charges : "tarifa aplicada"
+    fee_plans ||--o{ billing_charges : "applied plan"
     billing_accounts_ref ||--o{ billing_periods_charges : cobra
     billing_periods ||--o{ billing_charges : contiene
     billing_charges ||--o{ billing_charge_lines : desglosa
@@ -264,7 +264,7 @@ erDiagram
     fee_plans {
         uuid id PK
         uuid organization_id FK
-        text name "Normal | Pareja"
+        text name "Standard | Couple"
         int monthly_cents "3500 | 3000"
         text applies_to "individual|couple|family"
         boolean active
@@ -281,15 +281,15 @@ erDiagram
         uuid id PK
         uuid organization_id FK
         uuid period_id FK
-        uuid billing_account_id "ref lógica a core"
-        int due_cents "total a cobrar"
-        int credit_applied_cents "saldo a favor"
+        uuid billing_account_id "logical ref to core"
+        int due_cents "total to charge"
+        int credit_applied_cents "credit balance"
         text status "pending|partial|paid|none"
     }
     billing_charge_lines {
         uuid id PK
         uuid charge_id FK
-        uuid student_id "ref lógica a core"
+        uuid student_id "logical ref to core"
         uuid fee_plan_id FK
         int base_cents
         smallint scheduled_sessions
@@ -299,8 +299,8 @@ erDiagram
     billing_adjustments {
         uuid id PK
         uuid charge_id FK
-        int amount_cents "puede ser negativo"
-        text reason "obligatorio"
+        int amount_cents "can be negative"
+        text reason "required"
         uuid created_by
         timestamptz created_at
     }
@@ -324,24 +324,24 @@ erDiagram
         uuid id PK
         uuid organization_id FK
         uuid billing_account_id
-        int amount_cents "saldo a favor"
+        int amount_cents "credit balance"
         uuid source_payment_id FK
         uuid applied_charge_id FK
     }
     teacher_pay_rates {
         uuid id PK
         uuid organization_id FK
-        uuid teacher_id "null = organización"
+        uuid teacher_id "null = organization default"
         text category
         smallint threshold "3"
-        int below_cents "1200 por hora"
-        int at_or_above_cents "1500 por hora"
+        int below_cents "1200 per hour"
+        int at_or_above_cents "1500 per hour"
     }
     teacher_settlements {
         uuid id PK
         uuid organization_id FK
         uuid period_id FK
-        uuid teacher_id "ref lógica a core"
+        uuid teacher_id "logical ref to core"
         int total_cents
         text status "pending|paid"
         date paid_on
@@ -350,7 +350,7 @@ erDiagram
     teacher_settlement_lines {
         uuid id PK
         uuid settlement_id FK
-        uuid session_id "ref lógica a classes"
+        uuid session_id "logical ref to classes"
         smallint duration_minutes
         smallint enrolled
         int hourly_cents
@@ -364,17 +364,17 @@ erDiagram
     }
 ```
 
-Reglas de BD:
+Database rules:
 
-- `payments`, `billing_adjustments` y `session_audit` son **append-only** (trigger que rechaza `update` y `delete`).
-- Un periodo `closed` no admite cambios; las correcciones van como ajuste en el periodo siguiente.
-- `generate_charges(period)`: una sola cobranza por cuenta y mes; líneas por miembro con
-  `prorated = round(base × (programadas − canceladas) / programadas)`.
-- Sobrepago: genera `account_credits`, que se aplica al siguiente cobro.
-- Deuda acumulada: vista `account_debt` (suma de saldos pendientes y antigüedad en meses).
-- Rentabilidad: vista `group_profitability` = cobrado (proporción por grupo) − `teacher_settlement_lines`.
+- `payments`, `billing_adjustments` and `session_audit` are **append-only** (a trigger rejects `update` and `delete`).
+- A `closed` period accepts no changes; corrections are adjustments in the following period.
+- `generate_charges(period)`: one charge per account and month; one line per member with
+  `prorated = round(base × (scheduled − cancelled) / scheduled)`.
+- Overpayment: creates `account_credits`, applied to the next charge.
+- Accumulated debt: view `account_debt` (unpaid balances and age in months).
+- Profitability: view `group_profitability` = collected (share per group) − `teacher_settlement_lines`.
 
-## 5. Auditoría, importación y vistas de apoyo
+## 5. Audit, import and supporting views
 
 ```mermaid
 erDiagram
@@ -406,11 +406,10 @@ erDiagram
     }
 ```
 
-Vistas: `free_slots_by_club_slot` (mapa de plazas libres), `admin_tasks` (clases sin lista, cobros
-pendientes, grupos sin plaza o infrautilizados, liquidaciones pendientes), `account_debt`,
-`group_profitability`.
+Views: `free_slots_by_club_slot` (free spots heatmap), `admin_tasks` (classes without attendance, pending
+charges, full or underused groups, pending settlements), `account_debt`, `group_profitability`.
 
-## 6. Módulos futuros (solo reservado)
+## 6. Future modules (reserved only)
 
 ```mermaid
 erDiagram
@@ -447,10 +446,10 @@ erDiagram
     }
 ```
 
-## Seguridad (RLS)
+## Security (RLS)
 
-- `core.current_org()` y `core.current_role()` leen `app_metadata`, nunca `user_metadata`.
-- Admin: acceso completo a su organización. Superadmin (`profiles.is_platform_admin`): solo
-  organizaciones, módulos y facturación SaaS; para soporte accede por una vista de solo lectura registrada.
-- Profesor y alumno: políticas definidas para la futura app móvil (profesor ve sus sesiones y
-  liquidaciones; alumno ve sus clases y su cuenta de cobro), sin pantallas web en el MVP.
+- `core.current_org()` and `core.current_role()` read `app_metadata`, never `user_metadata`.
+- Admin: full access to their organization. Platform superadmin (`profiles.is_platform_admin`): organizations,
+  modules and SaaS billing only; support access goes through a logged read-only view.
+- Teacher and student: policies defined for the future mobile app (teachers see their sessions and settlements,
+  students see their classes and billing account); no web screens in the MVP.

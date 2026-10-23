@@ -1,6 +1,6 @@
 import next from 'eslint-config-next'
 
-export default [
+const config = [
   ...next,
   {
     ignores: [
@@ -8,8 +8,9 @@ export default [
       '**/.next/**',
       '**/.agents/**',
       '**/coverage/**',
-      '**/dist/**',
-      'packages/db/src/database.types.ts',
+      'lib/supabase/database.types.ts',
     ],
   },
 ]
+
+export default config

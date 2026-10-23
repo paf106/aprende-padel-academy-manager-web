@@ -1,49 +1,34 @@
-# AprendePadel Academy Manager
+# AprendePadel Manager
 
-Panel de administración para clubes, profesores, alumnos y clases de AprendePadel Academy.
+Multi-club SaaS for managing padel clubs and academies. Clubs enable only the modules they need
+(classes, payments, court bookings, inventory, tournaments). The MVP covers **Classes** and **Payments**.
 
-## Desarrollo
+The app UI is in Spanish. Code, identifiers, routes, tests and documentation are in English.
 
-Requisitos: Bun y Node.js 20.9 o superior.
+## Development
+
+Requirements: Bun and Node.js 20.9+.
 
 ```bash
 bun install
-bun dev
+cp .env.example .env   # then fill in your Supabase values
+bun dev                # http://localhost:3000
 ```
-
-La aplicación queda disponible en `http://localhost:3000`.
-
-## Calidad
 
 ```bash
 bun run lint
 bun run typecheck
+bun run test
 bun run build
 ```
 
-Las pruebas de base de datos usan Supabase local y pgTAP:
+## Environment variables
 
-```bash
-bunx supabase start
-bunx supabase test db
-```
+- `NEXT_PUBLIC_SUPABASE_URL`: public project URL.
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`: `sb_publishable_...` key, safe for the browser.
+- `SUPABASE_SECRET_KEY`: `sb_secret_...` key, server only. Never expose it to client code or commit it.
 
-## Variables de entorno
+## Status
 
-La aplicación web lee `apps/web/.env.local`:
-
-- `NEXT_PUBLIC_SUPABASE_URL`: URL pública del proyecto.
-- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`: clave `sb_publishable_...`, segura para el navegador.
-- `SUPABASE_SECRET_KEY`: clave `sb_secret_...`, solo para servidor y scripts administrativos.
-- `SUPABASE_DB_URL`: conexión de base de datos solo para scripts administrativos.
-- `DEMO_ADMIN_EMAIL` y `DEMO_TEACHER_1_EMAIL` … `DEMO_TEACHER_3_EMAIL`: usuarios Auth existentes que el script demo asignará a la organización y roles de prueba.
-
-No uses una secret key en código cliente ni la subas a Git. La JWT antigua `service_role` está en proceso de retirada por Supabase y la clave que se compartió anteriormente debe rotarse.
-
-## Base de datos
-
-El esquema base está en `supabase/migrations/20261006121046_academy_baseline.sql`; los cambios posteriores están versionados como migraciones incrementales en `supabase/migrations/`. El seed local está en `supabase/seed.sql`.
-
-Para cargar datos de demostración contra el proyecto configurado, crea antes esos cuatro usuarios en Supabase Auth y ejecuta `bun run seed:demo`. El script escribe datos de prueba y debe apuntar solo a un proyecto de desarrollo.
-
-La aplicación usa un monorepo Bun con la app Next.js en `apps/web`, paquetes compartidos en `packages/` y módulos independientes en `modules/`.
+Screens run on demo data (`lib/demo`) until the Supabase schema described in
+[docs/DATABASE.md](docs/DATABASE.md) is implemented. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).

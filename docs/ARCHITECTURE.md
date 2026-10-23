@@ -1,27 +1,48 @@
-# Arquitectura
+# Architecture
 
-AprendePadel es un monorepo Bun con una aplicación Next.js y paquetes compartidos.
+Single Next.js app (App Router) at the repository root, backed by Supabase (Postgres, Auth, RLS).
+No workspaces: modules are separated by folder convention, database schema and route guards, not by packages.
 
-- `apps/web`: panel web y rutas de la aplicación.
-- `packages/core`: roles, enums y contratos de dominio compartidos.
-- `packages/db`: clientes Supabase y tipos generados.
-- `packages/ui`: utilidad compartida `cn`; los componentes visuales actuales viven en `apps/web/components/ui`.
-- `packages/module-kit`: registro central de módulos, rutas y navegación.
-- `modules/*`: metadatos y espacios reservados; las rutas/acciones activas todavía viven en `apps/web`.
+```
+app/            Routes. (admin)/ is the club panel, platform/ the superadmin panel, login/
+components/
+  ds/           Design system: button, card/bento, badge, dropdown, drawer, table, toast...
+  calendar/     Shared calendar (day, week, month, year), reused by classes and court bookings
+lib/
+  core/         Shared types, labels (Spanish UI text), dates, money, calendar math, cn
+  classes/      Classes module logic: capacity, CSV student import
+  payments/     Payments module logic: proration, teacher pay, billing accounts
+  supabase/     Browser and server clients
+  demo/         Demo data used until the database exists
+  modules.ts    Module registry: routes and navigation per module
+  auth.ts       requireAdmin, requirePlatformAdmin
+supabase/       Supabase configuration (migrations will live here)
+docs/           Documentation
+```
 
-La base de datos usa un único Postgres Supabase. `core` contiene identidad, organización, clubes y alumnos. Cada módulo usa su propio schema y las policies validan también si el módulo está activo para la organización.
+## Conventions
 
-En Supabase Cloud, los schemas expuestos deben coincidir con `supabase/config.toml`: `public`, `graphql_public`, `core`, `classes` y `payments`. `private` contiene helpers internos y no se expone por PostgREST. Todas las tablas expuestas deben mantener RLS y grants explícitos.
+- **Language:** code in English, UI text in Spanish. User-facing strings live in the components or in
+  `lib/core/labels.ts`; never mix Spanish into identifiers, routes or enum values.
+- **Routes:** English slugs (`/classes`, `/students`, `/payments`...).
+- **Money:** integer euro cents everywhere. Time zone `Europe/Madrid`.
+- **Roles:** stored in `app_metadata` (`role`, `is_platform_admin`), never in `user_metadata`.
+- **Imports:** use the `@/` alias (`@/lib/payments/proration`).
+- **Tests:** next to the code (`*.test.ts`), run with Vitest.
 
 ## Business rules
 
-- Web routes are admin-only. Teachers and students will use the separate mobile app.
-- Student charges are fixed monthly tariffs assigned to each student; mid-month changes are manually adjusted with a reason.
-- Teacher settlements only include completed sessions. Cancelled sessions do not count.
-- Teacher pay is hourly and based on enrolled students (not attendance): organization defaults are €12/hour below the threshold and €15/hour from 3 enrolled students; per-teacher overrides can fall back to organization settings.
-- Class category is adult or child and cannot be mixed. Database triggers enforce category/club consistency and prevent time overlaps per teacher.
-- Payment amounts are stored in integer EUR cents. Partial transactions are append-only ledger rows with method, timestamp and actor.
-- El acceso de los módulos se comprueba en layouts, acciones y funciones SQL; las activaciones no se modifican directamente desde el cliente.
-- Las operaciones de varias tablas (alta de alumno con tarifa, creación de grupos, cambio de tarifa y generación de cobros) usan funciones SQL transaccionales.
+- Class categories: adult (max 4 students) and child (max 6); categories are never mixed.
+- Class status: pending, completed, cancelled (rain, bad weather, other). Cancelled classes are not charged.
+- Fees are monthly. Proration: `fee × (scheduled − cancelled) / scheduled`. Student absences are still charged.
+- Mid-month joins, leaves and tariff changes are manual adjustments with a mandatory reason.
+- Teacher pay is hourly and depends on enrolled students (default 15 €/h from 3 students, 12 €/h below),
+  configurable per organization, per category and per teacher. Only completed classes count.
+- Families and couples share one billing account: one monthly charge, with a per-member breakdown.
+- Payments are an append-only ledger (cash, transfer or Bizum). Overpayments become credit for the next month.
+- Closed billing periods cannot be modified; corrections are adjustments in the following period.
 
-El rol se guarda en `app_metadata`, nunca en `user_metadata`. El service role key solo debe existir en scripts de servidor y nunca en el navegador.
+## Future
+
+An external API will expose the same data to a mobile app (teacher and student roles). Keep domain logic in
+`lib/<module>` free of Next.js and React imports so it can be reused from that API.
