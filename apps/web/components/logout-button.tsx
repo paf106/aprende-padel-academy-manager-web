@@ -1,5 +1,19 @@
 'use client'
+import { LogOut } from 'lucide-react'
 import { useTransition } from 'react'
-import { Button } from './ui/button'
 import { logout } from '../app/login/actions'
-export function LogoutButton() { const [pending, startTransition] = useTransition(); return <Button variant="ghost" onClick={() => startTransition(() => logout())} disabled={pending} className="mt-3 min-h-11 justify-start px-0 text-xs text-emerald-200 hover:bg-transparent hover:text-white">{pending ? 'Saliendo…' : 'Cerrar sesión'}</Button> }
+
+export function LogoutButton() {
+  const [pending, startTransition] = useTransition()
+  return (
+    <button
+      type="button"
+      onClick={() => startTransition(() => logout())}
+      disabled={pending}
+      className="flex h-10 cursor-pointer items-center gap-3 rounded-xl px-3 text-sm text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+    >
+      <LogOut size={18} aria-hidden="true" />
+      {pending ? 'Saliendo…' : 'Cerrar sesión'}
+    </button>
+  )
+}
