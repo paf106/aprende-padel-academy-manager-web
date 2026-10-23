@@ -161,3 +161,10 @@ export const moduleLabels: Record<ModuleId, string> = {
   payments: 'Pagos',
   inventory: 'Inventario',
 }
+
+export { prorateFee } from './proration'
+export { defaultTeacherRates, resolveTeacherRate, teacherSessionPay } from './teacher-pay'
+export type { TeacherRate, TeacherRates, TeacherRateOverrides } from './teacher-pay'
+export { defaultCapacity, hasFreeSpot, freeSpots } from './capacity'
+export { accountStatement, allocateToMembers, accountDebt } from './account-billing'
+export type { MemberCharge, AccountMonth, AccountStatus } from './account-billing'
