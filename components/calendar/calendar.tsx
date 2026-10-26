@@ -1,7 +1,7 @@
 'use client'
 
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import {
   calendarHeadingLabel,
   calendarMonthGrid,
@@ -38,6 +38,29 @@ const START_HOUR = 7
 const END_HOUR = 23
 const PX_PER_HOUR = 56
 const WEEKDAYS = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
+const SLOT_MINUTES = 30
+
+export type SlotSelection = { date: string; start: string; duration: 60 | 90 }
+export type CalendarDraft = { date: string; start: string; duration: number; title?: string }
+
+const formatTime = (minutes: number) =>
+  `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
+const parseTime = (time: string) => {
+  const [hours, minutes] = time.split(':').map(Number)
+  return hours * 60 + minutes
+}
+
+function subscribeMinute(onChange: () => void) {
+  const id = setInterval(onChange, 20_000)
+  return () => clearInterval(id)
+}
+const currentMinute = () => Math.floor(Date.now() / 60_000)
+
+/** Minutes since midnight in the given time zone, refreshed every minute. Null on the server. */
+function useNowMinutes(timeZone: string) {
+  const minute = useSyncExternalStore(subscribeMinute, currentMinute, () => 0)
+  return minute === 0 ? null : localTimeInTimeZone(new Date(minute * 60_000), timeZone)
+}
 
 export function Calendar({
   events,
@@ -48,7 +71,9 @@ export function Calendar({
   onDateChange,
   onViewChange,
   onEventClick,
-  onSlotClick,
+  onSlotSelect,
+  onDaySelect,
+  draft,
   dayActions,
   selectedId,
 }: {
@@ -60,7 +85,9 @@ export function Calendar({
   onDateChange: (date: string) => void
   onViewChange: (view: CalendarView) => void
   onEventClick?: (event: CalendarEvent) => void
-  onSlotClick?: (date: string, time: string | null) => void
+  onSlotSelect?: (slot: SlotSelection) => void
+  onDaySelect?: (date: string) => void
+  draft?: CalendarDraft | null
   dayActions?: (date: string) => RowAction[]
   selectedId?: string | null
 }) {
@@ -154,7 +181,8 @@ export function Calendar({
             today={today}
             timeZone={timeZone}
             onEventClick={onEventClick}
-            onSlotClick={onSlotClick}
+            onSlotSelect={onSlotSelect}
+            draft={draft}
             dayActions={dayActions}
             selectedId={selectedId}
           />
@@ -165,7 +193,7 @@ export function Calendar({
             byDay={byDay}
             today={today}
             onEventClick={onEventClick}
-            onSlotClick={onSlotClick}
+            onDaySelect={onDaySelect}
             selectedId={selectedId}
             onDayClick={(day) => {
               onDateChange(day)
@@ -240,7 +268,8 @@ function TimeGrid({
   today,
   timeZone,
   onEventClick,
-  onSlotClick,
+  onSlotSelect,
+  draft,
   dayActions,
   selectedId,
 }: {
@@ -249,17 +278,37 @@ function TimeGrid({
   today: string
   timeZone: string
   onEventClick?: (event: CalendarEvent) => void
-  onSlotClick?: (date: string, time: string | null) => void
+  onSlotSelect?: (slot: SlotSelection) => void
+  draft?: CalendarDraft | null
   dayActions?: (date: string) => RowAction[]
   selectedId?: string | null
 }) {
   const hours = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START_HOUR + i)
   const height = hours.length * PX_PER_HOUR
+  const nowMinutes = useNowMinutes(timeZone)
+  const [hover, setHover] = useState<{ day: string; minutes: number } | null>(null)
+  const [drag, setDrag] = useState<{ day: string; start: number; duration: 60 | 90 } | null>(null)
+
+  const minutesAt = (event: React.PointerEvent<HTMLDivElement>) => {
+    const y = event.clientY - event.currentTarget.getBoundingClientRect().top
+    const raw = START_HOUR * 60 + Math.floor(((y / PX_PER_HOUR) * 60) / SLOT_MINUTES) * SLOT_MINUTES
+    return Math.min(Math.max(raw, START_HOUR * 60), END_HOUR * 60 - SLOT_MINUTES)
+  }
+
+  const ghost = drag
+    ? { day: drag.day, start: drag.start, duration: drag.duration }
+    : draft
+      ? { day: draft.date, start: parseTime(draft.start), duration: draft.duration }
+      : null
+  const showNow = nowMinutes !== null && days.includes(today)
+  const nowTop = nowMinutes === null ? 0 : ((nowMinutes - START_HOUR * 60) / 60) * PX_PER_HOUR
+  const nowVisible = showNow && nowTop >= 0 && nowTop <= height
+
   return (
     <div>
       <div className="min-w-[640px]">
         <div
-          className="sticky top-0 z-10 grid border-b border-border bg-card"
+          className="sticky top-0 z-30 grid border-b border-border bg-card"
           style={{ gridTemplateColumns: `56px repeat(${days.length}, 1fr)` }}
         >
           <span />
@@ -287,7 +336,7 @@ function TimeGrid({
             )
           })}
         </div>
-        <div className="grid" style={{ gridTemplateColumns: `56px repeat(${days.length}, 1fr)` }}>
+        <div className="isolate grid" style={{ gridTemplateColumns: `56px repeat(${days.length}, 1fr)` }}>
           <div className="relative" style={{ height }}>
             {hours.map((hour) => (
               <span
@@ -298,6 +347,15 @@ function TimeGrid({
                 {hour > START_HOUR ? `${String(hour).padStart(2, '0')}:00` : ''}
               </span>
             ))}
+            {nowVisible ? (
+              <span
+                aria-hidden="true"
+                className="absolute right-1 z-20 -translate-y-1/2 rounded bg-card px-1 text-[11px] font-semibold tabular-nums text-danger"
+                style={{ top: nowTop }}
+              >
+                {formatTime(nowMinutes ?? 0)}
+              </span>
+            ) : null}
           </div>
           {days.map((day) => {
             const events = byDay.get(day) ?? []
@@ -305,19 +363,33 @@ function TimeGrid({
               events.map((e) => ({ id: e.id, startsAt: e.startsAt, endsAt: e.endsAt, timeZone })),
               { startHour: START_HOUR, endHour: END_HOUR, pixelsPerHour: PX_PER_HOUR, timeZone },
             )
+            const slotTop = (minutes: number) => ((minutes - START_HOUR * 60) / 60) * PX_PER_HOUR
             return (
               <div
                 key={day}
-                className="relative border-l border-border"
-                onClick={(event) => {
-                  if (!onSlotClick || event.target !== event.currentTarget) return
-                  const y = event.clientY - event.currentTarget.getBoundingClientRect().top
-                  const minutes = START_HOUR * 60 + Math.floor(((y / PX_PER_HOUR) * 60) / 30) * 30
-                  onSlotClick(
-                    day,
-                    `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`,
-                  )
+                className={cn('relative border-l border-border', onSlotSelect && 'cursor-cell')}
+                onPointerDown={(event) => {
+                  if (!onSlotSelect || event.button !== 0 || event.target !== event.currentTarget) return
+                  event.currentTarget.setPointerCapture(event.pointerId)
+                  setDrag({ day, start: minutesAt(event), duration: 60 })
                 }}
+                onPointerMove={(event) => {
+                  if (!onSlotSelect) return
+                  if (drag && drag.day === day) {
+                    const raw = minutesAt(event) - drag.start + SLOT_MINUTES
+                    setDrag({ ...drag, duration: raw >= 90 ? 90 : 60 })
+                  } else if (!drag && event.target === event.currentTarget) {
+                    setHover({ day, minutes: minutesAt(event) })
+                  }
+                }}
+                onPointerUp={(event) => {
+                  if (!drag || drag.day !== day) return
+                  event.currentTarget.releasePointerCapture(event.pointerId)
+                  onSlotSelect?.({ date: day, start: formatTime(drag.start), duration: drag.duration })
+                  setDrag(null)
+                }}
+                onPointerCancel={() => setDrag(null)}
+                onPointerLeave={() => setHover((current) => (current?.day === day ? null : current))}
                 style={{
                   height,
                   backgroundImage: `repeating-linear-gradient(to bottom, transparent 0, transparent ${PX_PER_HOUR - 1}px, var(--border) ${PX_PER_HOUR - 1}px, var(--border) ${PX_PER_HOUR}px)`,
@@ -341,12 +413,41 @@ function TimeGrid({
                           height: Math.max(placement.height - 2, 22),
                           left: `${placement.left}%`,
                           width: `${placement.width}%`,
-                          zIndex: placement.zIndex,
+                          zIndex: Math.min(placement.zIndex ?? 1, 9),
                         }}
                       />
                     )
                   })}
-                {day === today ? <NowLine timeZone={timeZone} /> : null}
+                {hover && hover.day === day && !drag && !ghost ? (
+                  <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-x-0.5 z-[1] flex items-start rounded-lg bg-brand-soft/70 px-2 pt-0.5 text-[11px] font-medium text-brand"
+                    style={{ top: slotTop(hover.minutes), height: (PX_PER_HOUR * SLOT_MINUTES) / 60 }}
+                  >
+                    + {formatTime(hover.minutes)}
+                  </div>
+                ) : null}
+                {ghost && ghost.day === day ? (
+                  <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-x-0.5 z-[10] overflow-hidden rounded-lg border-2 border-dashed border-brand bg-brand-soft/80 px-2 py-1 text-xs font-semibold text-brand"
+                    style={{ top: slotTop(ghost.start), height: (ghost.duration / 60) * PX_PER_HOUR - 2 }}
+                  >
+                    {draft?.title ?? 'Nueva clase'}
+                    <span className="block font-normal tabular-nums opacity-80">
+                      {formatTime(ghost.start)}–{formatTime(ghost.start + ghost.duration)}
+                    </span>
+                  </div>
+                ) : null}
+                {day === today && nowVisible ? (
+                  <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-x-0 z-20 h-0.5 bg-danger"
+                    style={{ top: nowTop }}
+                  >
+                    <span className="absolute -left-1 -top-[3px] size-2 rounded-full bg-danger" />
+                  </div>
+                ) : null}
               </div>
             )
           })}
@@ -356,25 +457,12 @@ function TimeGrid({
   )
 }
 
-function NowLine({ timeZone }: { timeZone: string }) {
-  const minutes = localTimeInTimeZone(new Date(), timeZone)
-  const top = ((minutes - START_HOUR * 60) / 60) * PX_PER_HOUR
-  if (top < 0 || top > (END_HOUR - START_HOUR) * PX_PER_HOUR) return null
-  return (
-    <div
-      aria-hidden="true"
-      className="pointer-events-none absolute inset-x-0 z-20 h-0.5 bg-danger"
-      style={{ top }}
-    />
-  )
-}
-
 function MonthGrid({
   date,
   byDay,
   today,
   onEventClick,
-  onSlotClick,
+  onDaySelect,
   selectedId,
   onDayClick,
 }: {
@@ -382,7 +470,7 @@ function MonthGrid({
   byDay: Map<string, CalendarEvent[]>
   today: string
   onEventClick?: (event: CalendarEvent) => void
-  onSlotClick?: (date: string, time: string | null) => void
+  onDaySelect?: (date: string) => void
   selectedId?: string | null
   onDayClick: (day: string) => void
 }) {
@@ -405,7 +493,7 @@ function MonthGrid({
             <div
               key={day}
               onClick={(event) => {
-                if (event.target === event.currentTarget) onSlotClick?.(day, null)
+                if (event.target === event.currentTarget) onDaySelect?.(day)
               }}
               className={cn(
                 'min-h-28 border-b border-r border-border p-1.5 last:border-r-0',
