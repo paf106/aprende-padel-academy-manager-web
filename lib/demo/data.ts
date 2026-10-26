@@ -1,3 +1,4 @@
+import type { Closure } from '@/lib/classes/closures'
 import type { ClassStatus, StudentCategory, StudentGender, StudentLevel } from '@/lib/core/types'
 import { addDays, weekDays } from '@/lib/core/calendar-nav'
 
@@ -70,6 +71,11 @@ export const clubs: Club[] = [
   { id: 'loranca', name: 'Loranca de Tajuña', city: 'Loranca de Tajuña', color: 'info', courts: 2 },
   { id: 'corpa', name: 'Corpa', city: 'Corpa', color: 'warning', courts: 1 },
   { id: 'pozuelo', name: 'Pozuelo del Rey', city: 'Pozuelo del Rey', color: 'danger', courts: 2 },
+]
+
+export const initialClosures: Closure[] = [
+  { id: 1, clubId: '', from: '2026-12-24', to: '2027-01-06', reason: 'Vacaciones de Navidad' },
+  { id: 2, clubId: 'pioz', from: '2026-12-08', to: '2026-12-08', reason: 'Festivo local' },
 ]
 
 export const teachers: Teacher[] = [

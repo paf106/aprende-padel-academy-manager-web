@@ -8,16 +8,12 @@ import { Dropdown } from '@/components/ds/dropdown'
 import { Input, Label } from '@/components/ds/input'
 import { PageContainer } from '@/components/ds/page-header'
 import { useToast } from '@/components/ds/toast'
-import { clubs, groups, students } from '@/lib/demo/data'
-
-type Closure = { id: number; clubId: string; from: string; to: string; reason: string }
+import type { Closure } from '@/lib/classes/closures'
+import { clubs, groups, initialClosures, students } from '@/lib/demo/data'
 
 export function ClubsView() {
   const toast = useToast()
-  const [closures, setClosures] = useState<Closure[]>([
-    { id: 1, clubId: '', from: '2026-12-24', to: '2027-01-06', reason: 'Vacaciones de Navidad' },
-    { id: 2, clubId: 'pioz', from: '2026-12-08', to: '2026-12-08', reason: 'Festivo local' },
-  ])
+  const [closures, setClosures] = useState<Closure[]>(initialClosures)
   const [clubId, setClubId] = useState('')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')

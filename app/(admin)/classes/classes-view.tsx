@@ -4,18 +4,24 @@ import { UserCheck } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { classStatusLabels } from '@/lib/core/labels'
 import { type CalendarView } from '@/lib/core/dates'
-import { classStatuses } from '@/lib/core/types'
-import { Calendar, type CalendarEvent, type CalendarTone } from '@/components/calendar/calendar'
+import { classStatuses, type StudentLevel } from '@/lib/core/types'
+import {
+  Calendar,
+  type CalendarDraft,
+  type CalendarEvent,
+  type CalendarTone,
+} from '@/components/calendar/calendar'
 import { ClassStatusBadge } from '@/components/ds/badge'
 import { Button } from '@/components/ds/button'
 import { Drawer } from '@/components/ds/drawer'
 import { Dropdown } from '@/components/ds/dropdown'
 import { FilterBar, type FilterDef } from '@/components/ds/filter-bar'
-import { Input, Label } from '@/components/ds/input'
+import { Label } from '@/components/ds/input'
 import { PageContainer, PageToolbar } from '@/components/ds/page-header'
 import { useToast } from '@/components/ds/toast'
-import { slotsOverlap } from '@/lib/classes/sessions'
+import type { SessionInput } from '@/lib/classes/session-schema'
 import { useDemo } from '@/lib/demo/use-demo'
+import { SessionFormDrawer } from './session-form-drawer'
 import { categoryLabels, levelLabels } from '@/lib/core/labels'
 import {
   clubById,
@@ -30,6 +36,7 @@ import {
 
 type Attendance = 'unmarked' | 'present' | 'absent'
 type SessionState = Session & {
+  level?: StudentLevel
   attendance: Record<string, Attendance>
   cancelReason?: string
 }
@@ -68,9 +75,8 @@ export function ClassesView({ today, initialSessions }: { today: string; initial
   const [reason, setReason] = useState('rain')
   const [massClub, setMassClub] = useState(clubs[0].id)
   const [massDate, setMassDate] = useState(today)
-  const [newSlot, setNewSlot] = useState<{ date: string; time: string | null } | null>(null)
-  const [newForm, setNewForm] = useState({ groupId: '', date: '', time: '19:00', duration: '60' })
-  const [newError, setNewError] = useState('')
+  const [newSlot, setNewSlot] = useState<{ date: string; start: string; duration: 60 | 90 } | null>(null)
+  const [draft, setDraft] = useState<CalendarDraft | null>(null)
 
   const filtered = useMemo(
     () =>
@@ -90,7 +96,7 @@ export function ClassesView({ today, initialSessions }: { today: string; initial
     end.setMinutes(end.getMinutes() + s.duration)
     return {
       id: s.id,
-      title: group?.name ?? 'Clase',
+      title: group?.name ?? 'Clase libre',
       subtitle: `${clubById(s.clubId)?.name} · ${teacherLabel(s.teacherId)}`,
       startsAt: start.toISOString(),
       endsAt: end.toISOString(),
@@ -161,46 +167,35 @@ export function ClassesView({ today, initialSessions }: { today: string; initial
     setMassOpen(true)
   }
 
-  const openNew = (day: string, time: string | null) => {
-    const firstGroup = groups.find((g) => !club || g.clubId === club)
-    setNewForm({ groupId: firstGroup?.id ?? '', date: day, time: time ?? '19:00', duration: '60' })
-    setNewError('')
-    setNewSlot({ date: day, time })
+  const openNew = (day: string, start: string | null, duration: 60 | 90 = 60) => {
+    setSelectedId(null)
+    setNewSlot({ date: day, start: start ?? '19:00', duration })
   }
 
-  const createSession = () => {
-    const group = groupById(newForm.groupId)
-    if (!group) {
-      setNewError('Elige un grupo.')
-      return
-    }
-    const duration = Number(newForm.duration) as 60 | 90
-    const slot = { date: newForm.date, start: newForm.time, duration }
-    const clash = sessions.find(
-      (s) => s.teacherId === group.teacherId && s.status !== 'cancelled' && slotsOverlap(slot, s),
-    )
-    if (clash) {
-      setNewError('El profesor ya tiene una clase a esa hora.')
-      return
-    }
-    const id = `${group.id}-${newForm.date}-${newForm.time}`
+  const closeNew = () => {
+    setNewSlot(null)
+    setDraft(null)
+  }
+
+  const createSession = (input: SessionInput) => {
     setSessions((list) => [
       ...list,
       {
-        id,
-        groupId: group.id,
-        clubId: group.clubId,
-        teacherId: group.teacherId,
-        date: newForm.date,
-        start: newForm.time,
-        duration,
-        category: group.category,
+        id: `${input.groupId || 'free'}-${input.date}-${input.start}-${list.length}`,
+        groupId: input.groupId,
+        clubId: input.clubId,
+        teacherId: input.teacherId,
+        date: input.date,
+        start: input.start,
+        duration: input.duration,
+        category: input.category,
+        level: input.level,
         status: 'pending',
-        studentIds: group.studentIds,
-        attendance: Object.fromEntries(group.studentIds.map((studentId) => [studentId, 'unmarked'])),
+        studentIds: input.studentIds,
+        attendance: Object.fromEntries(input.studentIds.map((studentId) => [studentId, 'unmarked'])),
       },
     ])
-    setNewSlot(null)
+    closeNew()
     toast('Clase creada.')
   }
 
@@ -223,7 +218,8 @@ export function ClassesView({ today, initialSessions }: { today: string; initial
         onViewChange={setView}
         selectedId={selectedId}
         onEventClick={(event) => setSelectedId(event.id)}
-        onSlotSelect={(slot) => openNew(slot.date, slot.start)}
+        draft={draft}
+        onSlotSelect={(slot) => openNew(slot.date, slot.start, slot.duration)}
         onDaySelect={(day) => openNew(day, null)}
         dayActions={(day) => [
           { label: 'Nueva clase aquí', onSelect: () => openNew(day, null) },
@@ -234,7 +230,7 @@ export function ClassesView({ today, initialSessions }: { today: string; initial
       <Drawer
         open={selected !== null}
         onClose={() => setSelectedId(null)}
-        title={selected ? (groupById(selected.groupId)?.name ?? 'Clase') : ''}
+        title={selected ? (groupById(selected.groupId)?.name ?? 'Clase libre') : ''}
         description={
           selected
             ? `${selected.date.split('-').reverse().join('/')} · ${selected.start} · ${selected.duration} min`
@@ -290,7 +286,7 @@ export function ClassesView({ today, initialSessions }: { today: string; initial
                 <dt className="text-muted-foreground">Categoría</dt>
                 <dd className="mt-1 font-medium">
                   {categoryLabels[selected.category]} ·{' '}
-                  {levelLabels[groupById(selected.groupId)?.level ?? 'starter']}
+                  {levelLabels[selected.level ?? groupById(selected.groupId)?.level ?? 'starter']}
                 </dd>
               </div>
               {selected.cancelReason ? (
@@ -416,73 +412,16 @@ export function ClassesView({ today, initialSessions }: { today: string; initial
           </p>
         </div>
       </Drawer>
-      <Drawer
-        open={newSlot !== null}
-        onClose={() => setNewSlot(null)}
-        title="Nueva clase"
-        description="Crea una clase puntual a partir de un grupo."
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setNewSlot(null)}>
-              Cancelar
-            </Button>
-            <Button onClick={createSession}>Crear clase</Button>
-          </>
-        }
-      >
-        <div className="grid gap-5">
-          <div>
-            <Label>Grupo</Label>
-            <Dropdown
-              aria-label="Grupo"
-              searchable
-              placeholder="Elige un grupo"
-              value={newForm.groupId}
-              onChange={(value) => setNewForm((f) => ({ ...f, groupId: value }))}
-              options={groups
-                .filter((g) => !club || g.clubId === club)
-                .map((g) => ({ value: g.id, label: g.name, hint: clubById(g.clubId)?.name }))}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="new-date">Día</Label>
-              <Input
-                id="new-date"
-                type="date"
-                value={newForm.date}
-                onChange={(e) => setNewForm((f) => ({ ...f, date: e.target.value }))}
-              />
-            </div>
-            <div>
-              <Label htmlFor="new-time">Hora</Label>
-              <Input
-                id="new-time"
-                type="time"
-                value={newForm.time}
-                onChange={(e) => setNewForm((f) => ({ ...f, time: e.target.value }))}
-              />
-            </div>
-          </div>
-          <div>
-            <Label>Duración</Label>
-            <Dropdown
-              aria-label="Duración"
-              value={newForm.duration}
-              onChange={(value) => setNewForm((f) => ({ ...f, duration: value }))}
-              options={[
-                { value: '60', label: '60 minutos' },
-                { value: '90', label: '90 minutos' },
-              ]}
-            />
-          </div>
-          {newError ? (
-            <p role="alert" className="text-sm text-danger">
-              {newError}
-            </p>
-          ) : null}
-        </div>
-      </Drawer>
+      {newSlot ? (
+        <SessionFormDrawer
+          initial={newSlot}
+          defaultClubId={club}
+          existing={sessions}
+          onDraftChange={setDraft}
+          onCreate={createSession}
+          onClose={closeNew}
+        />
+      ) : null}
     </PageContainer>
   )
 }
