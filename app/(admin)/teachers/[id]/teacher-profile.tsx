@@ -12,7 +12,7 @@ import { useToast } from '@/components/ds/toast'
 import { categoryLabels, levelLabels } from '@/lib/core/labels'
 import { formatMoney } from '@/lib/core/money'
 import type { TeacherSettlementRow } from '@/lib/demo/billing'
-import { clubById, groups, teacherName } from '@/lib/demo/data'
+import { teacherName } from '@/lib/demo/data'
 import { useDemo } from '@/lib/demo/use-demo'
 import { TeacherFormDrawer } from '../teacher-form-drawer'
 
@@ -20,7 +20,7 @@ const DAYS = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado
 
 export function TeacherProfile({ id, settlement }: { id: string; settlement: TeacherSettlementRow | null }) {
   const toast = useToast()
-  const { teacherById, actions } = useDemo()
+  const { teacherById, clubLabel, groups, actions } = useDemo()
   const [editing, setEditing] = useState(false)
   const teacher = teacherById(id)
 
@@ -55,7 +55,7 @@ export function TeacherProfile({ id, settlement }: { id: string; settlement: Tea
           </Link>
         }
         title={teacherName(teacher)}
-        subtitle={teacher.clubIds.map((clubId) => clubById(clubId)?.name).join(' · ')}
+        subtitle={teacher.clubIds.map((clubId) => clubLabel(clubId)).join(' · ')}
         badge={
           <Badge tone={teacher.active ? 'brand' : 'neutral'}>{teacher.active ? 'Activo' : 'Baja'}</Badge>
         }
@@ -103,7 +103,7 @@ export function TeacherProfile({ id, settlement }: { id: string; settlement: Tea
           <ul className="flex flex-wrap gap-1.5">
             {teacher.clubIds.map((clubId) => (
               <li key={clubId} className="rounded-full bg-muted px-2.5 py-1 text-xs">
-                {clubById(clubId)?.name}
+                {clubLabel(clubId)}
               </li>
             ))}
           </ul>
@@ -117,7 +117,7 @@ export function TeacherProfile({ id, settlement }: { id: string; settlement: Tea
                 <li key={g.id} className="rounded-xl border border-border p-3 text-sm">
                   <p className="font-medium">{g.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {clubById(g.clubId)?.name} · {DAYS[g.weekday]} {g.start} · {g.duration} min ·{' '}
+                    {clubLabel(g.clubId)} · {DAYS[g.weekday]} {g.start} · {g.duration} min ·{' '}
                     {categoryLabels[g.category]} · {levelLabels[g.level]}
                   </p>
                 </li>

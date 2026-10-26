@@ -6,14 +6,13 @@ import { MultiSelectField, TextField } from '@/components/ds/field'
 import { useToast } from '@/components/ds/toast'
 import { emptyTeacherInput, teacherSchema, type TeacherInput } from '@/lib/classes/teacher-schema'
 import { validate } from '@/lib/core/validation'
-import { clubs, type Teacher } from '@/lib/demo/data'
+import type { Teacher } from '@/lib/demo/data'
 import { useDemo } from '@/lib/demo/use-demo'
-
-const clubOptions = clubs.map((club) => ({ value: club.id, label: club.name }))
 
 export function TeacherFormDrawer({ teacher, onClose }: { teacher?: Teacher; onClose: () => void }) {
   const toast = useToast()
-  const { actions } = useDemo()
+  const { actions, activeClubs } = useDemo()
+  const clubOptions = activeClubs.map((club) => ({ value: club.id, label: club.name }))
   const [values, setValues] = useState<TeacherInput>(
     teacher
       ? {

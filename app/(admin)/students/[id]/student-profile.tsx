@@ -12,7 +12,7 @@ import { useToast } from '@/components/ds/toast'
 import { categoryLabels, genderLabels, levelLabels } from '@/lib/core/labels'
 import { formatMoney } from '@/lib/core/money'
 import type { Charge } from '@/lib/demo/billing'
-import { accountById, clubById, fullName, groups } from '@/lib/demo/data'
+import { accountById, fullName } from '@/lib/demo/data'
 import { useDemo } from '@/lib/demo/use-demo'
 import { StudentFormDrawer } from '../student-form-drawer'
 
@@ -20,7 +20,7 @@ const DAYS = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado
 
 export function StudentProfile({ id, today, charge }: { id: string; today: string; charge: Charge | null }) {
   const toast = useToast()
-  const { studentById, teacherLabel, actions } = useDemo()
+  const { studentById, teacherLabel, clubLabel, groups, actions } = useDemo()
   const [editing, setEditing] = useState(false)
   const student = studentById(id)
 
@@ -44,7 +44,7 @@ export function StudentProfile({ id, today, charge }: { id: string; today: strin
   const account = accountById(student.accountId)
   const mine = groups.filter((g) => g.studentIds.includes(student.id))
   const years = Math.floor((Date.parse(today) - Date.parse(student.birthDate)) / (365.25 * 86400000))
-  const otherClubs = student.extraClubIds.map((clubId) => clubById(clubId)?.name).filter(Boolean)
+  const otherClubs = student.extraClubIds.map((clubId) => clubLabel(clubId)).filter(Boolean)
 
   return (
     <PageContainer>
@@ -84,7 +84,7 @@ export function StudentProfile({ id, today, charge }: { id: string; today: strin
           <dl className="grid gap-3 text-sm">
             <Row label="Nacimiento" value={student.birthDate.split('-').reverse().join('/')} />
             <Row label="Género" value={genderLabels[student.gender]} />
-            <Row label="Sede habitual" value={clubById(student.clubId)?.name ?? '—'} />
+            <Row label="Sede habitual" value={clubLabel(student.clubId) ?? '—'} />
             {otherClubs.length ? <Row label="Otras sedes" value={otherClubs.join(', ')} /> : null}
             <Row label="Email" value={student.email || '—'} />
             <Row label="Teléfono" value={student.phone || '—'} />
@@ -145,7 +145,7 @@ export function StudentProfile({ id, today, charge }: { id: string; today: strin
                 <li key={g.id} className="rounded-xl border border-border p-3 text-sm">
                   <p className="font-medium">{g.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {clubById(g.clubId)?.name} · {DAYS[g.weekday]} {g.start} · {g.duration} min ·{' '}
+                    {clubLabel(g.clubId)} · {DAYS[g.weekday]} {g.start} · {g.duration} min ·{' '}
                     {teacherLabel(g.teacherId)}
                   </p>
                 </li>

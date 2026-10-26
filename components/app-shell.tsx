@@ -46,12 +46,10 @@ const subscribeStorage = (cb: () => void) => {
 
 export function AppShell({
   enabled,
-  clubs,
   searchItems,
   children,
 }: {
   enabled: ModuleId[]
-  clubs: readonly { id: string; name: string }[]
   searchItems: readonly CommandItem[]
   children: ReactNode
 }) {
@@ -150,7 +148,7 @@ export function AppShell({
           </button>
           <div className="ml-auto flex items-center gap-3">
             <Suspense fallback={null}>
-              <ClubSwitcher clubs={clubs} />
+              <ClubSwitcher />
             </Suspense>
             <ThemeToggle />
           </div>

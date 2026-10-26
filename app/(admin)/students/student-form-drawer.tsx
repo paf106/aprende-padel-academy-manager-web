@@ -8,16 +8,16 @@ import { emptyStudentInput, studentSchema, type StudentInput } from '@/lib/class
 import { categoryLabels, genderLabels, levelLabels } from '@/lib/core/labels'
 import { studentCategories, studentGenders, studentLevels } from '@/lib/core/types'
 import { validate } from '@/lib/core/validation'
-import { clubs, type Student } from '@/lib/demo/data'
+import type { Student } from '@/lib/demo/data'
 import { useDemo } from '@/lib/demo/use-demo'
 
-const clubOptions = clubs.map((club) => ({ value: club.id, label: club.name }))
 const toOptions = <T extends string>(values: readonly T[], labels: Record<T, string>) =>
   values.map((value) => ({ value, label: labels[value] }))
 
 export function StudentFormDrawer({ student, onClose }: { student?: Student; onClose: () => void }) {
   const toast = useToast()
-  const { actions } = useDemo()
+  const { actions, activeClubs } = useDemo()
+  const clubOptions = activeClubs.map((club) => ({ value: club.id, label: club.name }))
   const [values, setValues] = useState<StudentInput>(
     student
       ? {

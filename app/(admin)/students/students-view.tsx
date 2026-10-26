@@ -12,14 +12,14 @@ import { useToast } from '@/components/ds/toast'
 import { studentDeletionBlockers } from '@/lib/classes/deletion'
 import { categoryLabels, levelLabels } from '@/lib/core/labels'
 import { studentCategories, studentLevels } from '@/lib/core/types'
-import { clubById, clubs, fullName, type Student } from '@/lib/demo/data'
+import { fullName, type Club, type Student } from '@/lib/demo/data'
 import { studentUsage } from '@/lib/demo/store'
 import { useDemo } from '@/lib/demo/use-demo'
 import { StudentFormDrawer } from './student-form-drawer'
 
 const defaultFilters = { club: '', level: '', category: '', state: 'active' }
 
-const filters: FilterDef[] = [
+const buildFilters = (clubs: readonly Club[]): FilterDef[] => [
   {
     key: 'club',
     label: 'Sede',
@@ -53,7 +53,8 @@ const filters: FilterDef[] = [
 export function StudentsView() {
   const router = useRouter()
   const toast = useToast()
-  const { students, actions } = useDemo()
+  const { students, groups, activeClubs, clubLabel, actions } = useDemo()
+  const filters = buildFilters(activeClubs)
   const [query, setQuery] = useState('')
   const [values, setValues] = useState(defaultFilters)
   const [form, setForm] = useState<{ student?: Student } | null>(null)
@@ -112,7 +113,7 @@ export function StudentsView() {
           },
           { key: 'category', header: 'Categoría', cell: (s) => categoryLabels[s.category] },
           { key: 'level', header: 'Nivel', cell: (s) => levelLabels[s.level] },
-          { key: 'club', header: 'Sede habitual', cell: (s) => clubById(s.clubId)?.name },
+          { key: 'club', header: 'Sede habitual', cell: (s) => clubLabel(s.clubId) },
           {
             key: 'status',
             header: 'Estado',
@@ -143,7 +144,7 @@ export function StudentsView() {
         <DeleteDialog
           open
           name={fullName(deleting)}
-          blockers={studentDeletionBlockers(studentUsage(deleting.id))}
+          blockers={studentDeletionBlockers(studentUsage(groups, deleting.id))}
           onClose={() => setDeleting(null)}
           onDelete={() => {
             actions.deleteStudent(deleting.id)

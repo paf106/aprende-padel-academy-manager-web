@@ -1,17 +1,39 @@
+import type { Closure } from '@/lib/classes/closures'
 import type { StudentInput } from '@/lib/classes/student-schema'
 import type { TeacherInput } from '@/lib/classes/teacher-schema'
+import { localTodayInTimeZone } from '@/lib/core/dates'
 import {
-  groups,
+  clubs as seedClubs,
+  generateSessions,
+  groups as seedGroups,
+  initialClosures,
   students as seedStudents,
   teachers as seedTeachers,
+  type Club,
+  type Group,
+  type Session,
   type Student,
   type Teacher,
 } from '@/lib/demo/data'
 
-export type DemoState = { students: Student[]; teachers: Teacher[] }
+export type DemoState = {
+  students: Student[]
+  teachers: Teacher[]
+  clubs: Club[]
+  groups: Group[]
+  sessions: Session[]
+  closures: Closure[]
+}
 
-const STORAGE_KEY = 'aprende-padel-demo-v1'
-const seed: DemoState = { students: seedStudents, teachers: seedTeachers }
+const STORAGE_KEY = 'aprende-padel-demo-v2'
+const seed: DemoState = {
+  students: seedStudents,
+  teachers: seedTeachers,
+  clubs: seedClubs,
+  groups: seedGroups,
+  sessions: generateSessions(localTodayInTimeZone('Europe/Madrid')),
+  closures: initialClosures,
+}
 
 let state: DemoState = seed
 let loaded = false
@@ -22,7 +44,7 @@ function load() {
   loaded = true
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY)
-    if (raw) state = JSON.parse(raw) as DemoState
+    if (raw) state = { ...seed, ...(JSON.parse(raw) as Partial<DemoState>) }
   } catch {
     state = seed
   }
@@ -33,7 +55,7 @@ function commit(next: DemoState) {
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
   } catch {
-    // Storage may be unavailable (private mode); the in-memory state still works.
+    // Storage may be full or unavailable (private mode); the in-memory state still works.
   }
   listeners.forEach((listener) => listener())
 }
@@ -49,6 +71,10 @@ export const demoStore = {
   },
   getServerSnapshot() {
     return seed
+  },
+  /** Applies a change to the current state. Used by entity-specific actions below. */
+  update(change: (current: DemoState) => DemoState) {
+    commit(change(state))
   },
 
   createStudent(input: StudentInput) {
@@ -81,15 +107,34 @@ export const demoStore = {
   deleteTeacher(id: string) {
     commit({ ...state, teachers: state.teachers.filter((t) => t.id !== id) })
   },
+
+  addSession(session: Session) {
+    commit({ ...state, sessions: [...state.sessions, session] })
+  },
+  updateSession(id: string, patch: Partial<Session>) {
+    commit({ ...state, sessions: state.sessions.map((s) => (s.id === id ? { ...s, ...patch } : s)) })
+  },
+  cancelSessions(ids: readonly string[], reason: string) {
+    commit({
+      ...state,
+      sessions: state.sessions.map((s) =>
+        ids.includes(s.id) ? { ...s, status: 'cancelled', cancelReason: reason } : s,
+      ),
+    })
+  },
+
+  addClosure(closure: Closure) {
+    commit({ ...state, closures: [...state.closures, closure] })
+  },
 }
 
 /** Demo usage counts; with a real database these come from queries. */
-export function studentUsage(studentId: string) {
+export function studentUsage(groups: readonly Group[], studentId: string) {
   const groupCount = groups.filter((g) => g.studentIds.includes(studentId)).length
   return { groups: groupCount, charges: groupCount > 0 ? 1 : 0 }
 }
 
-export function teacherUsage(teacherId: string) {
+export function teacherUsage(groups: readonly Group[], teacherId: string) {
   const groupCount = groups.filter((g) => g.teacherId === teacherId).length
   return { groups: groupCount, sessions: groupCount > 0 ? 1 : 0, settlements: groupCount > 0 ? 1 : 0 }
 }

@@ -12,12 +12,12 @@ import { useToast } from '@/components/ds/toast'
 import { useDemo } from '@/lib/demo/use-demo'
 import { categoryLabels, levelLabels } from '@/lib/core/labels'
 import { studentCategories } from '@/lib/core/types'
-import { clubById, clubs, groups } from '@/lib/demo/data'
+import type { Club } from '@/lib/demo/data'
 
 const DAYS = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
 
 const defaultFilters = { club: '', category: '' }
-const filters: FilterDef[] = [
+const buildFilters = (clubs: readonly Club[]): FilterDef[] => [
   {
     key: 'club',
     label: 'Sede',
@@ -34,7 +34,8 @@ const filters: FilterDef[] = [
 
 export function GroupsView() {
   const toast = useToast()
-  const { studentLabel, teacherLabel } = useDemo()
+  const { groups, activeClubs, studentLabel, teacherLabel, clubLabel } = useDemo()
+  const filters = buildFilters(activeClubs)
   const [query, setQuery] = useState('')
   const [values, setValues] = useState(defaultFilters)
   const rows = useMemo(
@@ -45,7 +46,7 @@ export function GroupsView() {
           (!values.category || g.category === values.category) &&
           g.name.toLowerCase().includes(query.toLowerCase()),
       ),
-    [query, values],
+    [groups, query, values],
   )
   return (
     <PageContainer>
@@ -78,7 +79,7 @@ export function GroupsView() {
             <BentoCard
               key={g.id}
               span="md"
-              title={`${clubById(g.clubId)?.name} · ${DAYS[g.weekday]} ${g.start}`}
+              title={`${clubLabel(g.clubId)} · ${DAYS[g.weekday]} ${g.start}`}
               action={
                 <Badge tone={full ? 'danger' : 'brand'}>
                   {g.studentIds.length}/{capacity}

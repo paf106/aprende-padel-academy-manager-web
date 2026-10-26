@@ -12,14 +12,14 @@ import { useToast } from '@/components/ds/toast'
 import { teacherDeletionBlockers } from '@/lib/classes/deletion'
 import { formatMoney } from '@/lib/core/money'
 import type { TeacherSettlementRow } from '@/lib/demo/billing'
-import { clubById, clubs, groups, teacherName, type Teacher } from '@/lib/demo/data'
+import { teacherName, type Club, type Teacher } from '@/lib/demo/data'
 import { teacherUsage } from '@/lib/demo/store'
 import { useDemo } from '@/lib/demo/use-demo'
 import { TeacherFormDrawer } from './teacher-form-drawer'
 
 const defaultFilters = { club: '', state: 'active' }
 
-const filters: FilterDef[] = [
+const buildFilters = (clubs: readonly Club[]): FilterDef[] => [
   {
     key: 'club',
     label: 'Sede',
@@ -40,7 +40,8 @@ const filters: FilterDef[] = [
 export function TeachersView({ settlements }: { settlements: TeacherSettlementRow[] }) {
   const router = useRouter()
   const toast = useToast()
-  const { teachers, actions } = useDemo()
+  const { teachers, groups, activeClubs, clubLabel, actions } = useDemo()
+  const filters = buildFilters(activeClubs)
   const [query, setQuery] = useState('')
   const [values, setValues] = useState(defaultFilters)
   const [form, setForm] = useState<{ teacher?: Teacher } | null>(null)
@@ -98,7 +99,7 @@ export function TeachersView({ settlements }: { settlements: TeacherSettlementRo
           {
             key: 'clubs',
             header: 'Sedes',
-            cell: (t) => t.clubIds.map((id) => clubById(id)?.name).join(', '),
+            cell: (t) => t.clubIds.map((id) => clubLabel(id)).join(', '),
           },
           {
             key: 'groups',
@@ -142,7 +143,7 @@ export function TeachersView({ settlements }: { settlements: TeacherSettlementRo
         <DeleteDialog
           open
           name={teacherName(deleting)}
-          blockers={teacherDeletionBlockers(teacherUsage(deleting.id))}
+          blockers={teacherDeletionBlockers(teacherUsage(groups, deleting.id))}
           onClose={() => setDeleting(null)}
           onDelete={() => {
             actions.deleteTeacher(deleting.id)

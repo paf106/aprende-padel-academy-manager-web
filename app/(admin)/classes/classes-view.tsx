@@ -23,16 +23,7 @@ import type { SessionInput } from '@/lib/classes/session-schema'
 import { useDemo } from '@/lib/demo/use-demo'
 import { SessionFormDrawer } from './session-form-drawer'
 import { categoryLabels, levelLabels } from '@/lib/core/labels'
-import {
-  clubById,
-  clubs,
-  fullName,
-  groupById,
-  groups,
-  studentById,
-  teacherName,
-  type Session,
-} from '@/lib/demo/data'
+import { fullName, teacherName, type Session } from '@/lib/demo/data'
 
 type Attendance = 'unmarked' | 'present' | 'absent'
 type SessionState = Session & {
@@ -55,16 +46,30 @@ const reasons = [
 const reasonLabel = Object.fromEntries(reasons.map((r) => [r.value, r.label]))
 const defaultFilters = { club: '', teacher: '', status: '', category: '' }
 
-export function ClassesView({ today, initialSessions }: { today: string; initialSessions: Session[] }) {
+export function ClassesView({ today }: { today: string }) {
   const toast = useToast()
-  const { teachers, teacherLabel } = useDemo()
-  const [sessions, setSessions] = useState<SessionState[]>(() =>
-    initialSessions.map((s) => ({
-      ...s,
-      attendance: Object.fromEntries(
-        s.studentIds.map((id) => [id, s.status === 'completed' ? 'present' : 'unmarked']),
-      ),
-    })),
+  const {
+    teachers,
+    teacherLabel,
+    sessions: storedSessions,
+    activeClubs,
+    clubById,
+    groups,
+    groupById,
+    studentById,
+    actions,
+  } = useDemo()
+  const sessions = useMemo<SessionState[]>(
+    () =>
+      storedSessions.map((s) => ({
+        ...s,
+        attendance:
+          s.attendance ??
+          Object.fromEntries(
+            s.studentIds.map((id) => [id, s.status === 'completed' ? 'present' : 'unmarked']),
+          ),
+      })),
+    [storedSessions],
   )
   const [date, setDate] = useState(today)
   const [view, setView] = useState<CalendarView>('week')
@@ -73,7 +78,7 @@ export function ClassesView({ today, initialSessions }: { today: string; initial
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [massOpen, setMassOpen] = useState(false)
   const [reason, setReason] = useState('rain')
-  const [massClub, setMassClub] = useState(clubs[0].id)
+  const [massClub, setMassClub] = useState(activeClubs[0]?.id ?? '')
   const [massDate, setMassDate] = useState(today)
   const [newSlot, setNewSlot] = useState<{ date: string; start: string; duration: 60 | 90 } | null>(null)
   const [draft, setDraft] = useState<CalendarDraft | null>(null)
@@ -115,7 +120,7 @@ export function ClassesView({ today, initialSessions }: { today: string; initial
       key: 'club',
       label: 'Sede',
       allLabel: 'Todas las sedes',
-      options: clubs.map((c) => ({ value: c.id, label: c.name })),
+      options: activeClubs.map((c) => ({ value: c.id, label: c.name })),
     },
     {
       key: 'teacher',
@@ -141,17 +146,15 @@ export function ClassesView({ today, initialSessions }: { today: string; initial
     },
   ]
 
-  const update = (id: string, patch: Partial<SessionState>) =>
-    setSessions((list) => list.map((s) => (s.id === id ? { ...s, ...patch } : s)))
+  const update = (id: string, patch: Partial<SessionState>) => actions.updateSession(id, patch)
 
   const massCancel = () => {
     const targets = sessions.filter(
       (s) => s.clubId === massClub && s.date === massDate && s.status === 'pending',
     )
-    setSessions((list) =>
-      list.map((s) =>
-        targets.some((t) => t.id === s.id) ? { ...s, status: 'cancelled', cancelReason: reason } : s,
-      ),
+    actions.cancelSessions(
+      targets.map((target) => target.id),
+      reason,
     )
     setMassOpen(false)
     toast(
@@ -163,7 +166,7 @@ export function ClassesView({ today, initialSessions }: { today: string; initial
 
   const openMass = (day: string, clubId?: string) => {
     setMassDate(day)
-    setMassClub(clubId || club || clubs[0].id)
+    setMassClub(clubId || club || (activeClubs[0]?.id ?? ''))
     setMassOpen(true)
   }
 
@@ -178,23 +181,20 @@ export function ClassesView({ today, initialSessions }: { today: string; initial
   }
 
   const createSession = (input: SessionInput) => {
-    setSessions((list) => [
-      ...list,
-      {
-        id: `${input.groupId || 'free'}-${input.date}-${input.start}-${list.length}`,
-        groupId: input.groupId,
-        clubId: input.clubId,
-        teacherId: input.teacherId,
-        date: input.date,
-        start: input.start,
-        duration: input.duration,
-        category: input.category,
-        level: input.level,
-        status: 'pending',
-        studentIds: input.studentIds,
-        attendance: Object.fromEntries(input.studentIds.map((studentId) => [studentId, 'unmarked'])),
-      },
-    ])
+    actions.addSession({
+      id: `${input.groupId || 'free'}-${input.date}-${input.start}-${sessions.length}`,
+      groupId: input.groupId,
+      clubId: input.clubId,
+      teacherId: input.teacherId,
+      date: input.date,
+      start: input.start,
+      duration: input.duration,
+      category: input.category,
+      level: input.level,
+      status: 'pending',
+      studentIds: input.studentIds,
+      attendance: Object.fromEntries(input.studentIds.map((studentId) => [studentId, 'unmarked'])),
+    })
     closeNew()
     toast('Clase creada.')
   }
@@ -386,7 +386,7 @@ export function ClassesView({ today, initialSessions }: { today: string; initial
               aria-label="Sede"
               value={massClub}
               onChange={setMassClub}
-              options={clubs.map((c) => ({ value: c.id, label: c.name }))}
+              options={activeClubs.map((c) => ({ value: c.id, label: c.name }))}
             />
           </div>
           <div>

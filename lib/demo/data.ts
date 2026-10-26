@@ -2,7 +2,17 @@ import type { Closure } from '@/lib/classes/closures'
 import type { ClassStatus, StudentCategory, StudentGender, StudentLevel } from '@/lib/core/types'
 import { addDays, weekDays } from '@/lib/core/calendar-nav'
 
-export type Club = { id: string; name: string; city: string; color: string; courts: number }
+export type Club = {
+  id: string
+  name: string
+  address: string
+  city: string
+  postalCode: string
+  color: string
+  courts: number
+  photo: string
+  active: boolean
+}
 export type Teacher = {
   id: string
   firstName: string
@@ -39,6 +49,9 @@ export type Group = {
   weekday: number
   start: string
   duration: 60 | 90
+  startsOn: string
+  endsOn: string
+  active: boolean
   studentIds: string[]
 }
 export type Session = {
@@ -52,6 +65,9 @@ export type Session = {
   category: StudentCategory
   status: ClassStatus
   studentIds: string[]
+  level?: StudentLevel
+  attendance?: Record<string, 'unmarked' | 'present' | 'absent'>
+  cancelReason?: string
 }
 export type FeePlan = {
   id: string
@@ -67,10 +83,50 @@ export type Account = {
 }
 
 export const clubs: Club[] = [
-  { id: 'pioz', name: 'Pioz', city: 'Pioz', color: 'brand', courts: 2 },
-  { id: 'loranca', name: 'Loranca de Tajuña', city: 'Loranca de Tajuña', color: 'info', courts: 2 },
-  { id: 'corpa', name: 'Corpa', city: 'Corpa', color: 'warning', courts: 1 },
-  { id: 'pozuelo', name: 'Pozuelo del Rey', city: 'Pozuelo del Rey', color: 'danger', courts: 2 },
+  {
+    id: 'pioz',
+    name: 'Pioz',
+    address: 'Calle Mayor 12',
+    city: 'Pioz',
+    postalCode: '19162',
+    color: 'brand',
+    courts: 2,
+    photo: '',
+    active: true,
+  },
+  {
+    id: 'loranca',
+    name: 'Loranca de Tajuña',
+    address: 'Plaza de España 3',
+    city: 'Loranca de Tajuña',
+    postalCode: '19141',
+    color: 'info',
+    courts: 2,
+    photo: '',
+    active: true,
+  },
+  {
+    id: 'corpa',
+    name: 'Corpa',
+    address: 'Calle Real 5',
+    city: 'Corpa',
+    postalCode: '28811',
+    color: 'warning',
+    courts: 1,
+    photo: '',
+    active: true,
+  },
+  {
+    id: 'pozuelo',
+    name: 'Pozuelo del Rey',
+    address: 'Avenida de la Constitución 20',
+    city: 'Pozuelo del Rey',
+    postalCode: '28813',
+    color: 'danger',
+    courts: 2,
+    photo: '',
+    active: true,
+  },
 ]
 
 export const initialClosures: Closure[] = [
@@ -224,6 +280,9 @@ export const groups: Group[] = groupDefs.map(
       weekday,
       start,
       duration,
+      startsOn: '2026-09-14',
+      endsOn: '',
+      active: true,
       studentIds: picked.map((s) => s.id),
     }
   },

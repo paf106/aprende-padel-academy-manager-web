@@ -11,7 +11,7 @@ import { sessionConflicts, sessionSchema, type SessionInput } from '@/lib/classe
 import { categoryLabels, levelLabels } from '@/lib/core/labels'
 import { studentCategories, studentLevels } from '@/lib/core/types'
 import { validate } from '@/lib/core/validation'
-import { clubs, fullName, groupById, groups, initialClosures, teacherName } from '@/lib/demo/data'
+import { fullName, teacherName } from '@/lib/demo/data'
 import { useDemo } from '@/lib/demo/use-demo'
 
 type ExistingSession = { date: string; start: string; duration: number; teacherId: string; status: string }
@@ -35,13 +35,13 @@ export function SessionFormDrawer({
   onCreate: (input: SessionInput) => void
   onClose: () => void
 }) {
-  const { students, teachers } = useDemo()
+  const { students, teachers, activeClubs: clubs, clubById, groups, groupById, closures } = useDemo()
   const [values, setValues] = useState<Values>({
     groupId: '',
     date: initial.date,
     start: initial.start,
     duration: String(initial.duration) as '60' | '90',
-    clubId: defaultClubId || clubs[0].id,
+    clubId: defaultClubId || (clubs[0]?.id ?? ''),
     teacherId: '',
     category: 'adult',
     level: 'starter',
@@ -112,7 +112,7 @@ export function SessionFormDrawer({
       category: values.category,
       students: students.filter((s) => values.studentIds.includes(s.id)),
       existing,
-      closedDays: expandClosedDays(initialClosures, values.clubId),
+      closedDays: expandClosedDays(closures, values.clubId),
     })
     if (Object.keys(conflicts).length) {
       setErrors(conflicts)
@@ -133,7 +133,7 @@ export function SessionFormDrawer({
           ...groups.map((g) => ({
             value: g.id,
             label: g.name,
-            hint: clubs.find((c) => c.id === g.clubId)?.name,
+            hint: clubById(g.clubId)?.name,
           })),
         ]}
       />

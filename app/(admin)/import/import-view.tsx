@@ -10,10 +10,11 @@ import { DataTable } from '@/components/ds/data-table'
 import { EmptyState } from '@/components/ds/empty-state'
 import { PageContainer, PageToolbar } from '@/components/ds/page-header'
 import { useToast } from '@/components/ds/toast'
-import { clubs } from '@/lib/demo/data'
+import { useDemo } from '@/lib/demo/use-demo'
 
 export function ImportView() {
   const toast = useToast()
+  const { activeClubs: clubs } = useDemo()
   const [rows, setRows] = useState<ImportRow[] | null>(null)
   const [fileName, setFileName] = useState('')
   const valid = rows?.filter((r) => r.errors.length === 0) ?? []
