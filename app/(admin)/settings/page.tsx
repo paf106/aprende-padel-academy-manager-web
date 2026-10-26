@@ -5,14 +5,14 @@ import { modules } from '@/lib/modules'
 import Link from 'next/link'
 import { Badge } from '@/components/ds/badge'
 import { BentoCard, BentoGrid } from '@/components/ds/card'
-import { PageContainer, PageHeader } from '@/components/ds/page-header'
+import { PageContainer } from '@/components/ds/page-header'
 
 export const metadata = { title: 'Ajustes | AprendePadel' }
 
 export default function SettingsPage() {
   return (
     <PageContainer>
-      <PageHeader title="Ajustes" description="Módulos contratados y reglas de la organización" />
+      <h1 className="sr-only">Ajustes</h1>
       <BentoGrid>
         <BentoCard span="lg" title="Módulos">
           <ul className="divide-y divide-border">

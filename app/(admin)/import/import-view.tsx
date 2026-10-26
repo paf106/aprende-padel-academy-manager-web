@@ -8,7 +8,7 @@ import { Button } from '@/components/ds/button'
 import { BentoCard, BentoGrid, Card, Stat } from '@/components/ds/card'
 import { DataTable } from '@/components/ds/data-table'
 import { EmptyState } from '@/components/ds/empty-state'
-import { PageContainer, PageHeader } from '@/components/ds/page-header'
+import { PageContainer, PageToolbar } from '@/components/ds/page-header'
 import { useToast } from '@/components/ds/toast'
 import { clubs } from '@/lib/demo/data'
 
@@ -32,9 +32,8 @@ export function ImportView() {
 
   return (
     <PageContainer>
-      <PageHeader
+      <PageToolbar
         title="Importar alumnos"
-        description="Sube un CSV (exportado desde Excel), revisa la view previa y confirma."
         actions={
           <Button variant="secondary" onClick={downloadTemplate}>
             <Download size={16} aria-hidden="true" />
@@ -42,6 +41,9 @@ export function ImportView() {
           </Button>
         }
       />
+      <p className="text-sm text-muted-foreground">
+        Sube un CSV (exportado desde Excel), revisa la vista previa y confirma.
+      </p>
       <label className="flex cursor-pointer flex-col items-center gap-2 rounded-[var(--radius-card)] border-2 border-dashed border-input bg-card px-6 py-10 text-center transition-colors hover:border-brand">
         <FileUp size={24} aria-hidden="true" className="text-brand" />
         <span className="font-medium">{fileName || 'Elige un archivo CSV'}</span>

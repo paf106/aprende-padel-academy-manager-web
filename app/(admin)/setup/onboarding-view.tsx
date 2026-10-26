@@ -9,7 +9,7 @@ import { formatMoney } from '@/lib/core/money'
 import { Button } from '@/components/ds/button'
 import { Card } from '@/components/ds/card'
 import { Input, Label } from '@/components/ds/input'
-import { PageContainer, PageHeader } from '@/components/ds/page-header'
+import { PageContainer } from '@/components/ds/page-header'
 import { useToast } from '@/components/ds/toast'
 import { clubs, feePlans } from '@/lib/demo/data'
 
@@ -24,7 +24,7 @@ export function OnboardingView() {
 
   return (
     <PageContainer>
-      <PageHeader title="Configuración inicial" description="Deja la academia lista en cinco pasos" />
+      <h1 className="sr-only">Configuración inicial</h1>
       <ol className="flex flex-wrap gap-2" aria-label="Pasos">
         {steps.map((label, index) => (
           <li key={label}>

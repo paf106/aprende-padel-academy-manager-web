@@ -5,7 +5,7 @@ import { localTodayInTimeZone } from '@/lib/core/dates'
 import { formatMoney } from '@/lib/core/money'
 import { BentoCard, BentoGrid, Stat } from '@/components/ds/card'
 import { ClassStatusBadge } from '@/components/ds/badge'
-import { PageContainer, PageHeader } from '@/components/ds/page-header'
+import { PageContainer } from '@/components/ds/page-header'
 import { buildCharges, buildSettlements, groupProfitability, monthSessions } from '@/lib/demo/billing'
 import { categoryLabels } from '@/lib/core/labels'
 import {
@@ -59,7 +59,7 @@ export default function DashboardPage() {
 
   return (
     <PageContainer>
-      <PageHeader title="Resumen" description="Estado de la academia este mes" />
+      <h1 className="sr-only">Resumen</h1>
       <BentoGrid>
         <BentoCard span="sm">
           <Stat

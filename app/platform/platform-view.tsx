@@ -6,7 +6,7 @@ import { moduleLabels } from '@/lib/core/labels'
 import { type ModuleId } from '@/lib/core/types'
 import { Badge } from '@/components/ds/badge'
 import { Card } from '@/components/ds/card'
-import { PageContainer, PageHeader } from '@/components/ds/page-header'
+import { PageContainer } from '@/components/ds/page-header'
 import { useToast } from '@/components/ds/toast'
 
 type Org = { id: string; name: string; clubCount: number; modules: Record<ModuleId, boolean>; paid: boolean }
@@ -35,7 +35,7 @@ export function PlatformView() {
 
   return (
     <PageContainer>
-      <PageHeader title="Plataforma" description="Organizaciones, módulos contratados y facturación manual" />
+      <h1 className="sr-only">Plataforma</h1>
       <div className="grid gap-4">
         {orgs.map((org) => (
           <Card key={org.id} className="grid gap-4 p-5">

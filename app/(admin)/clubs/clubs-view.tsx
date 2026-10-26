@@ -6,7 +6,7 @@ import { Button } from '@/components/ds/button'
 import { BentoCard, BentoGrid } from '@/components/ds/card'
 import { Dropdown } from '@/components/ds/dropdown'
 import { Input, Label } from '@/components/ds/input'
-import { PageContainer, PageHeader } from '@/components/ds/page-header'
+import { PageContainer } from '@/components/ds/page-header'
 import { useToast } from '@/components/ds/toast'
 import { clubs, groups, students } from '@/lib/demo/data'
 
@@ -37,7 +37,7 @@ export function ClubsView() {
 
   return (
     <PageContainer>
-      <PageHeader title="Sedes" description="Escuelas, pistas y calendario de festivos" />
+      <h1 className="sr-only">Sedes</h1>
       <BentoGrid>
         {clubs.map((club) => (
           <BentoCard key={club.id} span="md" title={`${club.courts} pistas`}>

@@ -10,9 +10,11 @@ import { Button } from '@/components/ds/button'
 import { BentoCard, BentoGrid, Card, Stat } from '@/components/ds/card'
 import { DataTable, type Column } from '@/components/ds/data-table'
 import { Drawer } from '@/components/ds/drawer'
-import { Dropdown, FilterChips } from '@/components/ds/dropdown'
-import { Input, Label, SearchInput } from '@/components/ds/input'
-import { PageContainer, PageHeader } from '@/components/ds/page-header'
+import { Dropdown } from '@/components/ds/dropdown'
+import { FilterBar, type FilterDef } from '@/components/ds/filter-bar'
+import { Tabs } from '@/components/ds/tabs'
+import { Input, Label } from '@/components/ds/input'
+import { PageContainer, PageToolbar } from '@/components/ds/page-header'
 import { useToast } from '@/components/ds/toast'
 import type { Charge, TeacherSettlementRow } from '@/lib/demo/billing'
 import { clubById, feePlans as initialPlans } from '@/lib/demo/data'
@@ -27,6 +29,18 @@ type Profit = {
   marginCents: number
 }
 type Method = 'cash' | 'transfer' | 'bizum'
+const statusFilters: FilterDef[] = [
+  {
+    key: 'status',
+    label: 'Estado',
+    allLabel: 'Todos los estados',
+    options: [
+      { value: 'pending', label: 'No pagado' },
+      { value: 'partial', label: 'Parcial' },
+      { value: 'paid', label: 'Pagado' },
+    ],
+  },
+]
 const methodLabel: Record<Method, string> = { cash: 'Efectivo', transfer: 'Transferencia', bizum: 'Bizum' }
 const methodOptions = (Object.keys(methodLabel) as Method[]).map((value) => ({
   value,
@@ -188,9 +202,8 @@ export function PaymentsView({
 
   return (
     <PageContainer>
-      <PageHeader
+      <PageToolbar
         title="Pagos"
-        description={`Cobros y liquidaciones de ${new Intl.DateTimeFormat('es-ES', { month: 'long', year: 'numeric' }).format(new Date(`${month}-01`))}`}
         actions={
           <Button
             variant="secondary"
@@ -217,18 +230,19 @@ export function PaymentsView({
             Exportar CSV
           </Button>
         }
-      />
-      <FilterChips
-        label="Sección"
-        value={tab}
-        onChange={(v) => setTab(v as Tab)}
-        options={[
-          { value: 'charges', label: 'Cobros del mes' },
-          { value: 'teachers', label: 'Liquidaciones' },
-          { value: 'rates', label: 'Tarifas' },
-          { value: 'profitability', label: 'Rentabilidad' },
-        ]}
-      />
+      >
+        <Tabs
+          label="Sección"
+          value={tab}
+          onChange={(v) => setTab(v as Tab)}
+          tabs={[
+            { value: 'charges', label: 'Cobros del mes' },
+            { value: 'teachers', label: 'Liquidaciones' },
+            { value: 'rates', label: 'Tarifas' },
+            { value: 'profitability', label: 'Rentabilidad' },
+          ]}
+        />
+      </PageToolbar>
 
       {tab === 'charges' ? (
         <>
@@ -252,23 +266,20 @@ export function PaymentsView({
             </BentoCard>
           </BentoGrid>
           <div className="flex flex-wrap items-center gap-2">
-            <SearchInput
-              aria-label="Buscar cuenta"
-              placeholder="Buscar cuenta…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="w-full sm:w-64"
-            />
-            <FilterChips
-              label="Estado"
-              value={status}
-              onChange={setStatus}
-              options={[
-                { value: '', label: 'Todos' },
-                { value: 'pending', label: 'No pagado' },
-                { value: 'partial', label: 'Parcial' },
-                { value: 'paid', label: 'Pagado' },
-              ]}
+            <FilterBar
+              search={{
+                value: query,
+                onChange: setQuery,
+                placeholder: 'Buscar cuenta…',
+                label: 'Buscar cuenta',
+              }}
+              filters={statusFilters}
+              values={{ status }}
+              onChange={(_key, value) => setStatus(value)}
+              onClear={() => {
+                setQuery('')
+                setStatus('')
+              }}
             />
           </div>
           <Card>

@@ -6,71 +6,70 @@ import { defaultCapacity } from '@/lib/classes/capacity'
 import { Badge } from '@/components/ds/badge'
 import { Button } from '@/components/ds/button'
 import { BentoCard, BentoGrid } from '@/components/ds/card'
-import { Dropdown, FilterChips } from '@/components/ds/dropdown'
-import { SearchInput } from '@/components/ds/input'
-import { PageContainer, PageHeader } from '@/components/ds/page-header'
+import { FilterBar, type FilterDef } from '@/components/ds/filter-bar'
+import { PageContainer, PageToolbar } from '@/components/ds/page-header'
 import { useToast } from '@/components/ds/toast'
 import { useDemo } from '@/lib/demo/use-demo'
 import { categoryLabels, levelLabels } from '@/lib/core/labels'
+import { studentCategories } from '@/lib/core/types'
 import { clubById, clubs, groups } from '@/lib/demo/data'
 
 const DAYS = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+
+const defaultFilters = { club: '', category: '' }
+const filters: FilterDef[] = [
+  {
+    key: 'club',
+    label: 'Sede',
+    allLabel: 'Todas las sedes',
+    options: clubs.map((c) => ({ value: c.id, label: c.name })),
+  },
+  {
+    key: 'category',
+    label: 'Categoría',
+    allLabel: 'Todas las categorías',
+    options: studentCategories.map((c) => ({ value: c, label: categoryLabels[c] })),
+  },
+]
 
 export function GroupsView() {
   const toast = useToast()
   const { studentLabel, teacherLabel } = useDemo()
   const [query, setQuery] = useState('')
-  const [club, setClub] = useState('')
-  const [category, setCategory] = useState('')
+  const [values, setValues] = useState(defaultFilters)
   const rows = useMemo(
     () =>
       groups.filter(
         (g) =>
-          (!club || g.clubId === club) &&
-          (!category || g.category === category) &&
+          (!values.club || g.clubId === values.club) &&
+          (!values.category || g.category === values.category) &&
           g.name.toLowerCase().includes(query.toLowerCase()),
       ),
-    [query, club, category],
+    [query, values],
   )
   return (
     <PageContainer>
-      <PageHeader
+      <PageToolbar
         title="Grupos"
-        description="Plantillas que generan las clases del calendario"
         actions={
           <Button onClick={() => toast('La creación de grupos se conectará con la base de datos.')}>
             <Plus size={16} aria-hidden="true" />
             Nuevo grupo
           </Button>
         }
-      />
-      <div className="flex flex-wrap items-center gap-2">
-        <SearchInput
-          aria-label="Buscar grupo"
-          placeholder="Buscar grupo…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="w-full sm:w-64"
+      >
+        <FilterBar
+          search={{ value: query, onChange: setQuery, placeholder: 'Buscar grupo…', label: 'Buscar grupo' }}
+          filters={filters}
+          values={values}
+          onChange={(key, value) => setValues((current) => ({ ...current, [key]: value }))}
+          onClear={() => {
+            setQuery('')
+            setValues(defaultFilters)
+          }}
+          trailing={<span className="text-sm text-muted-foreground">{rows.length} grupos</span>}
         />
-        <Dropdown
-          aria-label="Sede"
-          className="w-44"
-          allLabel="Todas las sedes"
-          value={club}
-          onChange={setClub}
-          options={clubs.map((c) => ({ value: c.id, label: c.name }))}
-        />
-        <FilterChips
-          label="Categoría"
-          value={category}
-          onChange={setCategory}
-          options={[
-            { value: '', label: 'Todos' },
-            { value: 'adult', label: 'Adultos' },
-            { value: 'child', label: 'Niños' },
-          ]}
-        />
-      </div>
+      </PageToolbar>
       <BentoGrid>
         {rows.map((g) => {
           const capacity = defaultCapacity[g.category]
