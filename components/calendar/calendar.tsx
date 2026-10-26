@@ -1,7 +1,7 @@
 'use client'
 
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { useMemo, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import {
   calendarHeadingLabel,
   calendarMonthGrid,
@@ -12,6 +12,7 @@ import {
 import { layoutDayEvents } from '@/lib/core/calendar'
 import { shiftDate, weekDays } from '@/lib/core/calendar-nav'
 import { cn } from '@/lib/core/cn'
+import { RowActionsMenu, type RowAction } from '@/components/crud/row-actions-menu'
 
 export type CalendarTone = 'brand' | 'info' | 'danger' | 'warning' | 'neutral'
 export type CalendarEvent = {
@@ -44,10 +45,11 @@ export function Calendar({
   today,
   view,
   timeZone = 'Europe/Madrid',
-  filters,
   onDateChange,
   onViewChange,
   onEventClick,
+  onSlotClick,
+  dayActions,
   selectedId,
 }: {
   events: readonly CalendarEvent[]
@@ -55,12 +57,14 @@ export function Calendar({
   today: string
   view: CalendarView
   timeZone?: string
-  filters?: ReactNode
   onDateChange: (date: string) => void
   onViewChange: (view: CalendarView) => void
   onEventClick?: (event: CalendarEvent) => void
+  onSlotClick?: (date: string, time: string | null) => void
+  dayActions?: (date: string) => RowAction[]
   selectedId?: string | null
 }) {
+  const scroller = useRef<HTMLDivElement>(null)
   const byDay = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>()
     for (const event of events) {
@@ -71,8 +75,22 @@ export function Calendar({
     return map
   }, [events, timeZone])
 
+  useEffect(() => {
+    const node = scroller.current
+    if (!node || (view !== 'day' && view !== 'week')) return
+    const days = view === 'day' ? [date] : weekDays(date)
+    let minutes = days.includes(today) ? localTimeInTimeZone(new Date(), timeZone) - 60 : null
+    if (minutes === null) {
+      const starts = days.flatMap((day) =>
+        (byDay.get(day) ?? []).map((e) => localTimeInTimeZone(e.startsAt, timeZone)),
+      )
+      minutes = starts.length ? Math.min(...starts) - 30 : 8 * 60
+    }
+    node.scrollTop = Math.max(0, ((minutes - START_HOUR * 60) / 60) * PX_PER_HOUR)
+  }, [view, date, today, timeZone, byDay])
+
   return (
-    <section aria-label="Calendario" className="flex min-h-0 flex-col gap-4">
+    <section aria-label="Calendario" className="flex min-h-0 flex-1 flex-col gap-3">
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-1">
           <button
@@ -125,9 +143,10 @@ export function Calendar({
           ))}
         </div>
       </div>
-      {filters ? <div className="flex flex-wrap items-center gap-2">{filters}</div> : null}
-
-      <div className="overflow-hidden rounded-[var(--radius-card)] border border-border bg-card shadow-[var(--shadow-card)]">
+      <div
+        ref={scroller}
+        className="min-h-0 flex-1 overflow-auto rounded-[var(--radius-card)] border border-border bg-card shadow-[var(--shadow-card)]"
+      >
         {view === 'day' || view === 'week' ? (
           <TimeGrid
             days={view === 'day' ? [date] : weekDays(date)}
@@ -135,6 +154,8 @@ export function Calendar({
             today={today}
             timeZone={timeZone}
             onEventClick={onEventClick}
+            onSlotClick={onSlotClick}
+            dayActions={dayActions}
             selectedId={selectedId}
           />
         ) : null}
@@ -144,6 +165,7 @@ export function Calendar({
             byDay={byDay}
             today={today}
             onEventClick={onEventClick}
+            onSlotClick={onSlotClick}
             selectedId={selectedId}
             onDayClick={(day) => {
               onDateChange(day)
@@ -218,6 +240,8 @@ function TimeGrid({
   today,
   timeZone,
   onEventClick,
+  onSlotClick,
+  dayActions,
   selectedId,
 }: {
   days: string[]
@@ -225,12 +249,14 @@ function TimeGrid({
   today: string
   timeZone: string
   onEventClick?: (event: CalendarEvent) => void
+  onSlotClick?: (date: string, time: string | null) => void
+  dayActions?: (date: string) => RowAction[]
   selectedId?: string | null
 }) {
   const hours = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START_HOUR + i)
   const height = hours.length * PX_PER_HOUR
   return (
-    <div className="overflow-auto">
+    <div>
       <div className="min-w-[640px]">
         <div
           className="sticky top-0 z-10 grid border-b border-border bg-card"
@@ -242,7 +268,12 @@ function TimeGrid({
               new Date(`${day}T00:00:00Z`),
             )
             return (
-              <div key={day} className="py-2 text-center">
+              <div key={day} className="relative py-2 text-center">
+                {dayActions ? (
+                  <div className="absolute right-1 top-1">
+                    <RowActionsMenu label={`Acciones del ${day}`} actions={dayActions(day)} />
+                  </div>
+                ) : null}
                 <p className="text-xs uppercase text-muted-foreground">{label.replace('.', '')}</p>
                 <p
                   className={cn(
@@ -278,6 +309,15 @@ function TimeGrid({
               <div
                 key={day}
                 className="relative border-l border-border"
+                onClick={(event) => {
+                  if (!onSlotClick || event.target !== event.currentTarget) return
+                  const y = event.clientY - event.currentTarget.getBoundingClientRect().top
+                  const minutes = START_HOUR * 60 + Math.floor(((y / PX_PER_HOUR) * 60) / 30) * 30
+                  onSlotClick(
+                    day,
+                    `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`,
+                  )
+                }}
                 style={{
                   height,
                   backgroundImage: `repeating-linear-gradient(to bottom, transparent 0, transparent ${PX_PER_HOUR - 1}px, var(--border) ${PX_PER_HOUR - 1}px, var(--border) ${PX_PER_HOUR}px)`,
@@ -334,6 +374,7 @@ function MonthGrid({
   byDay,
   today,
   onEventClick,
+  onSlotClick,
   selectedId,
   onDayClick,
 }: {
@@ -341,6 +382,7 @@ function MonthGrid({
   byDay: Map<string, CalendarEvent[]>
   today: string
   onEventClick?: (event: CalendarEvent) => void
+  onSlotClick?: (date: string, time: string | null) => void
   selectedId?: string | null
   onDayClick: (day: string) => void
 }) {
@@ -362,6 +404,9 @@ function MonthGrid({
           return (
             <div
               key={day}
+              onClick={(event) => {
+                if (event.target === event.currentTarget) onSlotClick?.(day, null)
+              }}
               className={cn(
                 'min-h-28 border-b border-r border-border p-1.5 last:border-r-0',
                 !inMonth && 'bg-muted/40',

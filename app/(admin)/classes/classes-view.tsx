@@ -1,21 +1,32 @@
 'use client'
 
-import { CloudRain, Plus, UserCheck } from 'lucide-react'
+import { UserCheck } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { classStatusLabels } from '@/lib/core/labels'
 import { type CalendarView } from '@/lib/core/dates'
-import { type ClassStatus } from '@/lib/core/types'
+import { classStatuses } from '@/lib/core/types'
 import { Calendar, type CalendarEvent, type CalendarTone } from '@/components/calendar/calendar'
 import { ClassStatusBadge } from '@/components/ds/badge'
 import { Button } from '@/components/ds/button'
 import { Drawer } from '@/components/ds/drawer'
-import { Dropdown, FilterChips } from '@/components/ds/dropdown'
-import { Label } from '@/components/ds/input'
-import { PageContainer, PageHeader } from '@/components/ds/page-header'
+import { Dropdown } from '@/components/ds/dropdown'
+import { FilterBar, type FilterDef } from '@/components/ds/filter-bar'
+import { Input, Label } from '@/components/ds/input'
+import { PageContainer, PageToolbar } from '@/components/ds/page-header'
 import { useToast } from '@/components/ds/toast'
+import { slotsOverlap } from '@/lib/classes/sessions'
 import { useDemo } from '@/lib/demo/use-demo'
 import { categoryLabels, levelLabels } from '@/lib/core/labels'
-import { clubById, clubs, fullName, groupById, studentById, teacherName, type Session } from '@/lib/demo/data'
+import {
+  clubById,
+  clubs,
+  fullName,
+  groupById,
+  groups,
+  studentById,
+  teacherName,
+  type Session,
+} from '@/lib/demo/data'
 
 type Attendance = 'unmarked' | 'present' | 'absent'
 type SessionState = Session & {
@@ -35,6 +46,7 @@ const reasons = [
   { value: 'other', label: 'Otro motivo' },
 ]
 const reasonLabel = Object.fromEntries(reasons.map((r) => [r.value, r.label]))
+const defaultFilters = { club: '', teacher: '', status: '', category: '' }
 
 export function ClassesView({ today, initialSessions }: { today: string; initialSessions: Session[] }) {
   const toast = useToast()
@@ -49,15 +61,16 @@ export function ClassesView({ today, initialSessions }: { today: string; initial
   )
   const [date, setDate] = useState(today)
   const [view, setView] = useState<CalendarView>('week')
-  const [club, setClub] = useState('')
-  const [teacher, setTeacher] = useState('')
-  const [status, setStatus] = useState('')
-  const [category, setCategory] = useState('')
+  const [filterValues, setFilterValues] = useState(defaultFilters)
+  const { club, teacher, status, category } = filterValues
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [massOpen, setMassOpen] = useState(false)
   const [reason, setReason] = useState('rain')
   const [massClub, setMassClub] = useState(clubs[0].id)
   const [massDate, setMassDate] = useState(today)
+  const [newSlot, setNewSlot] = useState<{ date: string; time: string | null } | null>(null)
+  const [newForm, setNewForm] = useState({ groupId: '', date: '', time: '19:00', duration: '60' })
+  const [newError, setNewError] = useState('')
 
   const filtered = useMemo(
     () =>
@@ -91,6 +104,36 @@ export function ClassesView({ today, initialSessions }: { today: string; initial
     }
   })
   const selected = sessions.find((s) => s.id === selectedId) ?? null
+  const filters: FilterDef[] = [
+    {
+      key: 'club',
+      label: 'Sede',
+      allLabel: 'Todas las sedes',
+      options: clubs.map((c) => ({ value: c.id, label: c.name })),
+    },
+    {
+      key: 'teacher',
+      label: 'Profesor',
+      allLabel: 'Todos los profesores',
+      className: 'w-52',
+      options: teachers.filter((t) => t.active).map((t) => ({ value: t.id, label: teacherName(t) })),
+    },
+    {
+      key: 'status',
+      label: 'Estado',
+      allLabel: 'Todos los estados',
+      options: classStatuses.map((s) => ({ value: s, label: classStatusLabels[s] })),
+    },
+    {
+      key: 'category',
+      label: 'Categoría',
+      allLabel: 'Todas las categorías',
+      options: [
+        { value: 'adult', label: categoryLabels.adult },
+        { value: 'child', label: categoryLabels.child },
+      ],
+    },
+  ]
 
   const update = (id: string, patch: Partial<SessionState>) =>
     setSessions((list) => list.map((s) => (s.id === id ? { ...s, ...patch } : s)))
@@ -112,24 +155,65 @@ export function ClassesView({ today, initialSessions }: { today: string; initial
     )
   }
 
+  const openMass = (day: string, clubId?: string) => {
+    setMassDate(day)
+    setMassClub(clubId || club || clubs[0].id)
+    setMassOpen(true)
+  }
+
+  const openNew = (day: string, time: string | null) => {
+    const firstGroup = groups.find((g) => !club || g.clubId === club)
+    setNewForm({ groupId: firstGroup?.id ?? '', date: day, time: time ?? '19:00', duration: '60' })
+    setNewError('')
+    setNewSlot({ date: day, time })
+  }
+
+  const createSession = () => {
+    const group = groupById(newForm.groupId)
+    if (!group) {
+      setNewError('Elige un grupo.')
+      return
+    }
+    const duration = Number(newForm.duration) as 60 | 90
+    const slot = { date: newForm.date, start: newForm.time, duration }
+    const clash = sessions.find(
+      (s) => s.teacherId === group.teacherId && s.status !== 'cancelled' && slotsOverlap(slot, s),
+    )
+    if (clash) {
+      setNewError('El profesor ya tiene una clase a esa hora.')
+      return
+    }
+    const id = `${group.id}-${newForm.date}-${newForm.time}`
+    setSessions((list) => [
+      ...list,
+      {
+        id,
+        groupId: group.id,
+        clubId: group.clubId,
+        teacherId: group.teacherId,
+        date: newForm.date,
+        start: newForm.time,
+        duration,
+        category: group.category,
+        status: 'pending',
+        studentIds: group.studentIds,
+        attendance: Object.fromEntries(group.studentIds.map((studentId) => [studentId, 'unmarked'])),
+      },
+    ])
+    setNewSlot(null)
+    toast('Clase creada.')
+  }
+
   return (
-    <PageContainer>
-      <PageHeader
-        title="Clases"
-        description="Calendario de todas las sedes"
-        actions={
-          <>
-            <Button variant="secondary" onClick={() => setMassOpen(true)}>
-              <CloudRain size={16} aria-hidden="true" />
-              Cancelar por lluvia
-            </Button>
-            <Button onClick={() => toast('La creación de clases llega con las acciones de datos.')}>
-              <Plus size={16} aria-hidden="true" />
-              Nueva clase
-            </Button>
-          </>
-        }
-      />
+    <PageContainer fill>
+      <PageToolbar title="Clases">
+        <FilterBar
+          filters={filters}
+          values={filterValues}
+          onChange={(key, value) => setFilterValues((current) => ({ ...current, [key]: value }))}
+          onClear={() => setFilterValues(defaultFilters)}
+        />
+      </PageToolbar>
       <Calendar
         events={events}
         date={date}
@@ -139,49 +223,11 @@ export function ClassesView({ today, initialSessions }: { today: string; initial
         onViewChange={setView}
         selectedId={selectedId}
         onEventClick={(event) => setSelectedId(event.id)}
-        filters={
-          <>
-            <Dropdown
-              aria-label="Sede"
-              className="w-44"
-              allLabel="Todas las sedes"
-              value={club}
-              onChange={setClub}
-              options={clubs.map((c) => ({ value: c.id, label: c.name }))}
-            />
-            <Dropdown
-              aria-label="Profesor"
-              className="w-44"
-              allLabel="Todos los profesores"
-              searchable
-              value={teacher}
-              onChange={setTeacher}
-              options={teachers.filter((t) => t.active).map((t) => ({ value: t.id, label: teacherName(t) }))}
-            />
-            <FilterChips
-              label="Estado"
-              value={status}
-              onChange={setStatus}
-              options={[
-                { value: '', label: 'Todos' },
-                ...(['pending', 'completed', 'cancelled'] as ClassStatus[]).map((s) => ({
-                  value: s,
-                  label: classStatusLabels[s],
-                })),
-              ]}
-            />
-            <FilterChips
-              label="Categoría"
-              value={category}
-              onChange={setCategory}
-              options={[
-                { value: '', label: 'Todas' },
-                { value: 'adult', label: 'Adultos' },
-                { value: 'child', label: 'Niños' },
-              ]}
-            />
-          </>
-        }
+        onSlotClick={openNew}
+        dayActions={(day) => [
+          { label: 'Nueva clase aquí', onSelect: () => openNew(day, null) },
+          { label: 'Cancelar clases del día…', onSelect: () => openMass(day) },
+        ]}
       />
 
       <Drawer
@@ -196,6 +242,15 @@ export function ClassesView({ today, initialSessions }: { today: string; initial
         footer={
           selected && selected.status === 'pending' ? (
             <>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setSelectedId(null)
+                  openMass(selected.date, selected.clubId)
+                }}
+              >
+                Cancelar el día
+              </Button>
               <Button
                 variant="secondary"
                 onClick={() => {
@@ -358,6 +413,73 @@ export function ClassesView({ today, initialSessions }: { today: string; initial
           <p className="rounded-xl bg-muted p-3 text-sm text-muted-foreground">
             Las clases canceladas no se cobran a los alumnos (prorrateo) ni se pagan al profesor.
           </p>
+        </div>
+      </Drawer>
+      <Drawer
+        open={newSlot !== null}
+        onClose={() => setNewSlot(null)}
+        title="Nueva clase"
+        description="Crea una clase puntual a partir de un grupo."
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setNewSlot(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={createSession}>Crear clase</Button>
+          </>
+        }
+      >
+        <div className="grid gap-5">
+          <div>
+            <Label>Grupo</Label>
+            <Dropdown
+              aria-label="Grupo"
+              searchable
+              placeholder="Elige un grupo"
+              value={newForm.groupId}
+              onChange={(value) => setNewForm((f) => ({ ...f, groupId: value }))}
+              options={groups
+                .filter((g) => !club || g.clubId === club)
+                .map((g) => ({ value: g.id, label: g.name, hint: clubById(g.clubId)?.name }))}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="new-date">Día</Label>
+              <Input
+                id="new-date"
+                type="date"
+                value={newForm.date}
+                onChange={(e) => setNewForm((f) => ({ ...f, date: e.target.value }))}
+              />
+            </div>
+            <div>
+              <Label htmlFor="new-time">Hora</Label>
+              <Input
+                id="new-time"
+                type="time"
+                value={newForm.time}
+                onChange={(e) => setNewForm((f) => ({ ...f, time: e.target.value }))}
+              />
+            </div>
+          </div>
+          <div>
+            <Label>Duración</Label>
+            <Dropdown
+              aria-label="Duración"
+              value={newForm.duration}
+              onChange={(value) => setNewForm((f) => ({ ...f, duration: value }))}
+              options={[
+                { value: '60', label: '60 minutos' },
+                { value: '90', label: '90 minutos' },
+              ]}
+            />
+          </div>
+          {newError ? (
+            <p role="alert" className="text-sm text-danger">
+              {newError}
+            </p>
+          ) : null}
         </div>
       </Drawer>
     </PageContainer>
