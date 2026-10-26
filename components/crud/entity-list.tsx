@@ -27,6 +27,8 @@ export function EntityList<T>({
   rowActions,
   onCreate,
   onRowClick,
+  layout = 'table',
+  renderCard,
 }: {
   title: string
   singular: string
@@ -44,6 +46,9 @@ export function EntityList<T>({
   rowActions: (row: T) => readonly RowAction[]
   onCreate: () => void
   onRowClick?: (row: T) => void
+  layout?: 'table' | 'cards'
+  /** Card renderer for layout="cards"; receives the row and its actions menu. */
+  renderCard?: (row: T, actions: ReactNode) => ReactNode
 }) {
   const allColumns: Column<T>[] = [
     ...columns,
@@ -75,17 +80,36 @@ export function EntityList<T>({
           trailing={summary ? <span className="text-sm text-muted-foreground">{summary}</span> : null}
         />
       </PageToolbar>
-      <Card>
-        <DataTable
-          columns={allColumns}
-          rows={rows}
-          rowKey={rowKey}
-          onRowClick={onRowClick}
-          empty={
+      {layout === 'cards' && renderCard ? (
+        rows.length === 0 ? (
+          <Card>
             <EmptyState icon={icon} title={`Ningún ${singular} coincide`} description={emptyDescription} />
-          }
-        />
-      </Card>
+          </Card>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {rows.map((row) => (
+              <div key={rowKey(row)}>
+                {renderCard(
+                  row,
+                  <RowActionsMenu label={`Acciones de ${singular}`} actions={rowActions(row)} />,
+                )}
+              </div>
+            ))}
+          </div>
+        )
+      ) : (
+        <Card>
+          <DataTable
+            columns={allColumns}
+            rows={rows}
+            rowKey={rowKey}
+            onRowClick={onRowClick}
+            empty={
+              <EmptyState icon={icon} title={`Ningún ${singular} coincide`} description={emptyDescription} />
+            }
+          />
+        </Card>
+      )}
     </PageContainer>
   )
 }
