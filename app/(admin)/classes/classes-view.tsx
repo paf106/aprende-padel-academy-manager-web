@@ -221,10 +221,6 @@ export function ClassesView({ today, initialSessions }: { today: string; initial
         draft={draft}
         onSlotSelect={(slot) => openNew(slot.date, slot.start, slot.duration)}
         onDaySelect={(day) => openNew(day, null)}
-        dayActions={(day) => [
-          { label: 'Nueva clase aquí', onSelect: () => openNew(day, null) },
-          { label: 'Cancelar clases del día…', onSelect: () => openMass(day) },
-        ]}
       />
 
       <Drawer

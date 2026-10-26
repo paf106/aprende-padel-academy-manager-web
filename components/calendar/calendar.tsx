@@ -9,10 +9,9 @@ import {
   localTimeInTimeZone,
   type CalendarView,
 } from '@/lib/core/dates'
-import { layoutDayEvents } from '@/lib/core/calendar'
+import { freeDurationAt, layoutDayEvents, type BusyRange } from '@/lib/core/calendar'
 import { shiftDate, weekDays } from '@/lib/core/calendar-nav'
 import { cn } from '@/lib/core/cn'
-import { RowActionsMenu, type RowAction } from '@/components/crud/row-actions-menu'
 
 export type CalendarTone = 'brand' | 'info' | 'danger' | 'warning' | 'neutral'
 export type CalendarEvent = {
@@ -74,7 +73,6 @@ export function Calendar({
   onSlotSelect,
   onDaySelect,
   draft,
-  dayActions,
   selectedId,
 }: {
   events: readonly CalendarEvent[]
@@ -88,7 +86,6 @@ export function Calendar({
   onSlotSelect?: (slot: SlotSelection) => void
   onDaySelect?: (date: string) => void
   draft?: CalendarDraft | null
-  dayActions?: (date: string) => RowAction[]
   selectedId?: string | null
 }) {
   const scroller = useRef<HTMLDivElement>(null)
@@ -183,7 +180,6 @@ export function Calendar({
             onEventClick={onEventClick}
             onSlotSelect={onSlotSelect}
             draft={draft}
-            dayActions={dayActions}
             selectedId={selectedId}
           />
         ) : null}
@@ -270,7 +266,6 @@ function TimeGrid({
   onEventClick,
   onSlotSelect,
   draft,
-  dayActions,
   selectedId,
 }: {
   days: string[]
@@ -280,7 +275,6 @@ function TimeGrid({
   onEventClick?: (event: CalendarEvent) => void
   onSlotSelect?: (slot: SlotSelection) => void
   draft?: CalendarDraft | null
-  dayActions?: (date: string) => RowAction[]
   selectedId?: string | null
 }) {
   const hours = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START_HOUR + i)
@@ -317,12 +311,7 @@ function TimeGrid({
               new Date(`${day}T00:00:00Z`),
             )
             return (
-              <div key={day} className="relative py-2 text-center">
-                {dayActions ? (
-                  <div className="absolute right-1 top-1">
-                    <RowActionsMenu label={`Acciones del ${day}`} actions={dayActions(day)} />
-                  </div>
-                ) : null}
+              <div key={day} className="py-2 text-center">
                 <p className="text-xs uppercase text-muted-foreground">{label.replace('.', '')}</p>
                 <p
                   className={cn(
@@ -347,15 +336,6 @@ function TimeGrid({
                 {hour > START_HOUR ? `${String(hour).padStart(2, '0')}:00` : ''}
               </span>
             ))}
-            {nowVisible ? (
-              <span
-                aria-hidden="true"
-                className="absolute right-1 z-20 -translate-y-1/2 rounded bg-card px-1 text-[11px] font-semibold tabular-nums text-danger"
-                style={{ top: nowTop }}
-              >
-                {formatTime(nowMinutes ?? 0)}
-              </span>
-            ) : null}
           </div>
           {days.map((day) => {
             const events = byDay.get(day) ?? []
@@ -364,6 +344,11 @@ function TimeGrid({
               { startHour: START_HOUR, endHour: END_HOUR, pixelsPerHour: PX_PER_HOUR, timeZone },
             )
             const slotTop = (minutes: number) => ((minutes - START_HOUR * 60) / 60) * PX_PER_HOUR
+            const busy: BusyRange[] = events.map((e) => {
+              const start = localTimeInTimeZone(e.startsAt, timeZone)
+              const end = localTimeInTimeZone(e.endsAt, timeZone)
+              return { start, end: end > start ? end : 24 * 60 }
+            })
             return (
               <div
                 key={day}
@@ -371,15 +356,20 @@ function TimeGrid({
                 onPointerDown={(event) => {
                   if (!onSlotSelect || event.button !== 0 || event.target !== event.currentTarget) return
                   event.currentTarget.setPointerCapture(event.pointerId)
-                  setDrag({ day, start: minutesAt(event), duration: 60 })
+                  const start = minutesAt(event)
+                  if (freeDurationAt(busy, start) === 0) return
+                  setDrag({ day, start, duration: 60 })
                 }}
                 onPointerMove={(event) => {
                   if (!onSlotSelect) return
                   if (drag && drag.day === day) {
                     const raw = minutesAt(event) - drag.start + SLOT_MINUTES
-                    setDrag({ ...drag, duration: raw >= 90 ? 90 : 60 })
-                  } else if (!drag && event.target === event.currentTarget) {
-                    setHover({ day, minutes: minutesAt(event) })
+                    const fits = freeDurationAt(busy, drag.start) >= 90
+                    setDrag({ ...drag, duration: raw >= 90 && fits ? 90 : 60 })
+                  } else if (!drag) {
+                    const minutes = minutesAt(event)
+                    const free = event.target === event.currentTarget ? freeDurationAt(busy, minutes) : 0
+                    setHover(free > 0 ? { day, minutes } : null)
                   }
                 }}
                 onPointerUp={(event) => {

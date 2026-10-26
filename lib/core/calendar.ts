@@ -135,3 +135,16 @@ export function clubCalendarColor(key: number | string) {
       : [...key].reduce((hash, character) => (hash * 31 + character.charCodeAt(0)) | 0, 0)
   return clubPalette[((index % clubPalette.length) + clubPalette.length) % clubPalette.length]
 }
+
+export type BusyRange = { start: number; end: number }
+
+/** Longest class (0, 60 or 90 minutes) that can start at `start` without touching an existing event. */
+export function freeDurationAt(busy: readonly BusyRange[], start: number): 0 | 60 | 90 {
+  if (busy.some((range) => range.start <= start && start < range.end)) return 0
+  const nextStart = Math.min(
+    Infinity,
+    ...busy.filter((range) => range.start > start).map((range) => range.start),
+  )
+  const free = nextStart - start
+  return free >= 90 ? 90 : free >= 60 ? 60 : 0
+}
