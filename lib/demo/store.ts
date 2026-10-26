@@ -1,4 +1,6 @@
-import type { Closure } from '@/lib/classes/closures'
+import { expandClosedDays, type Closure } from '@/lib/classes/closures'
+import type { GroupInput } from '@/lib/classes/group-schema'
+import { planRegeneration } from '@/lib/classes/group-sessions'
 import type { StudentInput } from '@/lib/classes/student-schema'
 import type { TeacherInput } from '@/lib/classes/teacher-schema'
 import { localTodayInTimeZone } from '@/lib/core/dates'
@@ -108,6 +110,42 @@ export const demoStore = {
     commit({ ...state, teachers: state.teachers.filter((t) => t.id !== id) })
   },
 
+  createGroup(input: GroupInput) {
+    const group: Group = { ...input, id: crypto.randomUUID(), active: true }
+    commit({
+      ...state,
+      groups: [...state.groups, group],
+      sessions: [...state.sessions, ...buildSessions(state, group, group.id)],
+    })
+    return group
+  },
+  updateGroup(id: string, input: GroupInput, options: { regenerate: boolean }) {
+    const group: Group = { ...(state.groups.find((g) => g.id === id) as Group), ...input }
+    const groups = state.groups.map((g) => (g.id === id ? group : g))
+    commit({
+      ...state,
+      groups,
+      sessions: options.regenerate ? replaceFutureSessions(state, group) : state.sessions,
+    })
+  },
+  setGroupActive(id: string, active: boolean) {
+    const current = state.groups.find((g) => g.id === id)
+    if (!current) return
+    const group: Group = { ...current, active, endsOn: active ? '' : today() }
+    commit({
+      ...state,
+      groups: state.groups.map((g) => (g.id === id ? group : g)),
+      sessions: replaceFutureSessions(state, group),
+    })
+  },
+  deleteGroup(id: string) {
+    commit({
+      ...state,
+      groups: state.groups.filter((g) => g.id !== id),
+      sessions: state.sessions.filter((s) => s.groupId !== id || s.status !== 'pending'),
+    })
+  },
+
   addSession(session: Session) {
     commit({ ...state, sessions: [...state.sessions, session] })
   },
@@ -126,6 +164,41 @@ export const demoStore = {
   addClosure(closure: Closure) {
     commit({ ...state, closures: [...state.closures, closure] })
   },
+}
+
+const today = () => localTodayInTimeZone('Europe/Madrid')
+
+function buildSessions(current: DemoState, group: Group, groupId: string): Session[] {
+  const plan = planRegeneration([], groupId, group, today(), expandClosedDays(current.closures, group.clubId))
+  return plan.add.map((slot) => ({
+    id: `${group.id}-${slot.date}`,
+    groupId: group.id,
+    clubId: group.clubId,
+    teacherId: group.teacherId,
+    date: slot.date,
+    start: slot.start,
+    duration: slot.duration,
+    category: group.category,
+    level: group.level,
+    status: 'pending',
+    studentIds: group.studentIds,
+  }))
+}
+
+/** Pending classes from today on are rebuilt from the group's schedule; everything else stays untouched. */
+function replaceFutureSessions(current: DemoState, group: Group): Session[] {
+  const plan = planRegeneration(
+    current.sessions,
+    group.id,
+    group,
+    today(),
+    expandClosedDays(current.closures, group.clubId),
+  )
+  const kept = current.sessions.filter((s) => !plan.remove.includes(s.id))
+  const added = buildSessions(current, group, group.id).filter(
+    (next) => !kept.some((s) => s.groupId === group.id && s.date === next.date),
+  )
+  return [...kept, ...added]
 }
 
 /** Demo usage counts; with a real database these come from queries. */
