@@ -29,6 +29,7 @@ export function EntityList<T>({
   onRowClick,
   layout = 'table',
   renderCard,
+  children,
 }: {
   title: string
   singular: string
@@ -49,6 +50,8 @@ export function EntityList<T>({
   layout?: 'table' | 'cards'
   /** Card renderer for layout="cards"; receives the row and its actions menu. */
   renderCard?: (row: T, actions: ReactNode) => ReactNode
+  /** Extra content rendered below the list. */
+  children?: ReactNode
 }) {
   const allColumns: Column<T>[] = [
     ...columns,
@@ -110,6 +113,7 @@ export function EntityList<T>({
           />
         </Card>
       )}
+      {children}
     </PageContainer>
   )
 }

@@ -1,4 +1,5 @@
 import { expandClosedDays, type Closure } from '@/lib/classes/closures'
+import type { ClubInput } from '@/lib/classes/club-schema'
 import type { GroupInput } from '@/lib/classes/group-schema'
 import { planRegeneration } from '@/lib/classes/group-sessions'
 import type { StudentInput } from '@/lib/classes/student-schema'
@@ -108,6 +109,21 @@ export const demoStore = {
   },
   deleteTeacher(id: string) {
     commit({ ...state, teachers: state.teachers.filter((t) => t.id !== id) })
+  },
+
+  createClub(input: ClubInput) {
+    const club: Club = { ...input, id: crypto.randomUUID(), active: true }
+    commit({ ...state, clubs: [...state.clubs, club] })
+    return club
+  },
+  updateClub(id: string, input: ClubInput) {
+    commit({ ...state, clubs: state.clubs.map((c) => (c.id === id ? { ...c, ...input } : c)) })
+  },
+  setClubActive(id: string, active: boolean) {
+    commit({ ...state, clubs: state.clubs.map((c) => (c.id === id ? { ...c, active } : c)) })
+  },
+  deleteClub(id: string) {
+    commit({ ...state, clubs: state.clubs.filter((c) => c.id !== id) })
   },
 
   createGroup(input: GroupInput) {
