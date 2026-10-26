@@ -13,17 +13,9 @@ import { Dropdown, FilterChips } from '@/components/ds/dropdown'
 import { Label } from '@/components/ds/input'
 import { PageContainer, PageHeader } from '@/components/ds/page-header'
 import { useToast } from '@/components/ds/toast'
+import { useDemo } from '@/lib/demo/use-demo'
 import { categoryLabels, levelLabels } from '@/lib/core/labels'
-import {
-  clubById,
-  clubs,
-  fullName,
-  groupById,
-  studentById,
-  teacherById,
-  teachers,
-  type Session,
-} from '@/lib/demo/data'
+import { clubById, clubs, fullName, groupById, studentById, teacherName, type Session } from '@/lib/demo/data'
 
 type Attendance = 'unmarked' | 'present' | 'absent'
 type SessionState = Session & {
@@ -46,6 +38,7 @@ const reasonLabel = Object.fromEntries(reasons.map((r) => [r.value, r.label]))
 
 export function ClassesView({ today, initialSessions }: { today: string; initialSessions: Session[] }) {
   const toast = useToast()
+  const { teachers, teacherLabel } = useDemo()
   const [sessions, setSessions] = useState<SessionState[]>(() =>
     initialSessions.map((s) => ({
       ...s,
@@ -85,7 +78,7 @@ export function ClassesView({ today, initialSessions }: { today: string; initial
     return {
       id: s.id,
       title: group?.name ?? 'Clase',
-      subtitle: `${clubById(s.clubId)?.name} · ${teacherById(s.teacherId)?.name}`,
+      subtitle: `${clubById(s.clubId)?.name} · ${teacherLabel(s.teacherId)}`,
       startsAt: start.toISOString(),
       endsAt: end.toISOString(),
       tone:
@@ -163,7 +156,7 @@ export function ClassesView({ today, initialSessions }: { today: string; initial
               searchable
               value={teacher}
               onChange={setTeacher}
-              options={teachers.map((t) => ({ value: t.id, label: t.name }))}
+              options={teachers.filter((t) => t.active).map((t) => ({ value: t.id, label: teacherName(t) }))}
             />
             <FilterChips
               label="Estado"
@@ -260,7 +253,9 @@ export function ClassesView({ today, initialSessions }: { today: string; initial
                   update(selected.id, { teacherId: value })
                   toast('Sustitución registrada: cobra quien imparte la clase.')
                 }}
-                options={teachers.map((t) => ({ value: t.id, label: t.name }))}
+                options={teachers
+                  .filter((t) => t.active)
+                  .map((t) => ({ value: t.id, label: teacherName(t) }))}
               />
             </div>
             <div>

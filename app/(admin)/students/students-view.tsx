@@ -1,132 +1,162 @@
 'use client'
 
-import { GraduationCap, Plus } from 'lucide-react'
+import { GraduationCap } from 'lucide-react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
+import { DeleteDialog } from '@/components/crud/delete-dialog'
+import { EntityList } from '@/components/crud/entity-list'
 import { Badge } from '@/components/ds/badge'
-import { Button } from '@/components/ds/button'
-import { Card } from '@/components/ds/card'
-import { DataTable, type Column } from '@/components/ds/data-table'
-import { Dropdown, FilterChips } from '@/components/ds/dropdown'
-import { EmptyState } from '@/components/ds/empty-state'
-import { SearchInput } from '@/components/ds/input'
-import { PageContainer, PageHeader } from '@/components/ds/page-header'
+import type { FilterDef } from '@/components/ds/filter-bar'
 import { useToast } from '@/components/ds/toast'
+import { studentDeletionBlockers } from '@/lib/classes/deletion'
 import { categoryLabels, levelLabels } from '@/lib/core/labels'
-import { clubById, clubs, fullName, students, type Student } from '@/lib/demo/data'
-import { studentLevels } from '@/lib/core/types'
+import { studentCategories, studentLevels } from '@/lib/core/types'
+import { clubById, clubs, fullName, type Student } from '@/lib/demo/data'
+import { studentUsage } from '@/lib/demo/store'
+import { useDemo } from '@/lib/demo/use-demo'
+import { StudentFormDrawer } from './student-form-drawer'
+
+const defaultFilters = { club: '', level: '', category: '', state: 'active' }
+
+const filters: FilterDef[] = [
+  {
+    key: 'club',
+    label: 'Sede',
+    allLabel: 'Todas las sedes',
+    options: clubs.map((c) => ({ value: c.id, label: c.name })),
+  },
+  {
+    key: 'level',
+    label: 'Nivel',
+    allLabel: 'Todos los niveles',
+    className: 'w-44',
+    options: studentLevels.map((l) => ({ value: l, label: levelLabels[l] })),
+  },
+  {
+    key: 'category',
+    label: 'Categoría',
+    allLabel: 'Todas las categorías',
+    options: studentCategories.map((c) => ({ value: c, label: categoryLabels[c] })),
+  },
+  {
+    key: 'state',
+    label: 'Estado',
+    allLabel: 'Todos los estados',
+    options: [
+      { value: 'active', label: 'Activos' },
+      { value: 'inactive', label: 'Bajas' },
+    ],
+  },
+]
 
 export function StudentsView() {
+  const router = useRouter()
   const toast = useToast()
+  const { students, actions } = useDemo()
   const [query, setQuery] = useState('')
-  const [club, setClub] = useState('')
-  const [level, setLevel] = useState('')
-  const [category, setCategory] = useState('')
-  const [state, setState] = useState('active')
+  const [values, setValues] = useState(defaultFilters)
+  const [form, setForm] = useState<{ student?: Student } | null>(null)
+  const [deleting, setDeleting] = useState<Student | null>(null)
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase()
     return students.filter(
       (s) =>
         (!q || fullName(s).toLowerCase().includes(q)) &&
-        (!club || s.clubId === club) &&
-        (!level || s.level === level) &&
-        (!category || s.category === category) &&
-        (state === 'all' || (state === 'active') === s.active),
+        (!values.club || s.clubId === values.club) &&
+        (!values.level || s.level === values.level) &&
+        (!values.category || s.category === values.category) &&
+        (!values.state || (values.state === 'active') === s.active),
     )
-  }, [query, club, level, category, state])
-
-  const columns: Column<Student>[] = [
-    {
-      key: 'name',
-      header: 'Alumno',
-      cell: (s) => (
-        <Link href={`/students/${s.id}`} className="font-medium hover:text-brand">
-          {fullName(s)}
-        </Link>
-      ),
-    },
-    { key: 'category', header: 'Categoría', cell: (s) => categoryLabels[s.category] },
-    { key: 'level', header: 'Nivel', cell: (s) => levelLabels[s.level] },
-    { key: 'club', header: 'Sede habitual', cell: (s) => clubById(s.clubId)?.name },
-    {
-      key: 'status',
-      header: 'Estado',
-      cell: (s) => <Badge tone={s.active ? 'brand' : 'neutral'}>{s.active ? 'Activo' : 'Baja'}</Badge>,
-    },
-  ]
+  }, [students, query, values])
 
   return (
-    <PageContainer>
-      <PageHeader
+    <>
+      <EntityList
         title="Alumnos"
-        description={`${rows.length} de ${students.length} alumnos`}
-        actions={
-          <Button onClick={() => toast('El alta de alumnos se conectará con la base de datos.')}>
-            <Plus size={16} aria-hidden="true" />
-            Nuevo alumno
-          </Button>
-        }
+        singular="alumno"
+        icon={GraduationCap}
+        emptyDescription="Prueba a quitar algún filtro o buscar por otro nombre."
+        search={{
+          value: query,
+          onChange: setQuery,
+          placeholder: 'Buscar por nombre…',
+          label: 'Buscar alumno',
+        }}
+        filters={filters}
+        filterValues={values}
+        onFilterChange={(key, value) => setValues((current) => ({ ...current, [key]: value }))}
+        onClear={() => {
+          setQuery('')
+          setValues(defaultFilters)
+        }}
+        summary={`${rows.length} de ${students.length}`}
+        rows={rows}
+        rowKey={(s) => s.id}
+        onCreate={() => setForm({})}
+        onRowClick={(s) => router.push(`/students/${s.id}`)}
+        columns={[
+          {
+            key: 'name',
+            header: 'Alumno',
+            cell: (s) => (
+              <Link
+                href={`/students/${s.id}`}
+                className="font-medium hover:text-brand"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {fullName(s)}
+              </Link>
+            ),
+          },
+          { key: 'category', header: 'Categoría', cell: (s) => categoryLabels[s.category] },
+          { key: 'level', header: 'Nivel', cell: (s) => levelLabels[s.level] },
+          { key: 'club', header: 'Sede habitual', cell: (s) => clubById(s.clubId)?.name },
+          {
+            key: 'status',
+            header: 'Estado',
+            cell: (s) => <Badge tone={s.active ? 'brand' : 'neutral'}>{s.active ? 'Activo' : 'Baja'}</Badge>,
+          },
+        ]}
+        rowActions={(s) => [
+          { label: 'Ver ficha', onSelect: () => router.push(`/students/${s.id}`) },
+          { label: 'Editar', onSelect: () => setForm({ student: s }) },
+          {
+            label: s.active ? 'Dar de baja' : 'Reactivar',
+            onSelect: () => {
+              actions.setStudentActive(s.id, !s.active)
+              toast(s.active ? 'Alumno dado de baja.' : 'Alumno reactivado.')
+            },
+          },
+          { label: 'Eliminar', tone: 'danger', onSelect: () => setDeleting(s) },
+        ]}
       />
-      <div className="flex flex-wrap items-center gap-2">
-        <SearchInput
-          aria-label="Buscar alumno"
-          placeholder="Buscar por nombre…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="w-full sm:w-72"
+      {form ? (
+        <StudentFormDrawer
+          key={form.student?.id ?? 'new'}
+          student={form.student}
+          onClose={() => setForm(null)}
         />
-        <Dropdown
-          aria-label="Sede"
-          className="w-44"
-          allLabel="Todas las sedes"
-          value={club}
-          onChange={setClub}
-          options={clubs.map((c) => ({ value: c.id, label: c.name }))}
+      ) : null}
+      {deleting ? (
+        <DeleteDialog
+          open
+          name={fullName(deleting)}
+          blockers={studentDeletionBlockers(studentUsage(deleting.id))}
+          onClose={() => setDeleting(null)}
+          onDelete={() => {
+            actions.deleteStudent(deleting.id)
+            setDeleting(null)
+            toast('Alumno eliminado.')
+          }}
+          onDeactivate={() => {
+            actions.setStudentActive(deleting.id, false)
+            setDeleting(null)
+            toast('Alumno dado de baja.')
+          }}
         />
-        <Dropdown
-          aria-label="Nivel"
-          className="w-40"
-          allLabel="Todos los niveles"
-          value={level}
-          onChange={setLevel}
-          options={studentLevels.map((l) => ({ value: l, label: levelLabels[l] }))}
-        />
-        <FilterChips
-          label="Categoría"
-          value={category}
-          onChange={setCategory}
-          options={[
-            { value: '', label: 'Todos' },
-            { value: 'adult', label: 'Adultos' },
-            { value: 'child', label: 'Niños' },
-          ]}
-        />
-        <FilterChips
-          label="Estado"
-          value={state}
-          onChange={setState}
-          options={[
-            { value: 'active', label: 'Activos' },
-            { value: 'inactive', label: 'Bajas' },
-            { value: 'all', label: 'Todos' },
-          ]}
-        />
-      </div>
-      <Card>
-        <DataTable
-          columns={columns}
-          rows={rows}
-          rowKey={(s) => s.id}
-          empty={
-            <EmptyState
-              icon={GraduationCap}
-              title="Ningún alumno coincide"
-              description="Prueba a quitar algún filtro o buscar por otro nombre."
-            />
-          }
-        />
-      </Card>
-    </PageContainer>
+      ) : null}
+    </>
   )
 }

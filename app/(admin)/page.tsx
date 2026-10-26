@@ -8,7 +8,15 @@ import { ClassStatusBadge } from '@/components/ds/badge'
 import { PageContainer, PageHeader } from '@/components/ds/page-header'
 import { buildCharges, buildSettlements, groupProfitability, monthSessions } from '@/lib/demo/billing'
 import { categoryLabels } from '@/lib/core/labels'
-import { clubs, generateSessions, groupById, groups, students, teacherById } from '@/lib/demo/data'
+import {
+  clubs,
+  generateSessions,
+  groupById,
+  groups,
+  students,
+  teacherById,
+  teacherName,
+} from '@/lib/demo/data'
 
 const WEEKDAYS = ['L', 'M', 'X', 'J', 'V']
 
@@ -110,7 +118,8 @@ export default function DashboardPage() {
                 <div className="min-w-0">
                   <p className="truncate font-medium">{groupById(s.groupId)?.name}</p>
                   <p className="truncate text-xs text-muted-foreground">
-                    {s.date.slice(8)}/{s.date.slice(5, 7)} · {s.start} · {teacherById(s.teacherId)?.name}
+                    {s.date.slice(8)}/{s.date.slice(5, 7)} · {s.start} ·{' '}
+                    {teacherName(teacherById(s.teacherId)!)}
                   </p>
                 </div>
                 <ClassStatusBadge status={s.status} />

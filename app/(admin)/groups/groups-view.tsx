@@ -10,13 +10,15 @@ import { Dropdown, FilterChips } from '@/components/ds/dropdown'
 import { SearchInput } from '@/components/ds/input'
 import { PageContainer, PageHeader } from '@/components/ds/page-header'
 import { useToast } from '@/components/ds/toast'
+import { useDemo } from '@/lib/demo/use-demo'
 import { categoryLabels, levelLabels } from '@/lib/core/labels'
-import { clubById, clubs, fullName, groups, studentById, teacherById } from '@/lib/demo/data'
+import { clubById, clubs, groups } from '@/lib/demo/data'
 
 const DAYS = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
 
 export function GroupsView() {
   const toast = useToast()
+  const { studentLabel, teacherLabel } = useDemo()
   const [query, setQuery] = useState('')
   const [club, setClub] = useState('')
   const [category, setCategory] = useState('')
@@ -87,17 +89,14 @@ export function GroupsView() {
               <h3 className="text-base font-semibold">{g.name}</h3>
               <p className="text-xs text-muted-foreground">
                 {categoryLabels[g.category]} · {levelLabels[g.level]} · {g.duration} min ·{' '}
-                {teacherById(g.teacherId)?.name}
+                {teacherLabel(g.teacherId)}
               </p>
               <ul className="mt-1 flex flex-wrap gap-1.5">
-                {g.studentIds.map((id) => {
-                  const s = studentById(id)
-                  return (
-                    <li key={id} className="rounded-full bg-muted px-2.5 py-1 text-xs">
-                      {s ? fullName(s) : id}
-                    </li>
-                  )
-                })}
+                {g.studentIds.map((id) => (
+                  <li key={id} className="rounded-full bg-muted px-2.5 py-1 text-xs">
+                    {studentLabel(id)}
+                  </li>
+                ))}
               </ul>
             </BentoCard>
           )

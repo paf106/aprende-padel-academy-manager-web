@@ -19,7 +19,9 @@ export default function TeachersPage() {
           const mine = groups.filter((g) => g.teacherId === teacher.id)
           return (
             <BentoCard key={teacher.id} span="md" title={teacher.phone}>
-              <h2 className="text-lg font-semibold">{teacher.name}</h2>
+              <h2 className="text-lg font-semibold">
+                {teacher.firstName} {teacher.lastName}
+              </h2>
               <Stat
                 value={formatMoney(settlement?.totalCents ?? 0)}
                 label="A liquidar este mes"
