@@ -1,19 +1,32 @@
-import type { ClassStatus, StudentCategory, StudentLevel } from '@/lib/core/types'
+import type { ClassStatus, StudentCategory, StudentGender, StudentLevel } from '@/lib/core/types'
 import { addDays, weekDays } from '@/lib/core/calendar-nav'
 
 export type Club = { id: string; name: string; city: string; color: string; courts: number }
-export type Teacher = { id: string; name: string; phone: string }
+export type Teacher = {
+  id: string
+  firstName: string
+  lastName: string
+  email: string
+  phone: string
+  clubIds: string[]
+  active: boolean
+}
 export type Student = {
   id: string
   firstName: string
   lastName: string
+  gender: StudentGender
   category: StudentCategory
   level: StudentLevel
   birthDate: string
   clubId: string
+  extraClubIds: string[]
+  email: string
+  phone: string
   accountId: string
   active: boolean
-  guardian?: string
+  guardianName: string
+  guardianPhone: string
 }
 export type Group = {
   id: string
@@ -60,9 +73,33 @@ export const clubs: Club[] = [
 ]
 
 export const teachers: Teacher[] = [
-  { id: 't1', name: 'Carlos Ruiz', phone: '600 111 222' },
-  { id: 't2', name: 'Lucía Martín', phone: '600 333 444' },
-  { id: 't3', name: 'Javier Gómez', phone: '600 555 666' },
+  {
+    id: 't1',
+    firstName: 'Carlos',
+    lastName: 'Ruiz',
+    email: 'carlos@aprendepadel.es',
+    phone: '600111222',
+    clubIds: ['pioz', 'pozuelo'],
+    active: true,
+  },
+  {
+    id: 't2',
+    firstName: 'Lucía',
+    lastName: 'Martín',
+    email: 'lucia@aprendepadel.es',
+    phone: '600333444',
+    clubIds: ['loranca', 'pozuelo'],
+    active: true,
+  },
+  {
+    id: 't3',
+    firstName: 'Javier',
+    lastName: 'Gómez',
+    email: 'javier@aprendepadel.es',
+    phone: '600555666',
+    clubIds: ['corpa'],
+    active: true,
+  },
 ]
 
 export const feePlans: FeePlan[] = [
@@ -123,13 +160,18 @@ export const students: Student[] = firstNames.map((first, index) => {
     id: `s${index + 1}`,
     firstName: first,
     lastName: `${lastNames[index % lastNames.length]} ${lastNames[(index + 5) % lastNames.length]}`,
+    gender: index % 2 === 0 ? 'female' : 'male',
     category: child ? 'child' : 'adult',
     level: levels[index % levels.length],
     birthDate: child ? `${2014 - (index % 4)}-0${(index % 9) + 1}-1${index % 9}` : `${1980 + index}-05-12`,
     clubId,
+    extraClubIds: [],
+    email: '',
+    phone: '',
     accountId,
     active: index !== 20,
-    guardian: child ? `${lastNames[index % lastNames.length]} (tutor)` : undefined,
+    guardianName: child ? `${lastNames[index % lastNames.length]} (tutor)` : '',
+    guardianPhone: '',
   }
 })
 for (const student of students) {
@@ -216,3 +258,4 @@ export const studentById = (id: string) => students.find((s) => s.id === id)
 export const groupById = (id: string) => groups.find((g) => g.id === id)
 export const accountById = (id: string) => accounts.find((a) => a.id === id)
 export const fullName = (s: Student) => `${s.firstName} ${s.lastName}`
+export const teacherName = (t: Teacher) => `${t.firstName} ${t.lastName}`

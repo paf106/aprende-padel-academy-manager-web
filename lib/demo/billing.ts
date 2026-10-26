@@ -8,6 +8,7 @@ import {
   groups,
   students,
   teachers,
+  teacherName,
   type Account,
   type Session,
 } from '@/lib/demo/data'
@@ -115,7 +116,7 @@ export function buildSettlements(today: string): TeacherSettlementRow[] {
     const mine = sessions.filter((s) => s.teacherId === teacher.id && s.status === 'completed')
     return {
       teacherId: teacher.id,
-      name: teacher.name,
+      name: teacherName(teacher),
       sessions: mine.length,
       hours: mine.reduce((sum, s) => sum + s.duration / 60, 0),
       totalCents: mine.reduce((sum, s) => sum + sessionPay(s), 0),

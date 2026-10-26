@@ -4,6 +4,7 @@ import type {
   ModuleId,
   PaymentMethod,
   StudentCategory,
+  StudentGender,
   StudentLevel,
 } from '@/lib/core/types'
 
@@ -35,4 +36,11 @@ export const paymentMethodLabels: Record<PaymentMethod, string> = {
   cash: 'Efectivo',
   transfer: 'Transferencia',
   bizum: 'Bizum',
+}
+
+export const genderLabels: Record<StudentGender, string> = {
+  female: 'Femenino',
+  male: 'Masculino',
+  other: 'Otro',
+  unspecified: 'Sin especificar',
 }
