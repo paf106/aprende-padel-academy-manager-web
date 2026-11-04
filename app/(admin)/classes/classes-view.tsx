@@ -61,6 +61,7 @@ export function ClassesView({ today }: { today: string }) {
     groups,
     groupById,
     studentById,
+    courses,
     extras,
     actions,
   } = useDemo()
@@ -100,14 +101,19 @@ export function ClassesView({ today }: { today: string }) {
       ),
     [sessions, club, teacher, status, category],
   )
+  const sessionTitle = (s: Session) =>
+    s.kind === 'private'
+      ? 'Clase particular'
+      : s.courseId
+        ? (courses.find((c) => c.id === s.courseId)?.name ?? 'Curso')
+        : (groupById(s.groupId)?.name ?? 'Clase libre')
   const events: CalendarEvent[] = filtered.map((s) => {
-    const group = groupById(s.groupId)
     const end = new Date(`${s.date}T${s.start}:00+02:00`)
     const start = new Date(end)
     end.setMinutes(end.getMinutes() + s.duration)
     return {
       id: s.id,
-      title: s.kind === 'private' ? 'Clase particular' : (group?.name ?? 'Clase libre'),
+      title: sessionTitle(s),
       subtitle: `${clubById(s.clubId)?.name} · ${teacherLabel(s.teacherId)}`,
       startsAt: start.toISOString(),
       endsAt: end.toISOString(),
@@ -237,13 +243,7 @@ export function ClassesView({ today }: { today: string }) {
       <Drawer
         open={selected !== null}
         onClose={() => setSelectedId(null)}
-        title={
-          selected
-            ? selected.kind === 'private'
-              ? 'Clase particular'
-              : (groupById(selected.groupId)?.name ?? 'Clase libre')
-            : ''
-        }
+        title={selected ? sessionTitle(selected) : ''}
         description={
           selected
             ? `${selected.date.split('-').reverse().join('/')} · ${selected.start} · ${selected.duration} min`

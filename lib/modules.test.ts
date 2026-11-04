@@ -6,6 +6,7 @@ describe('module route registry', () => {
     expect(getModuleRoutes(['classes'], 'primary').map((route) => route.href)).toEqual([
       '/classes',
       '/groups',
+      '/courses',
       '/students',
     ])
     expect(getModuleRoutes(['payments'], 'primary').map((route) => route.href)).toEqual(['/payments'])

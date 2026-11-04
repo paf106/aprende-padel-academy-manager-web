@@ -15,6 +15,7 @@ import { useToast } from '@/components/ds/toast'
 import { formatMoney } from '@/lib/core/money'
 import { validate } from '@/lib/core/validation'
 import { useDemo } from '@/lib/demo/use-demo'
+import { courseCatalog } from '@/lib/payments/courses'
 import {
   emptyOfferInput,
   offerIndividualTotal,
@@ -23,6 +24,8 @@ import {
 } from '@/lib/payments/rate-schemas'
 import { packSize, type PackOffer, type RateCatalog } from '@/lib/payments/rates'
 import { SectionCard } from './section-card'
+
+export type OfferScope = 'monthly' | 'course'
 
 const frequencyOptions = [1, 2, 3, 4, 5, 6, 7].map((n) => ({
   value: String(n),
@@ -38,9 +41,32 @@ function compositionText(catalog: RateCatalog, offer: Pick<PackOffer, 'compositi
     .join(' + ')
 }
 
-function OfferFormDrawer({ offer, onClose }: { offer?: PackOffer; onClose: () => void }) {
+/** Offers of the monthly fees, or of the closed-price courses, behind the same editing interface. */
+function useOffers(scope: OfferScope) {
+  const { catalog, coursePrices, actions } = useDemo()
+  const isCourse = scope === 'course'
+  return {
+    isCourse,
+    catalog: isCourse ? courseCatalog(catalog.segments, coursePrices) : catalog,
+    offers: isCourse ? coursePrices.offers : catalog.offers,
+    save: (offers: PackOffer[]) =>
+      isCourse
+        ? actions.setCoursePrices({ ...coursePrices, offers })
+        : actions.setCatalog({ ...catalog, offers }),
+  }
+}
+
+function OfferFormDrawer({
+  offer,
+  scope,
+  onClose,
+}: {
+  offer?: PackOffer
+  scope: OfferScope
+  onClose: () => void
+}) {
   const toast = useToast()
-  const { catalog, actions } = useDemo()
+  const { isCourse, catalog, offers, save } = useOffers(scope)
   const [values, setValues] = useState<OfferInput>(
     offer
       ? {
@@ -63,10 +89,7 @@ function OfferFormDrawer({ offer, onClose }: { offer?: PackOffer; onClose: () =>
       return
     }
     const saved: PackOffer = { id: offer?.id ?? crypto.randomUUID(), ...parsed.data }
-    actions.setCatalog({
-      ...catalog,
-      offers: offer ? catalog.offers.map((o) => (o.id === offer.id ? saved : o)) : [...catalog.offers, saved],
-    })
+    save(offer ? offers.map((o) => (o.id === offer.id ? saved : o)) : [...offers, saved])
     toast(offer ? 'Oferta actualizada.' : 'Oferta creada.')
     onClose()
   }
@@ -95,15 +118,19 @@ function OfferFormDrawer({ offer, onClose }: { offer?: PackOffer; onClose: () =>
         onChange={(e) => setValues((v) => ({ ...v, name: e.target.value }))}
       />
       <div className="grid grid-cols-2 gap-3">
-        <SelectField
-          label="Días por semana"
-          value={String(values.classesPerWeek)}
-          onChange={(v) => setValues((x) => ({ ...x, classesPerWeek: Number(v) }))}
-          options={frequencyOptions}
-        />
-        <Field label="Precio al mes (€)" error={errors.priceCents}>
+        {isCourse ? (
+          <span />
+        ) : (
+          <SelectField
+            label="Días por semana"
+            value={String(values.classesPerWeek)}
+            onChange={(v) => setValues((x) => ({ ...x, classesPerWeek: Number(v) }))}
+            options={frequencyOptions}
+          />
+        )}
+        <Field label={isCourse ? 'Precio del curso (€)' : 'Precio al mes (€)'} error={errors.priceCents}>
           <MoneyInput
-            aria-label="Precio al mes"
+            aria-label="Precio"
             valueCents={values.priceCents}
             onCommit={(cents) => setValues((v) => ({ ...v, priceCents: cents ?? 0 }))}
           />
@@ -173,31 +200,41 @@ function OfferFormDrawer({ offer, onClose }: { offer?: PackOffer; onClose: () =>
   )
 }
 
-export function OffersSection() {
+export function OffersSection({ scope = 'monthly' }: { scope?: OfferScope }) {
   const toast = useToast()
-  const { catalog, actions } = useDemo()
+  const { isCourse, catalog, offers, save } = useOffers(scope)
   const [form, setForm] = useState<{ offer?: PackOffer } | null>(null)
   const [deleting, setDeleting] = useState<PackOffer | null>(null)
 
   const update = (id: string, change: Partial<PackOffer>) =>
-    actions.setCatalog({
-      ...catalog,
-      offers: catalog.offers.map((o) => (o.id === id ? { ...o, ...change } : o)),
-    })
+    save(offers.map((o) => (o.id === id ? { ...o, ...change } : o)))
 
   return (
     <SectionCard
-      title="Ofertas combinadas"
-      description="Precio cerrado para familias o parejas. Solo se aplica cuando todos los miembros de la oferta vienen ese mes y los mismos días por semana. Si falta alguien, se cobra la mejor oferta que encaje o las cuotas individuales."
+      title={isCourse ? 'Ofertas combinadas de cursos' : 'Ofertas combinadas'}
+      description={
+        isCourse
+          ? 'Precio cerrado para familias o parejas que se inscriben juntas al mismo curso. Si falta alguien se cobran los precios individuales.'
+          : 'Precio cerrado para familias o parejas. Solo se aplica cuando todos los miembros de la oferta vienen ese mes y los mismos días por semana. Si falta alguien, se cobra la mejor oferta que encaje o las cuotas individuales.'
+      }
       actionLabel="Nueva oferta"
       onAction={() => setForm({})}
     >
       <DataTable
-        rows={catalog.offers}
+        rows={offers}
         rowKey={(o) => o.id}
         columns={[
           { key: 'name', header: 'Oferta', cell: (o) => <span className="font-medium">{o.name}</span> },
-          { key: 'freq', header: 'Días/semana', align: 'right', cell: (o) => o.classesPerWeek },
+          ...(isCourse
+            ? []
+            : [
+                {
+                  key: 'freq',
+                  header: 'Días/semana',
+                  align: 'right' as const,
+                  cell: (o: PackOffer) => o.classesPerWeek,
+                },
+              ]),
           {
             key: 'who',
             header: 'Quién entra',
@@ -259,7 +296,12 @@ export function OffersSection() {
         ]}
       />
       {form ? (
-        <OfferFormDrawer key={form.offer?.id ?? 'new'} offer={form.offer} onClose={() => setForm(null)} />
+        <OfferFormDrawer
+          key={form.offer?.id ?? 'new'}
+          offer={form.offer}
+          scope={scope}
+          onClose={() => setForm(null)}
+        />
       ) : null}
       {deleting ? (
         <ConfirmDialog
@@ -269,7 +311,7 @@ export function OffersSection() {
           confirmLabel="Eliminar"
           onClose={() => setDeleting(null)}
           onConfirm={() => {
-            actions.setCatalog({ ...catalog, offers: catalog.offers.filter((o) => o.id !== deleting.id) })
+            save(offers.filter((o) => o.id !== deleting.id))
             setDeleting(null)
             toast('Oferta eliminada.')
           }}

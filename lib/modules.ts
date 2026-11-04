@@ -22,6 +22,7 @@ export const modules: readonly ModuleDefinition[] = [
     routes: [
       { href: '/classes', label: 'Clases', section: 'primary' },
       { href: '/groups', label: 'Grupos', section: 'primary' },
+      { href: '/courses', label: 'Cursos', section: 'primary' },
       { href: '/students', label: 'Alumnos', section: 'primary' },
       { href: '/teachers', label: 'Profesores', section: 'secondary' },
       { href: '/clubs', label: 'Sedes', section: 'secondary' },

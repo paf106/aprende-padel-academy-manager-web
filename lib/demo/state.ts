@@ -1,7 +1,8 @@
 import type { Closure } from '@/lib/classes/closures'
 import type { PaymentMethod } from '@/lib/core/types'
-import type { Account, Club, Group, Session, Student, Teacher } from '@/lib/demo/data'
+import type { Account, Club, Course, Group, Session, Student, Teacher } from '@/lib/demo/data'
 import type { RateOverride } from '@/lib/payments/monthly-charge'
+import type { CoursePrices } from '@/lib/payments/courses'
 import type { ExtraRates } from '@/lib/payments/extras'
 import type { RateCatalog } from '@/lib/payments/rates'
 import type { BillingSettings } from '@/lib/payments/settings'
@@ -45,4 +46,6 @@ export type DemoState = {
   payments: PaymentRecord[]
   extras: ExtraRates
   extraCharges: ExtraCharge[]
+  courses: Course[]
+  coursePrices: CoursePrices
 }

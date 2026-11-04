@@ -2,6 +2,7 @@
 
 import {
   CalendarDays,
+  CalendarRange,
   ChevronsLeft,
   ChevronsRight,
   CreditCard,
@@ -29,6 +30,7 @@ const icons: Record<string, LucideIcon> = {
   '/': LayoutDashboard,
   '/classes': CalendarDays,
   '/groups': Users,
+  '/courses': CalendarRange,
   '/students': GraduationCap,
   '/teachers': UserRound,
   '/clubs': MapPin,

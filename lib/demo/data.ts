@@ -56,6 +56,22 @@ export type Group = {
   active: boolean
   studentIds: string[]
 }
+/** A closed-price course (for example the June intensive): its own dates, weekdays and a single payment. */
+export type Course = {
+  id: string
+  name: string
+  clubId: string
+  teacherId: string
+  category: StudentCategory
+  level: StudentLevel
+  startsOn: string
+  endsOn: string
+  weekdays: number[]
+  start: string
+  duration: 60 | 90
+  studentIds: string[]
+  active: boolean
+}
 export type Session = {
   id: string
   groupId: string
@@ -73,6 +89,7 @@ export type Session = {
   /** When set, only these students get a credit for the cancellation (e.g. only one student showed up). */
   creditedStudentIds?: string[]
   kind?: 'group' | 'private'
+  courseId?: string
   /** Students added to a class they do not belong to: a free recovery or a paid single class. */
   guests?: Record<string, 'recovery' | 'drop_in'>
 }
@@ -282,6 +299,27 @@ export const groups: Group[] = groupDefs.map(
     }
   },
 )
+
+export const courses: Course[] = [
+  {
+    id: 'course-june-kids',
+    name: 'Intensivo de junio · niños',
+    clubId: 'pioz',
+    teacherId: 't1',
+    category: 'child',
+    level: 'starter',
+    startsOn: '2027-05-31',
+    endsOn: '2027-06-03',
+    weekdays: [1, 2, 3, 4],
+    start: '18:00',
+    duration: 60,
+    studentIds: students
+      .filter((s) => s.active && s.category === 'child')
+      .slice(0, 3)
+      .map((s) => s.id),
+    active: true,
+  },
+]
 
 export function generateSessions(today: string): Session[] {
   const monday = weekDays(today)[0]

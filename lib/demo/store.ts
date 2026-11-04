@@ -1,5 +1,6 @@
 import { expandClosedDays, type Closure } from '@/lib/classes/closures'
 import type { ClubInput } from '@/lib/classes/club-schema'
+import { generateCourseSlots, type CourseInput } from '@/lib/classes/course-schema'
 import type { GroupInput } from '@/lib/classes/group-schema'
 import { planRegeneration } from '@/lib/classes/group-sessions'
 import type { StudentInput } from '@/lib/classes/student-schema'
@@ -8,12 +9,14 @@ import { localTodayInTimeZone } from '@/lib/core/dates'
 import {
   accounts as seedAccounts,
   clubs as seedClubs,
+  courses as seedCourses,
   generateSessions,
   groups as seedGroups,
   initialClosures,
   students as seedStudents,
   teachers as seedTeachers,
   type Club,
+  type Course,
   type Group,
   type Session,
   type Student,
@@ -23,6 +26,7 @@ import { seedPayments } from '@/lib/demo/billing'
 import type { DemoState, ExtraCharge, PaymentRecord } from '@/lib/demo/state'
 import type { RateOverride } from '@/lib/payments/monthly-charge'
 import type { RateCatalog } from '@/lib/payments/rates'
+import { aprendePadelCoursePrices, priceCourseEnrollment, type CoursePrices } from '@/lib/payments/courses'
 import {
   aprendePadelExtras,
   dropInPrice,
@@ -53,8 +57,14 @@ const baseSeed: DemoState = {
   payments: [],
   extras: aprendePadelExtras,
   extraCharges: [],
+  courses: seedCourses,
+  coursePrices: aprendePadelCoursePrices,
 }
-const seed: DemoState = { ...baseSeed, payments: seedPayments(baseSeed, today()) }
+const withCourses: DemoState = {
+  ...baseSeed,
+  extraCharges: seedCourses.flatMap((course) => courseCharges(baseSeed, course)),
+}
+const seed: DemoState = { ...withCourses, payments: seedPayments(withCourses, today()) }
 
 let state: DemoState = seed
 let loaded = false
@@ -246,6 +256,64 @@ export const demoStore = {
     })
   },
 
+  createCourse(input: CourseInput) {
+    const course: Course = { ...input, id: crypto.randomUUID(), active: true }
+    commit({
+      ...state,
+      courses: [...state.courses, course],
+      sessions: [...state.sessions, ...courseSessions(state, course)],
+      extraCharges: [...state.extraCharges, ...courseCharges(state, course)],
+    })
+    return course
+  },
+  updateCourse(id: string, input: CourseInput) {
+    const current = state.courses.find((c) => c.id === id)
+    if (!current) return
+    const course: Course = { ...current, ...input }
+    commit({
+      ...state,
+      courses: state.courses.map((c) => (c.id === id ? course : c)),
+      sessions: replaceCourseSessions(state, course),
+      extraCharges: [
+        ...state.extraCharges.filter((c) => c.courseId !== id),
+        ...(course.active ? courseCharges(state, course) : []),
+      ],
+    })
+  },
+  setCourseActive(id: string, active: boolean) {
+    const current = state.courses.find((c) => c.id === id)
+    if (!current) return
+    const course: Course = { ...current, active }
+    commit({
+      ...state,
+      courses: state.courses.map((c) => (c.id === id ? course : c)),
+      sessions: replaceCourseSessions(state, course),
+      extraCharges: [
+        ...state.extraCharges.filter((c) => c.courseId !== id),
+        ...(active ? courseCharges(state, course) : []),
+      ],
+    })
+  },
+  deleteCourse(id: string) {
+    commit({
+      ...state,
+      courses: state.courses.filter((c) => c.id !== id),
+      sessions: state.sessions.filter((s) => s.courseId !== id || s.status !== 'pending'),
+      extraCharges: state.extraCharges.filter((c) => c.courseId !== id),
+    })
+  },
+  setCoursePrices(coursePrices: CoursePrices) {
+    commit({
+      ...state,
+      coursePrices,
+      extraCharges: [
+        ...state.extraCharges.filter((c) => c.kind !== 'course'),
+        ...state.courses
+          .filter((c) => c.active)
+          .flatMap((course) => courseCharges({ ...state, coursePrices }, course)),
+      ],
+    })
+  },
   addPayment(payment: Omit<PaymentRecord, 'id'>) {
     commit({ ...state, payments: [...state.payments, { ...payment, id: crypto.randomUUID() }] })
   },
@@ -268,6 +336,67 @@ export const demoStore = {
   addClosure(closure: Closure) {
     commit({ ...state, closures: [...state.closures, closure] })
   },
+}
+
+function courseSessions(current: DemoState, course: Course): Session[] {
+  if (!course.active) return []
+  const closed = expandClosedDays(current.closures, course.clubId)
+  return generateCourseSlots(course, closed).map((slot) => ({
+    id: `${course.id}-${slot.date}`,
+    groupId: '',
+    courseId: course.id,
+    clubId: course.clubId,
+    teacherId: course.teacherId,
+    date: slot.date,
+    start: slot.start,
+    duration: slot.duration,
+    category: course.category,
+    level: course.level,
+    status: 'pending' as const,
+    studentIds: course.studentIds,
+  }))
+}
+
+/** Pending classes from today on are rebuilt from the course; finished and past classes stay untouched. */
+function replaceCourseSessions(current: DemoState, course: Course): Session[] {
+  const from = today()
+  const kept = current.sessions.filter(
+    (s) => s.courseId !== course.id || s.date < from || s.status !== 'pending',
+  )
+  const added = courseSessions(current, course).filter(
+    (next) => next.date >= from && !kept.some((s) => s.courseId === course.id && s.date === next.date),
+  )
+  return [...kept, ...added]
+}
+
+/** A single payment per enrolled student, priced with the course price list and its combined offers. */
+function courseCharges(current: DemoState, course: Course): ExtraCharge[] {
+  const enrolled = course.studentIds
+    .map((id) => current.students.find((s) => s.id === id))
+    .filter((s): s is Student => Boolean(s))
+  const accounts = [...new Set(enrolled.map((s) => s.accountId))]
+  return accounts.flatMap((accountId) => {
+    const members = enrolled.filter((s) => s.accountId === accountId)
+    const pricing = priceCourseEnrollment(
+      members.map((s) => ({ id: s.id, birthDate: s.birthDate })),
+      current.coursePrices,
+      current.catalog.segments,
+      course.startsOn,
+    )
+    return pricing.prices.map((price) => {
+      const offer = pricing.offers.find((o) => o.offerId === price.offerId)
+      return {
+        id: crypto.randomUUID(),
+        accountId,
+        studentId: price.memberId,
+        kind: 'course' as const,
+        description: `Curso «${course.name}»${offer ? ` · ${offer.name}` : ''}`,
+        amountCents: price.amountCents,
+        month: course.startsOn.slice(0, 7),
+        courseId: course.id,
+      }
+    })
+  })
 }
 
 /** Charges of a private class: instructor price per student plus the court, split between the students. */
