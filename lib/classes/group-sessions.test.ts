@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { generateSlots, planRegeneration, type GroupSchedule } from '@/lib/classes/group-sessions'
+import {
+  defaultSeasonEnd,
+  generateSlots,
+  planRegeneration,
+  type GroupSchedule,
+} from '@/lib/classes/group-sessions'
 
 const group: GroupSchedule = {
   weekday: 1,
@@ -32,13 +37,28 @@ describe('planRegeneration', () => {
   const existing = [
     { id: 'past', groupId: 'g1', date: '2026-10-19', status: 'completed' },
     { id: 'future', groupId: 'g1', date: '2026-10-26', status: 'pending' },
+    { id: 'stale', groupId: 'g1', date: '2026-10-28', status: 'pending' },
+    { id: 'manual', groupId: 'g1', date: '2026-11-04', status: 'pending', manual: true },
     { id: 'cancelled', groupId: 'g1', date: '2026-11-02', status: 'cancelled' },
     { id: 'other', groupId: 'g2', date: '2026-11-09', status: 'pending' },
   ]
-  it('only replaces pending future classes of the same group', () => {
-    const plan = planRegeneration(existing, 'g1', group, '2026-10-26')
-    expect(plan.remove).toEqual(['future'])
-    expect(plan.add[0].date).toBe('2026-10-26')
-    expect(plan.add).toHaveLength(9)
+  const range = { from: '2026-10-26', to: '2026-12-31' }
+  it('keeps fitting classes, removes the ones that no longer fit and adds the missing dates', () => {
+    const plan = planRegeneration(existing, 'g1', group, range)
+    expect(plan.keep).toEqual(['future'])
+    expect(plan.remove).toEqual(['stale'])
+    expect(plan.add.map((s) => s.date)).not.toContain('2026-10-26')
+    expect(plan.add.map((s) => s.date)).not.toContain('2026-11-02')
+    expect(plan.add[0].date).toBe('2026-11-09')
+  })
+  it('fills the calendar until the end of the season', () => {
+    const plan = planRegeneration([], 'g1', group, { from: '2026-10-01', to: '2027-06-30' })
+    expect(plan.add.at(-1)?.date).toBe('2027-06-28')
+    expect(plan.add).toHaveLength(39)
+  })
+  it('knows the end of the season', () => {
+    expect(defaultSeasonEnd('2026-11-04')).toBe('2027-06-30')
+    expect(defaultSeasonEnd('2027-03-01')).toBe('2027-06-30')
+    expect(defaultSeasonEnd('2027-07-15')).toBe('2028-06-30')
   })
 })

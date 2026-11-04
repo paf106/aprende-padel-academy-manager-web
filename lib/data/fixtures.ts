@@ -1,4 +1,5 @@
 import { emptyClubInput } from '@/lib/classes/club-schema'
+import { defaultSeasonEnd } from '@/lib/classes/group-sessions'
 import { emptyGroupInput } from '@/lib/classes/group-schema'
 import { emptyStudentInput, type StudentInput } from '@/lib/classes/student-schema'
 import { emptyTeacherInput } from '@/lib/classes/teacher-schema'
@@ -28,6 +29,7 @@ export const emptyAppData: AppData = {
   extraCharges: [],
   courses: [],
   coursePrices: aprendePadelCoursePrices,
+  seasonEnd: defaultSeasonEnd(localTodayInTimeZone('Europe/Madrid')),
 }
 
 const adult = (firstName: string, extra: Partial<StudentInput> = {}): StudentInput => ({

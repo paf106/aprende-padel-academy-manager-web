@@ -2,7 +2,7 @@ import { expandClosedDays, type Closure } from '@/lib/classes/closures'
 import type { ClubInput } from '@/lib/classes/club-schema'
 import { generateCourseSlots, type CourseInput } from '@/lib/classes/course-schema'
 import type { GroupInput } from '@/lib/classes/group-schema'
-import { planRegeneration } from '@/lib/classes/group-sessions'
+import { planRegeneration, type GeneratedSlot } from '@/lib/classes/group-sessions'
 import type { StudentInput } from '@/lib/classes/student-schema'
 import type { TeacherInput } from '@/lib/classes/teacher-schema'
 import { localTodayInTimeZone } from '@/lib/core/dates'
@@ -97,14 +97,22 @@ export const mutations = {
       sessions: [...state.sessions, ...buildSessions(state, group)],
     }
   },
-  updateGroup(state: AppData, id: string, input: GroupInput, options: { regenerate: boolean }): AppData {
+  /** With `regenerate`, pending classes from `from` (default today) on are updated to match the group. */
+  updateGroup(
+    state: AppData,
+    id: string,
+    input: GroupInput,
+    options: { regenerate: boolean; from?: string },
+  ): AppData {
     const current = state.groups.find((g) => g.id === id)
     if (!current) return state
     const group: Group = { ...current, ...input }
     return {
       ...state,
       groups: state.groups.map((g) => (g.id === id ? group : g)),
-      sessions: options.regenerate ? replaceFutureSessions(state, group) : state.sessions,
+      sessions: options.regenerate
+        ? replaceFutureSessions(state, group, options.from ?? today())
+        : state.sessions,
     }
   },
   setGroupActive(state: AppData, id: string, active: boolean): AppData {
@@ -114,7 +122,7 @@ export const mutations = {
     return {
       ...state,
       groups: state.groups.map((g) => (g.id === id ? group : g)),
-      sessions: replaceFutureSessions(state, group),
+      sessions: replaceFutureSessions(state, group, today()),
     }
   },
   deleteGroup(state: AppData, id: string): AppData {
@@ -239,6 +247,15 @@ export const mutations = {
           .flatMap((course) => courseCharges({ ...state, coursePrices }, course)),
       ],
     }
+  },
+  /** Changes the last day of the season and brings every active group's calendar up to it. */
+  setSeasonEnd(state: AppData, seasonEnd: string): AppData {
+    const next = { ...state, seasonEnd }
+    const sessions = next.groups.reduce(
+      (current, group) => replaceFutureSessions({ ...next, sessions: current }, group, today()),
+      next.sessions,
+    )
+    return { ...next, sessions }
   },
   addPayment(state: AppData, payment: Omit<PaymentRecord, 'id'>): AppData {
     return { ...state, payments: [...state.payments, { ...payment, id: newId() }] }
@@ -392,15 +409,8 @@ function withAccount(
   return [...accounts, { id: accountId, name }]
 }
 
-function buildSessions(current: AppData, group: Group): Session[] {
-  const plan = planRegeneration(
-    [],
-    group.id,
-    group,
-    today(),
-    expandClosedDays(current.closures, group.clubId),
-  )
-  return plan.add.map((slot) => ({
+function newSession(group: Group, slot: GeneratedSlot): Session {
+  return {
     id: newId(),
     groupId: group.id,
     clubId: group.clubId,
@@ -412,23 +422,58 @@ function buildSessions(current: AppData, group: Group): Session[] {
     level: group.level,
     status: 'pending',
     studentIds: group.studentIds,
-  }))
+  }
 }
 
-/** Pending classes from today on are rebuilt from the group's schedule; everything else stays untouched. */
-function replaceFutureSessions(current: AppData, group: Group): Session[] {
+/** All the classes of a new group, from its start date until the end of the season. */
+function buildSessions(current: AppData, group: Group): Session[] {
+  const plan = planRegeneration(
+    [],
+    group.id,
+    group,
+    { from: group.startsOn, to: current.seasonEnd },
+    expandClosedDays(current.closures, group.clubId),
+  )
+  return plan.add.map((slot) => newSession(group, slot))
+}
+
+/** A class that stays keeps its attendance, its guests and a substitute teacher, but follows the group's time, teacher and students. */
+function syncSession(session: Session, group: Group, before?: Group): Session {
+  const substituted = before !== undefined && session.teacherId !== before.teacherId
+  const guests = Object.keys(session.guests ?? {})
+  const studentIds = [...group.studentIds, ...guests.filter((id) => !group.studentIds.includes(id))]
+  return {
+    ...session,
+    clubId: group.clubId,
+    teacherId: substituted ? session.teacherId : group.teacherId,
+    start: group.start,
+    duration: group.duration,
+    category: group.category,
+    level: group.level,
+    studentIds,
+    attendance: session.attendance
+      ? Object.fromEntries(Object.entries(session.attendance).filter(([id]) => studentIds.includes(id)))
+      : undefined,
+  }
+}
+
+/**
+ * Pending classes from `from` on are updated to the group's schedule: they keep their attendance and guests,
+ * dates that no longer fit are removed and missing dates are added. Everything else stays untouched.
+ */
+function replaceFutureSessions(current: AppData, group: Group, from: string): Session[] {
   const plan = planRegeneration(
     current.sessions,
     group.id,
     group,
-    today(),
+    { from, to: current.seasonEnd },
     expandClosedDays(current.closures, group.clubId),
   )
-  const kept = current.sessions.filter((s) => !plan.remove.includes(s.id))
-  const added = buildSessions(current, group).filter(
-    (next) => !kept.some((s) => s.groupId === group.id && s.date === next.date),
-  )
-  return [...kept, ...added]
+  const before = current.groups.find((g) => g.id === group.id)
+  const sessions = current.sessions
+    .filter((s) => !plan.remove.includes(s.id))
+    .map((s) => (plan.keep.includes(s.id) ? syncSession(s, group, before) : s))
+  return [...sessions, ...plan.add.map((slot) => newSession(group, slot))]
 }
 
 export function studentUsage(groups: readonly Group[], studentId: string) {

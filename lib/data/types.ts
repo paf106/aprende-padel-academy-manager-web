@@ -105,6 +105,8 @@ export type Session = {
   courseId?: string
   /** Students added to a class they do not belong to: a free recovery or a paid single class. */
   guests?: Record<string, 'recovery' | 'drop_in'>
+  /** Created by hand from the calendar: editing the group never removes it. */
+  manual?: boolean
 }
 export type Account = {
   id: string
@@ -152,6 +154,8 @@ export type AppData = {
   extraCharges: ExtraCharge[]
   courses: Course[]
   coursePrices: CoursePrices
+  /** Last day of the season: groups generate their classes until this date. */
+  seasonEnd: string
 }
 
 export const fullName = (s: Pick<Student, 'firstName' | 'lastName'>) => `${s.firstName} ${s.lastName}`.trim()

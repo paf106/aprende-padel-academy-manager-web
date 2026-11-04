@@ -1,3 +1,5 @@
+import { defaultSeasonEnd } from '@/lib/classes/group-sessions'
+import { localTodayInTimeZone } from '@/lib/core/dates'
 import type { AppData, Session } from '@/lib/data/types'
 import { aprendePadelExtras } from '@/lib/payments/extras'
 import { defaultBillingSettings } from '@/lib/payments/settings'
@@ -45,6 +47,7 @@ export const TABLES: TableSpec[] = [
     keys: ['category'],
     conflict: 'organization_id,category',
   },
+  { schema: 'classes', table: 'settings', keys: [], conflict: 'organization_id' },
   { schema: 'classes', table: 'groups', keys: ['id'], conflict: 'id', order: ['name'] },
   {
     schema: 'classes',
@@ -235,6 +238,7 @@ export function toRows(data: AppData): TableRows {
     })),
   )
 
+  put('classes', 'settings', [{ season_end: data.seasonEnd }])
   put(
     'classes',
     'groups',
@@ -293,6 +297,7 @@ export function toRows(data: AppData): TableRows {
       group_id: orNull(s.groupId),
       course_id: orNull(s.courseId),
       kind: s.kind ?? 'group',
+      manual: s.manual ?? false,
       club_id: s.clubId,
       teacher_id: s.teacherId,
       date: s.date,
@@ -486,6 +491,7 @@ export function fromRows(rows: TableRows): AppData {
         groupId: s.group_id ?? '',
         courseId: s.course_id ?? undefined,
         kind: s.kind,
+        manual: s.manual || undefined,
         clubId: s.club_id,
         teacherId: s.teacher_id,
         date: s.date,
@@ -542,6 +548,8 @@ export function fromRows(rows: TableRows): AppData {
         }
       : aprendePadelExtras,
     teacherRates: rates,
+    seasonEnd:
+      get('classes.settings')[0]?.season_end ?? defaultSeasonEnd(localTodayInTimeZone('Europe/Madrid')),
     overrides: get('payments.rate_overrides').map((o) => ({
       id: o.id,
       scope: o.scope,

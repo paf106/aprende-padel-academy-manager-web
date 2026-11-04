@@ -216,6 +216,7 @@ export function ClassesView({ today }: { today: string }) {
       category: input.category,
       level: input.level,
       status: 'pending',
+      manual: true,
       studentIds: input.studentIds,
       attendance: Object.fromEntries(input.studentIds.map((studentId) => [studentId, 'unmarked'])),
     })

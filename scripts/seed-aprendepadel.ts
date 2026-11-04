@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
 import postgres from 'postgres'
+import { defaultSeasonEnd } from '../lib/classes/group-sessions'
 import { aprendePadelCoursePrices } from '../lib/payments/courses'
 import { aprendePadelExtras } from '../lib/payments/extras'
 import { aprendePadelCatalog } from '../lib/payments/seed-catalog'
@@ -147,6 +148,7 @@ await sql.begin(async (tx) => {
     const rate = defaultTeacherRates[category]
     await tx`insert into payments.teacher_pay_rates (organization_id, category, threshold, below_cents, at_or_above_cents) values (${ORG_ID}, ${category}, ${rate.threshold}, ${rate.belowCents}, ${rate.atOrAboveCents})`
   }
+  await tx`insert into classes.settings (organization_id, season_end) values (${ORG_ID}, ${defaultSeasonEnd(new Date().toISOString().slice(0, 10))})`
 })
 await sql.end()
 

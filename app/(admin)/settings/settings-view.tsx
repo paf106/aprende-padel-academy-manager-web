@@ -143,6 +143,7 @@ export function SettingsView() {
               <dd className="font-semibold">60 min (o 90 min)</dd>
             </div>
           </dl>
+          <SeasonEndField />
           <Link href="/payments?view=rates" className="text-sm font-medium text-brand">
             Editar tarifas, ofertas y pago a profesores
           </Link>
@@ -167,5 +168,37 @@ export function SettingsView() {
         </BentoCard>
       </BentoGrid>
     </PageContainer>
+  )
+}
+
+function SeasonEndField() {
+  const toast = useToast()
+  const { seasonEnd, actions } = useAppData()
+  const [value, setValue] = useState(seasonEnd)
+  const [error, setError] = useState('')
+  const save = () => {
+    if (!/^d{4}-d{2}-d{2}$/.test(value) || Number.isNaN(Date.parse(value))) {
+      setError('Indica una fecha válida')
+      return
+    }
+    setError('')
+    actions.setSeasonEnd(value)
+    toast('Fin de temporada guardado. Los calendarios de los grupos se han actualizado.')
+  }
+  return (
+    <div className="grid gap-2">
+      <TextField
+        id="season-end"
+        type="date"
+        label="Fin de temporada"
+        hint="Los grupos generan sus clases hasta esta fecha."
+        value={value}
+        error={error}
+        onChange={(e) => setValue(e.target.value)}
+      />
+      <Button size="sm" variant="secondary" className="w-fit" disabled={value === seasonEnd} onClick={save}>
+        Guardar fecha
+      </Button>
+    </div>
   )
 }

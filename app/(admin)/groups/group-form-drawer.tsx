@@ -7,6 +7,7 @@ import { MultiComboboxField } from '@/components/ds/multi-combobox'
 import { useToast } from '@/components/ds/toast'
 import { defaultCapacity } from '@/lib/classes/capacity'
 import { emptyGroupInput, groupConflicts, groupSchema, type GroupInput } from '@/lib/classes/group-schema'
+import { localTodayInTimeZone } from '@/lib/core/dates'
 import { categoryLabels, levelLabels } from '@/lib/core/labels'
 import { studentCategories, studentLevels } from '@/lib/core/types'
 import { validate } from '@/lib/core/validation'
@@ -47,6 +48,7 @@ export function GroupFormDrawer({ group, onClose }: { group?: Group; onClose: ()
         },
   )
   const [regenerate, setRegenerate] = useState('future')
+  const [applyFrom, setApplyFrom] = useState(() => localTodayInTimeZone('Europe/Madrid'))
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   const teachersOf = (clubId: string) => teachers.filter((t) => t.active && t.clubIds.includes(clubId))
@@ -82,7 +84,8 @@ export function GroupFormDrawer({ group, onClose }: { group?: Group; onClose: ()
       setErrors(conflicts)
       return
     }
-    if (group) actions.updateGroup(group.id, parsed.data, { regenerate: regenerate === 'future' })
+    if (group)
+      actions.updateGroup(group.id, parsed.data, { regenerate: regenerate === 'future', from: applyFrom })
     else actions.createGroup(parsed.data)
     toast(group ? 'Grupo actualizado.' : 'Grupo creado. Sus clases ya aparecen en el calendario.')
     onClose()
@@ -209,9 +212,19 @@ export function GroupFormDrawer({ group, onClose }: { group?: Group; onClose: ()
           value={regenerate}
           onChange={setRegenerate}
           options={[
-            { value: 'future', label: 'Solo a las clases futuras pendientes' },
+            { value: 'future', label: 'Actualizar las clases pendientes desde una fecha' },
             { value: 'none', label: 'No cambiar las clases ya creadas' },
           ]}
+        />
+      ) : null}
+      {group && regenerate === 'future' ? (
+        <TextField
+          id="group-apply-from"
+          type="date"
+          label="Aplicar desde"
+          hint="Las clases terminadas y canceladas no cambian. Si quitas a un alumno, deja de estar en las clases desde esta fecha."
+          value={applyFrom}
+          onChange={(e) => setApplyFrom(e.target.value)}
         />
       ) : null}
     </FormDrawer>

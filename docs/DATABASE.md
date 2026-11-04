@@ -18,6 +18,7 @@ The migrations in `supabase/migrations` implement a simplified version of the de
   `core.students.needs_review` marks students imported with default data until an admin saves them.
 - The app maps rows to its own types in `lib/db/mapping.ts` and writes row-level diffs, so adding a column means
   updating the migration and the mapping.
+- `classes.settings` holds the end of the season; `classes.sessions.manual` marks classes created by hand, which group edits never remove.
 - Club photos are stored in the public `club-photos` bucket under `<organization_id>/`; the `photo` column keeps the URL.
 
 The sections below describe the full target design.
