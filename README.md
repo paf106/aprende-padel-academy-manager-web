@@ -27,8 +27,23 @@ bun run build
 - `NEXT_PUBLIC_SUPABASE_URL`: public project URL.
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`: `sb_publishable_...` key, safe for the browser.
 - `SUPABASE_SECRET_KEY`: `sb_secret_...` key, server only. Never expose it to client code or commit it.
+- `SUPABASE_DB_URL`: Postgres connection string (session pooler). Only used by the `db:*` scripts, never by the app.
+
+In Supabase, add `core`, `classes` and `payments` under Project Settings > API > Exposed schemas.
+
+## Database
+
+Migrations live in `supabase/migrations` and are applied with a small runner that records them in `public.app_migrations`.
+
+```bash
+bun run db:migrate   # apply pending migrations
+bun run db:seed      # clubs, teachers, Pioz students and price list (`-- --reset` wipes the organization first)
+bun run db:verify    # row level security and API exposure checks
+```
 
 ## Status
 
-Screens run on demo data (`lib/demo`) until the Supabase schema described in
-[docs/DATABASE.md](docs/DATABASE.md) is implemented. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+The admin panel reads and writes the Supabase database. The layout loads the organization's data on the server
+(`lib/db/load.ts`), screens read it through `useAppData()` and actions are pure reducers (`lib/data/mutations.ts`)
+applied optimistically; the changed rows are saved by a server action (`lib/db/persist.ts`). See
+[docs/DATABASE.md](docs/DATABASE.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).

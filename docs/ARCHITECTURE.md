@@ -13,7 +13,8 @@ lib/
   classes/      Classes module logic: capacity, CSV student import
   payments/     Payments module logic: proration, teacher pay, billing accounts
   supabase/     Browser and server clients
-  demo/         Demo data used until the database exists
+  data/         App data types, pure reducers, billing views and the client data provider
+  db/           Row mapping, server loading and saving (server actions), club photo upload
   modules.ts    Module registry: routes and navigation per module
   auth.ts       requireAdmin, requirePlatformAdmin
 supabase/       Supabase configuration (migrations will live here)
@@ -35,7 +36,7 @@ docs/           Documentation
 - Class categories: adult (max 4 students) and child (max 6); categories are never mixed.
 - Class status: pending, completed, cancelled (rain, bad weather, other). Cancelled classes are not charged.
 - Fees are monthly and come from the organization's rates: age segments (children, adults, seniors) by classes per
-  week, plus combined offers (family, couple). Rates are generic; AprendePadel's 2026-2027 conditions are the demo seed.
+  week, plus combined offers (family, couple). Rates are generic; AprendePadel's 2026-2027 conditions are loaded by the seed script.
 - The cheapest combination of offers and individual rates is applied each month. An offer needs all its members that
   month and the same weekly frequency; if a child skips a month the family drops to the offer that fits.
 - Included-classes mode (default): the fee includes 4 classes per weekly class, a fifth class is charged in proportion,

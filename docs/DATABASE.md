@@ -6,6 +6,22 @@ module tables also check `core.module_enabled('<id>')`.
 Modules never link to each other with foreign keys: `classes` and `payments` only reference `core`
 (session or group ids inside `payments` are logical references, without FK).
 
+## Implemented schema
+
+The migrations in `supabase/migrations` implement a simplified version of the design below:
+
+- Schemas `core`, `classes`, `payments` and `private` (helpers `private.current_org()`, `private.is_admin()`, `private.module_enabled()`).
+  `core`, `classes` and `payments` must be listed in the API's exposed schemas.
+- Only admins of an organization can read and write its rows; teachers have no login in this version.
+- `payments.payments` is append-only (insert and select only, plus a trigger that rejects updates and deletes).
+- Students and teachers do not need a last name; teacher email and phone are optional.
+  `core.students.needs_review` marks students imported with default data until an admin saves them.
+- The app maps rows to its own types in `lib/db/mapping.ts` and writes row-level diffs, so adding a column means
+  updating the migration and the mapping.
+- Club photos are stored in the public `club-photos` bucket under `<organization_id>/`; the `photo` column keeps the URL.
+
+The sections below describe the full target design.
+
 ## 1. Core: platform, organization and clubs
 
 ```mermaid
