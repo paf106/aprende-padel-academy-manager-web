@@ -369,9 +369,6 @@ export function ClassesView({ today }: { today: string }) {
                     <li key={id} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
                       <span className="flex min-w-0 items-center gap-2">
                         <span className="truncate">{student ? fullName(student) : id}</span>
-                        {selected.guests?.[id] === 'recovery' ? (
-                          <Badge tone="info">Recuperación</Badge>
-                        ) : null}
                         {selected.guests?.[id] === 'drop_in' ? (
                           <Badge tone="warning">
                             Suelta · {formatMoney(dropInPrice(extras, selected.duration))}

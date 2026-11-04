@@ -22,7 +22,7 @@ describe('single classes (drop-in)', () => {
     const guest = guestFor(base, session)
     const before = accountCharge(base, guest.accountId)?.dueCents ?? 0
 
-    const added = mutations.addGuestToSession(base, session.id, guest.id, 'drop_in')
+    const added = mutations.addGuestToSession(base, session.id, guest.id)
     const after = accountCharge(added, guest.accountId)!
     expect(after.extraCharges).toHaveLength(1)
     expect(after.extraCharges[0].amountCents).toBe(session.duration === 90 ? 2250 : 1500)
@@ -32,13 +32,12 @@ describe('single classes (drop-in)', () => {
     expect(accountCharge(cancelled, guest.accountId)?.extraCharges ?? []).toHaveLength(0)
   })
 
-  it('a recovery class costs nothing', () => {
+  it('a student added to another class is a guest and is never counted as a weekly class', () => {
     const base = makeAppData()
     const session = futureSession(base)
     const guest = guestFor(base, session)
-    const state = mutations.addGuestToSession(base, session.id, guest.id, 'recovery')
-    expect(state.extraCharges).toHaveLength(base.extraCharges.length)
-    expect(state.sessions.find((s) => s.id === session.id)?.guests?.[guest.id]).toBe('recovery')
+    const state = mutations.addGuestToSession(base, session.id, guest.id)
+    expect(state.sessions.find((s) => s.id === session.id)?.guests?.[guest.id]).toBe('drop_in')
   })
 })
 

@@ -140,31 +140,21 @@ export const mutations = {
       extraCharges: [...state.extraCharges, ...privateCharges(state, session)],
     }
   },
-  /** Adds a student to a class they do not belong to: a free recovery or a paid single class. */
-  addGuestToSession(
-    state: AppData,
-    sessionId: string,
-    studentId: string,
-    mode: 'recovery' | 'drop_in',
-  ): AppData {
+  /** Adds a student to a class they do not belong to as a paid single class. */
+  addGuestToSession(state: AppData, sessionId: string, studentId: string): AppData {
     const session = state.sessions.find((s) => s.id === sessionId)
     const student = state.students.find((s) => s.id === studentId)
     if (!session || !student || session.studentIds.includes(studentId)) return state
-    const charge: ExtraCharge[] =
-      mode === 'drop_in'
-        ? [
-            {
-              id: newId(),
-              accountId: student.accountId,
-              studentId,
-              kind: 'drop_in',
-              description: `Clase suelta del ${session.date.split('-').reverse().join('/')}`,
-              amountCents: dropInPrice(state.extras, session.duration),
-              month: session.date.slice(0, 7),
-              sessionId,
-            },
-          ]
-        : []
+    const charge: ExtraCharge = {
+      id: newId(),
+      accountId: student.accountId,
+      studentId,
+      kind: 'drop_in',
+      description: `Clase suelta del ${session.date.split('-').reverse().join('/')}`,
+      amountCents: dropInPrice(state.extras, session.duration),
+      month: session.date.slice(0, 7),
+      sessionId,
+    }
     return {
       ...state,
       sessions: state.sessions.map((s) =>
@@ -172,12 +162,12 @@ export const mutations = {
           ? {
               ...s,
               studentIds: [...s.studentIds, studentId],
-              guests: { ...s.guests, [studentId]: mode },
+              guests: { ...s.guests, [studentId]: 'drop_in' as const },
               attendance: { ...s.attendance, [studentId]: 'unmarked' },
             }
           : s,
       ),
-      extraCharges: [...state.extraCharges, ...charge],
+      extraCharges: [...state.extraCharges, charge],
     }
   },
   updateSession(state: AppData, id: string, patch: Partial<Session>): AppData {

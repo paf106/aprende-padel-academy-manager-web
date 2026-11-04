@@ -81,7 +81,7 @@ describe('monthly fee from the calendar', () => {
 
   it('a single class bought by a guest never counts as a weekly class', () => {
     const other = longSeason.students.find((s) => s.firstName === 'Luis')!
-    const state = mutations.addGuestToSession(longSeason, classes[0].id, other.id, 'drop_in')
+    const state = mutations.addGuestToSession(longSeason, classes[0].id, other.id)
     const line = simulateMonth(state, other.accountId, month, []).lines.find((l) => l.memberId === other.id)
     expect(line).toBeUndefined()
   })

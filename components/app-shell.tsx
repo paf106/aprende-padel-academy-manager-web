@@ -89,7 +89,11 @@ export function AppShell({
             collapsed ? 'w-[72px]' : 'w-[248px]',
           )}
         >
-          <Link href="/" className="mb-8 flex items-center gap-3 px-2" aria-label="AprendePadel, inicio">
+          <Link
+            href="/"
+            className={cn('mb-8 flex items-center gap-3', collapsed ? 'justify-center' : 'px-2')}
+            aria-label="AprendePadel, inicio"
+          >
             <span
               aria-hidden="true"
               className="grid size-9 shrink-0 place-items-center rounded-xl bg-brand font-bold text-brand-foreground"
@@ -120,7 +124,10 @@ export function AppShell({
               type="button"
               onClick={toggle}
               aria-label={collapsed ? 'Expandir menú' : 'Contraer menú'}
-              className="flex h-10 cursor-pointer items-center gap-3 rounded-xl px-3 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+              className={cn(
+                'flex h-10 cursor-pointer items-center gap-3 rounded-xl text-sm text-muted-foreground hover:bg-muted hover:text-foreground',
+                collapsed ? 'mx-auto w-10 justify-center' : 'px-3',
+              )}
             >
               {collapsed ? (
                 <ChevronsRight size={18} aria-hidden="true" />
@@ -197,7 +204,8 @@ function NavLink({
       aria-label={collapsed ? label : undefined}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'flex h-10 items-center gap-3 rounded-xl px-3 text-sm font-medium transition-colors',
+        'flex h-10 items-center gap-3 rounded-xl text-sm font-medium transition-colors',
+        collapsed ? 'mx-auto w-10 justify-center' : 'px-3',
         active ? 'bg-brand-soft text-brand' : 'text-muted-foreground hover:bg-muted hover:text-foreground',
       )}
     >

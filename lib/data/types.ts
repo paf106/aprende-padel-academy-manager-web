@@ -103,8 +103,8 @@ export type Session = {
   creditedStudentIds?: string[]
   kind?: 'group' | 'private'
   courseId?: string
-  /** Students added to a class they do not belong to: a free recovery or a paid single class. */
-  guests?: Record<string, 'recovery' | 'drop_in'>
+  /** Students added to a class they do not belong to, paid as a single class. */
+  guests?: Record<string, 'drop_in'>
   /** Created by hand from the calendar: editing the group never removes it. */
   manual?: boolean
 }

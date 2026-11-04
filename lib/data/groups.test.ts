@@ -39,7 +39,7 @@ describe('group calendar', () => {
     const group = base.groups[0]
     const target = sessionsOf(base, group)[1]
     const guest = base.students.find((s) => !group.studentIds.includes(s.id) && s.category === 'adult')!
-    let state = mutations.addGuestToSession(base, target.id, guest.id, 'recovery')
+    let state = mutations.addGuestToSession(base, target.id, guest.id)
     state = mutations.updateSession(state, target.id, {
       attendance: { [group.studentIds[0]]: 'present' },
       teacherId: 'sub',
@@ -51,7 +51,7 @@ describe('group calendar', () => {
     expect(after.every((s) => s.start === '20:30')).toBe(true)
     const same = after.find((s) => s.id === target.id)!
     expect(same.attendance?.[group.studentIds[0]]).toBe('present')
-    expect(same.guests?.[guest.id]).toBe('recovery')
+    expect(same.guests?.[guest.id]).toBe('drop_in')
     expect(same.studentIds).toContain(guest.id)
     expect(same.teacherId).toBe('sub')
     expect(after.find((s) => s.id !== target.id)?.teacherId).toBe(group.teacherId)

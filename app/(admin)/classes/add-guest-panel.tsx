@@ -12,12 +12,11 @@ import { useAppData } from '@/lib/data/provider'
 import { MAX_PRIVATE_STUDENTS, dropInPrice } from '@/lib/payments/extras'
 import { ageOn } from '@/lib/payments/pricing'
 
-/** Adds a student that does not belong to the class: a free recovery or a paid single class. */
+/** Adds a student that does not belong to the class, as a paid single class. */
 export function AddGuestPanel({ session }: { session: Session }) {
   const toast = useToast()
   const { students, extras, actions } = useAppData()
   const [studentId, setStudentId] = useState('')
-  const [mode, setMode] = useState<'recovery' | 'drop_in'>('recovery')
   const isPrivate = session.kind === 'private'
   const capacity = isPrivate ? MAX_PRIVATE_STUDENTS : defaultCapacity[session.category]
   const full = session.studentIds.length >= capacity
@@ -45,28 +44,18 @@ export function AddGuestPanel({ session }: { session: Session }) {
         onChange={setStudentId}
         options={eligible.map((s) => ({ value: s.id, label: fullName(s) }))}
       />
-      <Dropdown
-        aria-label="Cómo asiste"
-        value={mode}
-        onChange={(v) => setMode(v as 'recovery' | 'drop_in')}
-        options={[
-          { value: 'recovery', label: 'Recuperación de otra clase (sin coste)' },
-          { value: 'drop_in', label: `Clase suelta (${formatMoney(price)})` },
-        ]}
-      />
+      <p className="text-xs text-muted-foreground">
+        Se cobra como clase suelta ({formatMoney(price)}) y se suma a su cobro del mes.
+      </p>
       <Button
         size="sm"
         variant="secondary"
         className="w-fit"
         disabled={!studentId}
         onClick={() => {
-          actions.addGuestToSession(session.id, studentId, mode)
+          actions.addGuestToSession(session.id, studentId)
           setStudentId('')
-          toast(
-            mode === 'drop_in'
-              ? `Alumno añadido. Se suman ${formatMoney(price)} a su cobro del mes.`
-              : 'Alumno añadido como recuperación.',
-          )
+          toast(`Alumno añadido. Se suman ${formatMoney(price)} a su cobro del mes.`)
         }}
       >
         <UserPlus size={14} aria-hidden="true" />
