@@ -15,3 +15,13 @@ export type AttendanceStatus = (typeof attendanceStatuses)[number]
 
 export type ModuleId = 'classes' | 'courts' | 'payments' | 'inventory'
 export type PaymentMethod = 'cash' | 'transfer' | 'bizum'
+
+export const cancellationReasons = [
+  'rain',
+  'bad_weather',
+  'teacher_absent',
+  'teacher_late',
+  'single_attendee',
+  'other',
+] as const
+export type CancellationReason = (typeof cancellationReasons)[number]

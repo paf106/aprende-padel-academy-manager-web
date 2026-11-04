@@ -1,5 +1,6 @@
 import type {
   AttendanceStatus,
+  CancellationReason,
   ClassStatus,
   ModuleId,
   PaymentMethod,
@@ -43,4 +44,13 @@ export const genderLabels: Record<StudentGender, string> = {
   male: 'Masculino',
   other: 'Otro',
   unspecified: 'Sin especificar',
+}
+
+export const cancellationReasonLabels: Record<CancellationReason, string> = {
+  rain: 'Lluvia',
+  bad_weather: 'Mal tiempo',
+  teacher_absent: 'El monitor no asiste',
+  teacher_late: 'Retraso del monitor (20 min o más)',
+  single_attendee: 'Solo asiste un alumno',
+  other: 'Otro motivo',
 }
