@@ -11,7 +11,9 @@
     "db:types": "supabase gen types typescript --project-id kkvjqchacnmnqntrinjm --schema public,core,classes,payments > lib/supabase/database.types.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "prepare": "husky"
+    "prepare": "husky",
+    "db:migrate": "bun scripts/db-migrate.ts",
+    "db:seed": "bun scripts/seed-aprendepadel.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",
@@ -33,6 +35,7 @@
     "eslint-config-next": "16.2.11",
     "husky": "^9",
     "lint-staged": "^16",
+    "postgres": "^4.0.0",
     "prettier": "^3",
     "supabase": "^2.119.0",
     "tailwindcss": "^4",
