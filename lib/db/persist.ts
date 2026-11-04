@@ -36,6 +36,20 @@ export async function persistChanges(changes: Changes): Promise<PersistResult> {
   }
 
   const supabase = await getSupabaseServer()
+  for (const spec of TABLES) {
+    const name = tableName(spec)
+    const rows = (changes.upserts[name] ?? []).map((row) => ({ ...row, organization_id: organizationId }))
+    for (let i = 0; i < rows.length; i += CHUNK) {
+      const chunk = rows.slice(i, i + CHUNK)
+      const table = supabase.schema(spec.schema).from(spec.table)
+      const { error } = spec.appendOnly
+        ? await table.insert(chunk)
+        : await table.upsert(chunk, { onConflict: spec.conflict })
+      if (error) return { ok: false, error: `${name}: ${error.message}` }
+    }
+  }
+
+  // Deletes run last so rows that moved away from a parent (for example a student leaving an account) are updated first.
   for (const spec of [...TABLES].reverse()) {
     const name = tableName(spec)
     const keysToDelete: Row[] = spec.appendOnly ? [] : (changes.deletes[name] ?? [])
@@ -56,17 +70,5 @@ export async function persistChanges(changes: Changes): Promise<PersistResult> {
     }
   }
 
-  for (const spec of TABLES) {
-    const name = tableName(spec)
-    const rows = (changes.upserts[name] ?? []).map((row) => ({ ...row, organization_id: organizationId }))
-    for (let i = 0; i < rows.length; i += CHUNK) {
-      const chunk = rows.slice(i, i + CHUNK)
-      const table = supabase.schema(spec.schema).from(spec.table)
-      const { error } = spec.appendOnly
-        ? await table.insert(chunk)
-        : await table.upsert(chunk, { onConflict: spec.conflict })
-      if (error) return { ok: false, error: `${name}: ${error.message}` }
-    }
-  }
   return { ok: true }
 }

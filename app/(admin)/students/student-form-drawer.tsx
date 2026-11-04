@@ -19,8 +19,9 @@ export function StudentFormDrawer({ student, onClose }: { student?: Student; onC
   const { actions, activeClubs, accounts, students } = useAppData()
   const accountOptions = [
     { value: '', label: 'Cuenta individual nueva' },
-    ...accounts.map((account) => {
+    ...accounts.flatMap((account) => {
       const members = students.filter((s) => s.accountId === account.id).length
+      if (members === 0) return []
       return {
         value: account.id,
         label: account.name,

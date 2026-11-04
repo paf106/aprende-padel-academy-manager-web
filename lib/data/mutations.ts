@@ -40,14 +40,19 @@ export const mutations = {
     }
   },
   updateStudent(state: AppData, id: string, input: StudentInput): AppData {
+    const previous = state.students.find((s) => s.id === id)
+    if (!previous) return state
     const accountId = input.accountId || newId()
-    return {
-      ...state,
-      students: state.students.map((s) =>
-        s.id === id ? { ...s, ...input, accountId, needsReview: false } : s,
-      ),
-      accounts: withAccount(state.accounts, accountId, input),
-    }
+    const students = state.students.map((s) =>
+      s.id === id ? { ...s, ...input, accountId, needsReview: false } : s,
+    )
+    const next = { ...state, students, accounts: withAccount(state.accounts, accountId, input) }
+    return previous.accountId === accountId ? next : dropAccountIfUnused(next, previous.accountId)
+  },
+  renameAccount(state: AppData, id: string, name: string): AppData {
+    const trimmed = name.trim()
+    if (!trimmed) return state
+    return { ...state, accounts: state.accounts.map((a) => (a.id === id ? { ...a, name: trimmed } : a)) }
   },
   setStudentActive(state: AppData, id: string, active: boolean): AppData {
     return { ...state, students: state.students.map((s) => (s.id === id ? { ...s, active } : s)) }
@@ -364,6 +369,16 @@ function privateCharges(current: AppData, session: Session): ExtraCharge[] {
     month: session.date.slice(0, 7),
     sessionId: session.id,
   }))
+}
+
+/** An account nobody belongs to anymore is removed, unless it has payments, charges or a manual price. */
+function dropAccountIfUnused(state: AppData, accountId: string): AppData {
+  const inUse =
+    state.students.some((s) => s.accountId === accountId) ||
+    state.payments.some((p) => p.accountId === accountId) ||
+    state.extraCharges.some((c) => c.accountId === accountId) ||
+    state.overrides.some((o) => o.scope === 'account' && o.targetId === accountId)
+  return inUse ? state : { ...state, accounts: state.accounts.filter((a) => a.id !== accountId) }
 }
 
 /** A student without an existing account gets a new individual billing account. */

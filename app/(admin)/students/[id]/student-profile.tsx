@@ -7,6 +7,7 @@ import { Badge, PaymentStatusBadge } from '@/components/ds/badge'
 import { Button } from '@/components/ds/button'
 import { BentoCard, BentoGrid, Stat } from '@/components/ds/card'
 import { EmptyState } from '@/components/ds/empty-state'
+import { TextField } from '@/components/ds/field'
 import { EntityHeader, PageContainer } from '@/components/ds/page-header'
 import { useToast } from '@/components/ds/toast'
 import { accountKindLabel, categoryLabels, genderLabels, levelLabels } from '@/lib/core/labels'
@@ -23,6 +24,7 @@ export function StudentProfile({ id, today }: { id: string; today: string }) {
   const demo = useAppData()
   const { studentById, teacherLabel, clubLabel, groups, actions } = demo
   const [editing, setEditing] = useState(false)
+  const [renaming, setRenaming] = useState<string | null>(null)
   const student = studentById(id)
 
   if (!student) {
@@ -45,6 +47,7 @@ export function StudentProfile({ id, today }: { id: string; today: string }) {
   const account = demo.accounts.find((a) => a.id === student.accountId)
   const accountMembers = demo.students.filter((s) => s.accountId === student.accountId)
   const charge = buildCharges(demo, today).find((c) => c.account.id === student.accountId) ?? null
+  const sharedWith = accountMembers.filter((s) => s.id !== student.id).map((s) => s.firstName)
   const mine = groups.filter((g) => g.studentIds.includes(student.id))
   const years = Math.floor((Date.parse(today) - Date.parse(student.birthDate)) / (365.25 * 86400000))
   const otherClubs = student.extraClubIds.map((clubId) => clubLabel(clubId)).filter(Boolean)
@@ -95,13 +98,57 @@ export function StudentProfile({ id, today }: { id: string; today: string }) {
         </BentoCard>
         <BentoCard span="md" title="Cuenta de cobro">
           <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="font-medium">{account?.name ?? 'Sin cuenta de cobro'}</p>
+            <div className="grid gap-1">
+              {renaming !== null && account ? (
+                <form
+                  className="flex items-end gap-2"
+                  onSubmit={(event) => {
+                    event.preventDefault()
+                    actions.renameAccount(account.id, renaming)
+                    setRenaming(null)
+                    toast('Cuenta renombrada.')
+                  }}
+                >
+                  <TextField
+                    id="account-name"
+                    label="Nombre de la cuenta"
+                    value={renaming}
+                    onChange={(e) => setRenaming(e.target.value)}
+                  />
+                  <Button type="submit" size="sm">
+                    Guardar
+                  </Button>
+                  <Button type="button" size="sm" variant="ghost" onClick={() => setRenaming(null)}>
+                    Cancelar
+                  </Button>
+                </form>
+              ) : (
+                <p className="flex items-center gap-2 font-medium">
+                  {account?.name ?? 'Sin cuenta de cobro'}
+                  {account ? (
+                    <button
+                      type="button"
+                      className="text-xs font-normal text-brand hover:underline"
+                      onClick={() => setRenaming(account.name)}
+                    >
+                      Renombrar
+                    </button>
+                  ) : null}
+                </p>
+              )}
               <p className="text-xs text-muted-foreground">
                 {account
                   ? `${accountKindLabel(accountMembers.length)} · ${accountMembers.length} ${accountMembers.length === 1 ? 'alumno' : 'alumnos'}`
                   : ''}
               </p>
+              {sharedWith.length > 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  Comparte cuenta con {sharedWith.join(', ')}
+                  {charge && charge.offers.length > 0
+                    ? ` · Oferta: ${charge.offers.map((o) => o.name).join(', ')}`
+                    : ''}
+                </p>
+              ) : null}
             </div>
             {charge ? <PaymentStatusBadge status={charge.status} /> : null}
           </div>
