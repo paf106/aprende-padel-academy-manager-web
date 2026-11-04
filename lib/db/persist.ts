@@ -7,6 +7,18 @@ import { getSupabaseServer } from '@/lib/supabase/server'
 export type PersistResult = { ok: true } | { ok: false; error: string }
 
 const CHUNK = 500
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+function invalidId(rows: Row[]) {
+  for (const row of rows) {
+    for (const [column, value] of Object.entries(row)) {
+      if (typeof value === 'string' && (column === 'id' || column.endsWith('_id')) && !UUID.test(value)) {
+        return `${column} «${value}» no es un identificador válido`
+      }
+    }
+  }
+  return null
+}
 
 /** Writes the rows that changed on the client. Only known tables are accepted and organization_id always comes from the session. */
 export async function persistChanges(changes: Changes): Promise<PersistResult> {
@@ -17,6 +29,10 @@ export async function persistChanges(changes: Changes): Promise<PersistResult> {
   const known = new Set(TABLES.map(tableName))
   for (const name of [...Object.keys(changes.deletes), ...Object.keys(changes.upserts)]) {
     if (!known.has(name)) return { ok: false, error: `Tabla desconocida: ${name}` }
+  }
+  for (const [name, rows] of [...Object.entries(changes.upserts), ...Object.entries(changes.deletes)]) {
+    const problem = invalidId(rows)
+    if (problem) return { ok: false, error: `${name}: ${problem}` }
   }
 
   const supabase = await getSupabaseServer()

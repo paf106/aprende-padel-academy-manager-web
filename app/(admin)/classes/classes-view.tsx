@@ -194,7 +194,7 @@ export function ClassesView({ today }: { today: string }) {
 
   const createSession = (input: SessionInput) => {
     actions.addSession({
-      id: `${input.groupId || 'free'}-${input.date}-${input.start}-${sessions.length}`,
+      id: crypto.randomUUID(),
       groupId: input.groupId,
       kind: input.kind,
       clubId: input.clubId,

@@ -57,3 +57,22 @@ describe('database mapping', () => {
     expect(changes.deletes['payments.payments']).toBeUndefined()
   })
 })
+
+describe('ids', () => {
+  it('every id column of the generated rows is a UUID', () => {
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    const rows = toRows(makeAppData())
+    // The fixture price list reuses the readable ids of the AprendePadel constants; the seed script maps them to UUIDs.
+    const priceList = ['age_segments', 'individual_rates', 'pack_offers', 'course_rates']
+    for (const [table, list] of Object.entries(rows)) {
+      if (priceList.some((name) => table.endsWith(name))) continue
+      for (const row of list) {
+        for (const [column, value] of Object.entries(row)) {
+          if (value && (column === 'id' || column.endsWith('_id'))) {
+            expect(value, `${table}.${column}`).toMatch(uuid)
+          }
+        }
+      }
+    }
+  })
+})
