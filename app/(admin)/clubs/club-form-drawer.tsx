@@ -9,12 +9,12 @@ import { ImageUpload } from '@/components/ds/image-upload'
 import { useToast } from '@/components/ds/toast'
 import { clubSchema, emptyClubInput, type ClubInput } from '@/lib/classes/club-schema'
 import { validate } from '@/lib/core/validation'
-import type { Club } from '@/lib/demo/data'
-import { useDemo } from '@/lib/demo/use-demo'
+import type { Club } from '@/lib/data/types'
+import { useAppData } from '@/lib/data/provider'
 
 export function ClubFormDrawer({ club, onClose }: { club?: Club; onClose: () => void }) {
   const toast = useToast()
-  const { actions } = useDemo()
+  const { actions } = useAppData()
   const [values, setValues] = useState<ClubInput>(
     club
       ? {

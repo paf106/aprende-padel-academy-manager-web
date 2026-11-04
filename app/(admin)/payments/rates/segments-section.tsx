@@ -8,7 +8,7 @@ import { DataTable } from '@/components/ds/data-table'
 import { TextField } from '@/components/ds/field'
 import { useToast } from '@/components/ds/toast'
 import { validate } from '@/lib/core/validation'
-import { useDemo } from '@/lib/demo/use-demo'
+import { useAppData } from '@/lib/data/provider'
 import { segmentDeletionBlockers, segmentOverlap, segmentSchema } from '@/lib/payments/rate-schemas'
 import type { AgeSegment } from '@/lib/payments/rates'
 import { SectionCard } from './section-card'
@@ -18,7 +18,7 @@ const ageText = (s: AgeSegment) =>
 
 function SegmentFormDrawer({ segment, onClose }: { segment?: AgeSegment; onClose: () => void }) {
   const toast = useToast()
-  const { catalog, actions } = useDemo()
+  const { catalog, actions } = useAppData()
   const [name, setName] = useState(segment?.name ?? '')
   const [min, setMin] = useState(segment ? String(segment.minAge) : '')
   const [max, setMax] = useState(segment?.maxAge != null ? String(segment.maxAge) : '')
@@ -99,7 +99,7 @@ function SegmentFormDrawer({ segment, onClose }: { segment?: AgeSegment; onClose
 
 export function SegmentsSection() {
   const toast = useToast()
-  const { catalog, actions } = useDemo()
+  const { catalog, actions } = useAppData()
   const [form, setForm] = useState<{ segment?: AgeSegment } | null>(null)
   const [deleting, setDeleting] = useState<AgeSegment | null>(null)
   const blockers = deleting ? segmentDeletionBlockers(catalog, deleting.id) : []

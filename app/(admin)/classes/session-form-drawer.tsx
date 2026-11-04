@@ -12,8 +12,8 @@ import { categoryLabels, levelLabels } from '@/lib/core/labels'
 import { formatMoney } from '@/lib/core/money'
 import { studentCategories, studentLevels } from '@/lib/core/types'
 import { validate } from '@/lib/core/validation'
-import { fullName, teacherName } from '@/lib/demo/data'
-import { useDemo } from '@/lib/demo/use-demo'
+import { fullName, teacherName } from '@/lib/data/types'
+import { useAppData } from '@/lib/data/provider'
 import { MAX_PRIVATE_STUDENTS, privateClassPrice } from '@/lib/payments/extras'
 import { ageOn } from '@/lib/payments/pricing'
 
@@ -38,7 +38,16 @@ export function SessionFormDrawer({
   onCreate: (input: SessionInput) => void
   onClose: () => void
 }) {
-  const { students, teachers, activeClubs: clubs, clubById, groups, groupById, closures, extras } = useDemo()
+  const {
+    students,
+    teachers,
+    activeClubs: clubs,
+    clubById,
+    groups,
+    groupById,
+    closures,
+    extras,
+  } = useAppData()
   const [values, setValues] = useState<Values>({
     groupId: '',
     kind: 'group',

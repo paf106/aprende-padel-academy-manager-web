@@ -1,4 +1,4 @@
-export type Closure = { id: number; clubId: string; from: string; to: string; reason: string }
+export type Closure = { id: string; clubId: string; from: string; to: string; reason: string }
 
 const MAX_DAYS = 400
 

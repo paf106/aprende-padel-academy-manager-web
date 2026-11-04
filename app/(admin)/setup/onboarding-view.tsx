@@ -11,13 +11,13 @@ import { Card } from '@/components/ds/card'
 import { Input, Label } from '@/components/ds/input'
 import { PageContainer } from '@/components/ds/page-header'
 import { useToast } from '@/components/ds/toast'
-import { useDemo } from '@/lib/demo/use-demo'
+import { useAppData } from '@/lib/data/provider'
 
 const steps = ['Sedes', 'Pistas', 'Tarifas', 'Reglas de pago', 'Alumnos'] as const
 
 export function OnboardingView() {
   const toast = useToast()
-  const { clubs, catalog } = useDemo()
+  const { clubs, catalog } = useAppData()
   const [step, setStep] = useState(0)
   const [sites, setSites] = useState(clubs.map((c) => c.name))
   const [courts, setCourts] = useState(Object.fromEntries(clubs.map((c) => [c.id, c.courts])))

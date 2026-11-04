@@ -7,13 +7,13 @@ import { Input } from '@/components/ds/input'
 import { MoneyInput } from '@/components/ds/money-input'
 import { useToast } from '@/components/ds/toast'
 import { categoryLabels } from '@/lib/core/labels'
-import { useDemo } from '@/lib/demo/use-demo'
+import { useAppData } from '@/lib/data/provider'
 import type { TeacherRates } from '@/lib/payments/teacher-pay'
 import { SectionCard } from './section-card'
 
 export function TeacherPaySection() {
   const toast = useToast()
-  const { teacherRates, actions } = useDemo()
+  const { teacherRates, actions } = useAppData()
   const [rates, setRates] = useState<TeacherRates>(teacherRates)
 
   return (

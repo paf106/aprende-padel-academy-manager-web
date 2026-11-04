@@ -15,8 +15,8 @@ import { OverrideFormDrawer } from './rates/overrides-section'
 import { paymentMethodLabels } from '@/lib/core/labels'
 import { formatMoney } from '@/lib/core/money'
 import type { PaymentMethod } from '@/lib/core/types'
-import type { Charge } from '@/lib/demo/billing'
-import { useDemo } from '@/lib/demo/use-demo'
+import type { Charge } from '@/lib/data/billing'
+import { useAppData } from '@/lib/data/provider'
 
 const statusFilters: FilterDef[] = [
   {
@@ -35,7 +35,7 @@ const COLUMNS = ['Cuenta', 'A cobrar', 'Pagado', 'Deuda total', 'Estado', 'Últi
 
 export function ChargesTab({ month, charges }: { month: string; charges: Charge[] }) {
   const toast = useToast()
-  const { billing, catalog, actions } = useDemo()
+  const { billing, catalog, actions } = useAppData()
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('')
   const [open, setOpen] = useState<string | null>(null)

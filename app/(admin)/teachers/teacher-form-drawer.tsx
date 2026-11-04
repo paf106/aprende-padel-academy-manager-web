@@ -6,12 +6,12 @@ import { MultiSelectField, TextField } from '@/components/ds/field'
 import { useToast } from '@/components/ds/toast'
 import { emptyTeacherInput, teacherSchema, type TeacherInput } from '@/lib/classes/teacher-schema'
 import { validate } from '@/lib/core/validation'
-import type { Teacher } from '@/lib/demo/data'
-import { useDemo } from '@/lib/demo/use-demo'
+import type { Teacher } from '@/lib/data/types'
+import { useAppData } from '@/lib/data/provider'
 
 export function TeacherFormDrawer({ teacher, onClose }: { teacher?: Teacher; onClose: () => void }) {
   const toast = useToast()
-  const { actions, activeClubs } = useDemo()
+  const { actions, activeClubs } = useAppData()
   const clubOptions = activeClubs.map((club) => ({ value: club.id, label: club.name }))
   const [values, setValues] = useState<TeacherInput>(
     teacher
@@ -58,7 +58,7 @@ export function TeacherFormDrawer({ teacher, onClose }: { teacher?: Teacher; onC
         />
         <TextField
           id="last-name"
-          label="Apellidos"
+          label="Apellidos (opcional)"
           value={values.lastName}
           error={errors.lastName}
           onChange={(e) => set('lastName', e.target.value)}

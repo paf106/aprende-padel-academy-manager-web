@@ -3,14 +3,14 @@
 import { useState } from 'react'
 import { MoneyInput } from '@/components/ds/money-input'
 import { useToast } from '@/components/ds/toast'
-import { useDemo } from '@/lib/demo/use-demo'
+import { useAppData } from '@/lib/data/provider'
 import { SectionCard } from './section-card'
 
 const MAX_FREQUENCY = 7
 
 export function RatesSection() {
   const toast = useToast()
-  const { catalog, billing, actions } = useDemo()
+  const { catalog, billing, actions } = useAppData()
   const [extra, setExtra] = useState<number[]>([])
   const frequencies = [...new Set([1, 2, ...catalog.rates.map((r) => r.classesPerWeek), ...extra])].sort(
     (a, b) => a - b,

@@ -11,16 +11,16 @@ import { EntityHeader, PageContainer } from '@/components/ds/page-header'
 import { useToast } from '@/components/ds/toast'
 import { accountKindLabel, categoryLabels, genderLabels, levelLabels } from '@/lib/core/labels'
 import { formatMoney } from '@/lib/core/money'
-import { buildCharges } from '@/lib/demo/billing'
-import { fullName } from '@/lib/demo/data'
-import { useDemo } from '@/lib/demo/use-demo'
+import { buildCharges } from '@/lib/data/billing'
+import { fullName } from '@/lib/data/types'
+import { useAppData } from '@/lib/data/provider'
 import { StudentFormDrawer } from '../student-form-drawer'
 
 const DAYS = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
 
 export function StudentProfile({ id, today }: { id: string; today: string }) {
   const toast = useToast()
-  const demo = useDemo()
+  const demo = useAppData()
   const { studentById, teacherLabel, clubLabel, groups, actions } = demo
   const [editing, setEditing] = useState(false)
   const student = studentById(id)

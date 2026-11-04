@@ -7,7 +7,7 @@ import { Dropdown } from '@/components/ds/dropdown'
 import { Label } from '@/components/ds/input'
 import { cancellationReasonLabels } from '@/lib/core/labels'
 import { cancellationReasons, type CancellationReason } from '@/lib/core/types'
-import { useDemo } from '@/lib/demo/use-demo'
+import { useAppData } from '@/lib/data/provider'
 
 /** Asks why a class is cancelled: the reason decides whether students get a credit on their fee. */
 export function CancelSessionDrawer({
@@ -19,7 +19,7 @@ export function CancelSessionDrawer({
   onConfirm: (reason: CancellationReason, creditedStudentIds?: string[]) => void
   onClose: () => void
 }) {
-  const { billing, studentLabel } = useDemo()
+  const { billing, studentLabel } = useAppData()
   const [reason, setReason] = useState<CancellationReason>('rain')
   const [attendee, setAttendee] = useState('')
   const gives = billing.creditReasons.includes(reason)

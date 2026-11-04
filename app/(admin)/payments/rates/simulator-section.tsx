@@ -5,8 +5,8 @@ import { Dropdown } from '@/components/ds/dropdown'
 import { Label } from '@/components/ds/input'
 import { addMonths } from '@/lib/core/calendar-nav'
 import { formatMoney } from '@/lib/core/money'
-import { memberMonths, seasonMonths, simulateMonth } from '@/lib/demo/billing'
-import { useDemo } from '@/lib/demo/use-demo'
+import { memberMonths, seasonMonths, simulateMonth } from '@/lib/data/billing'
+import { useAppData } from '@/lib/data/provider'
 import { ChargeBreakdown } from '../charge-breakdown'
 import { SectionCard } from './section-card'
 
@@ -17,7 +17,7 @@ const monthName = (month: string) =>
 
 /** Shows what an account would be charged in a month, and lets you leave members out to see how offers change. */
 export function SimulatorSection({ month }: { month: string }) {
-  const demo = useDemo()
+  const demo = useAppData()
   const [accountId, setAccountId] = useState(demo.accounts[0]?.id ?? '')
   const [selectedMonth, setSelectedMonth] = useState(month)
   const [excluded, setExcluded] = useState<string[]>([])

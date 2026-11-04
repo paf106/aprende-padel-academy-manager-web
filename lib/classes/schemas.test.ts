@@ -26,8 +26,7 @@ describe('student schema', () => {
   it('reports one message per field', () => {
     const result = validate(studentSchema, emptyStudentInput)
     expect(result.ok).toBe(false)
-    if (!result.ok)
-      expect(Object.keys(result.errors).sort()).toEqual(['birthDate', 'clubId', 'firstName', 'lastName'])
+    if (!result.ok) expect(Object.keys(result.errors).sort()).toEqual(['birthDate', 'clubId', 'firstName'])
   })
   it('rejects future birth dates and invalid emails', () => {
     expect(validate(studentSchema, { ...validStudent, birthDate: '2999-01-01' }).ok).toBe(false)
@@ -44,6 +43,12 @@ describe('teacher schema', () => {
     clubIds: ['pioz'],
   }
   it('accepts a valid teacher', () => expect(validate(teacherSchema, valid).ok).toBe(true))
+  it('only needs a first name and a club', () => {
+    expect(
+      validate(teacherSchema, { firstName: 'Nacho', lastName: '', email: '', phone: '', clubIds: ['pioz'] })
+        .ok,
+    ).toBe(true)
+  })
   it('requires at least one club', () => {
     expect(validate(teacherSchema, { ...valid, clubIds: [] })).toMatchObject({
       ok: false,

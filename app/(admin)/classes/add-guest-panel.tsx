@@ -7,15 +7,15 @@ import { Dropdown } from '@/components/ds/dropdown'
 import { useToast } from '@/components/ds/toast'
 import { defaultCapacity } from '@/lib/classes/capacity'
 import { formatMoney } from '@/lib/core/money'
-import { fullName, type Session } from '@/lib/demo/data'
-import { useDemo } from '@/lib/demo/use-demo'
+import { fullName, type Session } from '@/lib/data/types'
+import { useAppData } from '@/lib/data/provider'
 import { MAX_PRIVATE_STUDENTS, dropInPrice } from '@/lib/payments/extras'
 import { ageOn } from '@/lib/payments/pricing'
 
 /** Adds a student that does not belong to the class: a free recovery or a paid single class. */
 export function AddGuestPanel({ session }: { session: Session }) {
   const toast = useToast()
-  const { students, extras, actions } = useDemo()
+  const { students, extras, actions } = useAppData()
   const [studentId, setStudentId] = useState('')
   const [mode, setMode] = useState<'recovery' | 'drop_in'>('recovery')
   const isPrivate = session.kind === 'private'

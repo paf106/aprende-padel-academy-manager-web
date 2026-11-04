@@ -13,7 +13,7 @@ const isoDate = z
 export const studentSchema = z
   .object({
     firstName: z.string().trim().min(1, 'Indica el nombre'),
-    lastName: z.string().trim().min(1, 'Indica los apellidos'),
+    lastName: z.string().trim(),
     birthDate: isoDate,
     gender: z.enum(studentGenders),
     category: z.enum(studentCategories),

@@ -14,7 +14,7 @@ import { MoneyInput } from '@/components/ds/money-input'
 import { useToast } from '@/components/ds/toast'
 import { formatMoney } from '@/lib/core/money'
 import { validate } from '@/lib/core/validation'
-import { useDemo } from '@/lib/demo/use-demo'
+import { useAppData } from '@/lib/data/provider'
 import { courseCatalog } from '@/lib/payments/courses'
 import {
   emptyOfferInput,
@@ -43,7 +43,7 @@ function compositionText(catalog: RateCatalog, offer: Pick<PackOffer, 'compositi
 
 /** Offers of the monthly fees, or of the closed-price courses, behind the same editing interface. */
 function useOffers(scope: OfferScope) {
-  const { catalog, coursePrices, actions } = useDemo()
+  const { catalog, coursePrices, actions } = useAppData()
   const isCourse = scope === 'course'
   return {
     isCourse,

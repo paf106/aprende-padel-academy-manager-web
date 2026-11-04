@@ -10,8 +10,8 @@ import { useToast } from '@/components/ds/toast'
 import { defaultCapacity } from '@/lib/classes/capacity'
 import { courseDeletionBlockers } from '@/lib/classes/course-schema'
 import { categoryLabels } from '@/lib/core/labels'
-import { teacherName, type Club, type Course, type Teacher } from '@/lib/demo/data'
-import { useDemo } from '@/lib/demo/use-demo'
+import { teacherName, type Club, type Course, type Teacher } from '@/lib/data/types'
+import { useAppData } from '@/lib/data/provider'
 import { WEEKDAY_OPTIONS } from '../groups/group-form-drawer'
 import { CourseFormDrawer } from './course-form-drawer'
 
@@ -48,7 +48,7 @@ const shortDate = (date: string) => date.split('-').reverse().slice(0, 2).join('
 
 export function CoursesView() {
   const toast = useToast()
-  const { courses, sessions, teachers, activeClubs, clubLabel, teacherLabel, actions } = useDemo()
+  const { courses, sessions, teachers, activeClubs, clubLabel, teacherLabel, actions } = useAppData()
   const [query, setQuery] = useState('')
   const [values, setValues] = useState(defaultFilters)
   const [form, setForm] = useState<{ course?: Course } | null>(null)

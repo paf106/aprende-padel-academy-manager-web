@@ -18,8 +18,8 @@ import { categoryLabels, levelLabels } from '@/lib/core/labels'
 import { formatMoney } from '@/lib/core/money'
 import { studentCategories, studentLevels } from '@/lib/core/types'
 import { validate } from '@/lib/core/validation'
-import { fullName, teacherName, type Course } from '@/lib/demo/data'
-import { useDemo } from '@/lib/demo/use-demo'
+import { fullName, teacherName, type Course } from '@/lib/data/types'
+import { useAppData } from '@/lib/data/provider'
 import { priceCourseEnrollment } from '@/lib/payments/courses'
 import { WEEKDAY_OPTIONS } from '../groups/group-form-drawer'
 
@@ -28,7 +28,7 @@ const toOptions = <T extends string>(values: readonly T[], labels: Record<T, str
 
 export function CourseFormDrawer({ course, onClose }: { course?: Course; onClose: () => void }) {
   const toast = useToast()
-  const { actions, activeClubs, teachers, students, sessions, closures, coursePrices, catalog } = useDemo()
+  const { actions, activeClubs, teachers, students, sessions, closures, coursePrices, catalog } = useAppData()
   const [values, setValues] = useState<CourseInput>(
     course
       ? {

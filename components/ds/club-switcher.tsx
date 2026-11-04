@@ -3,10 +3,10 @@
 import { MapPin } from 'lucide-react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Dropdown } from '@/components/ds/dropdown'
-import { useDemo } from '@/lib/demo/use-demo'
+import { useAppData } from '@/lib/data/provider'
 
 export function ClubSwitcher() {
-  const { activeClubs: clubs } = useDemo()
+  const { activeClubs: clubs } = useAppData()
   const router = useRouter()
   const pathname = usePathname()
   const params = useSearchParams()

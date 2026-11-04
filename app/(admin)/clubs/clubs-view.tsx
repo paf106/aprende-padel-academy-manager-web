@@ -15,8 +15,8 @@ import { useToast } from '@/components/ds/toast'
 import { clubDeletionBlockers } from '@/lib/classes/deletion'
 import type { ClubColor } from '@/lib/classes/club-schema'
 import { cn } from '@/lib/core/cn'
-import type { Club } from '@/lib/demo/data'
-import { useDemo } from '@/lib/demo/use-demo'
+import type { Club } from '@/lib/data/types'
+import { useAppData } from '@/lib/data/provider'
 import { ClubFormDrawer } from './club-form-drawer'
 
 const defaultFilters = { state: 'active' }
@@ -34,7 +34,7 @@ const filters: FilterDef[] = [
 
 export function ClubsView() {
   const toast = useToast()
-  const { clubs, groups, students, teachers, closures, activeClubs, clubLabel, actions } = useDemo()
+  const { clubs, groups, students, teachers, closures, activeClubs, clubLabel, actions } = useAppData()
   const [query, setQuery] = useState('')
   const [values, setValues] = useState(defaultFilters)
   const [form, setForm] = useState<{ club?: Club } | null>(null)
@@ -55,7 +55,7 @@ export function ClubsView() {
       toast('Indica un rango de fechas válido y el motivo.', 'error')
       return
     }
-    actions.addClosure({ id: Date.now(), ...closure, reason: closure.reason.trim() })
+    actions.addClosure({ id: crypto.randomUUID(), ...closure, reason: closure.reason.trim() })
     setClosure({ clubId: '', from: '', to: '', reason: '' })
     toast('Cierre añadido. No se generarán clases esos días ni contarán en el prorrateo.')
   }

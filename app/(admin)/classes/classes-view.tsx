@@ -26,13 +26,13 @@ import { Label } from '@/components/ds/input'
 import { PageContainer, PageToolbar } from '@/components/ds/page-header'
 import { useToast } from '@/components/ds/toast'
 import type { SessionInput } from '@/lib/classes/session-schema'
-import { useDemo } from '@/lib/demo/use-demo'
+import { useAppData } from '@/lib/data/provider'
 import { AddGuestPanel } from './add-guest-panel'
 import { CancelSessionDrawer } from './cancel-session-drawer'
 import { SessionFormDrawer } from './session-form-drawer'
 import { categoryLabels, levelLabels } from '@/lib/core/labels'
 import { formatMoney } from '@/lib/core/money'
-import { fullName, teacherName, type Session } from '@/lib/demo/data'
+import { fullName, teacherName, type Session } from '@/lib/data/types'
 import { dropInPrice } from '@/lib/payments/extras'
 
 type Attendance = 'unmarked' | 'present' | 'absent'
@@ -64,7 +64,7 @@ export function ClassesView({ today }: { today: string }) {
     courses,
     extras,
     actions,
-  } = useDemo()
+  } = useAppData()
   const sessions = useMemo<SessionState[]>(
     () =>
       storedSessions.map((s) => ({

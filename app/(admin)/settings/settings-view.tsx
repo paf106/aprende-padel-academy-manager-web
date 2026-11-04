@@ -12,13 +12,13 @@ import { defaultCapacity } from '@/lib/classes/capacity'
 import { cancellationReasonLabels, moduleLabels, paymentMethodLabels } from '@/lib/core/labels'
 import { cancellationReasons, type ModuleId, type PaymentMethod } from '@/lib/core/types'
 import { validate } from '@/lib/core/validation'
-import { useDemo } from '@/lib/demo/use-demo'
+import { useAppData } from '@/lib/data/provider'
 import { modules } from '@/lib/modules'
 import { billingSettingsSchema, type BillingSettings } from '@/lib/payments/settings'
 
 export function SettingsView() {
   const toast = useToast()
-  const { billing, actions } = useDemo()
+  const { billing, actions } = useAppData()
   const [values, setValues] = useState<BillingSettings>(billing)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const prorate = values.mode === 'prorate'

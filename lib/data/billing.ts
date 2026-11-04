@@ -1,8 +1,15 @@
 import { expandClosedDays } from '@/lib/classes/closures'
 import { addMonths, isoWeekday, monthDates } from '@/lib/core/calendar-nav'
 import type { CancellationReason } from '@/lib/core/types'
-import { teacherName, type Account, type Group, type Session } from '@/lib/demo/data'
-import type { DemoState, ExtraCharge, PaymentRecord } from '@/lib/demo/state'
+import {
+  teacherName,
+  type Account,
+  type AppData,
+  type ExtraCharge,
+  type Group,
+  type PaymentRecord,
+  type Session,
+} from '@/lib/data/types'
 import { accountDebt, accountStatement, type AccountStatus } from '@/lib/payments/account-billing'
 import {
   monthlyCharge,
@@ -18,14 +25,14 @@ const MAX_HISTORY_MONTHS = 14
 
 const memberName = (s: { firstName: string; lastName: string }) => `${s.firstName} ${s.lastName}`
 
-export function creditApplies(state: DemoState, session: Session, studentId: string) {
+export function creditApplies(state: AppData, session: Session, studentId: string) {
   const reason = (session.cancelReason ?? 'rain') as CancellationReason
   if (!state.billing.creditReasons.includes(reason)) return false
   return !session.creditedStudentIds || session.creditedStudentIds.includes(studentId)
 }
 
 /** Classes, holidays and credited cancellations of every active member of an account for one month. */
-export function memberMonths(state: DemoState, accountId: string, month: string): MemberMonth[] {
+export function memberMonths(state: AppData, accountId: string, month: string): MemberMonth[] {
   const dates = monthDates(month)
   return state.students
     .filter((s) => s.accountId === accountId && s.active)
@@ -77,7 +84,7 @@ export type MonthStatement = {
   status: AccountStatus
 }
 
-export function seasonMonths(state: DemoState, currentMonth: string) {
+export function seasonMonths(state: AppData, currentMonth: string) {
   const first = state.groups.map((g) => g.startsOn.slice(0, 7)).sort()[0] ?? currentMonth
   const months: string[] = []
   for (
@@ -91,7 +98,7 @@ export function seasonMonths(state: DemoState, currentMonth: string) {
 }
 
 /** Month by month statements of an account, carrying credits and overpayments forward. */
-export function accountHistory(state: DemoState, account: Account, currentMonth: string): MonthStatement[] {
+export function accountHistory(state: AppData, account: Account, currentMonth: string): MonthStatement[] {
   let carried: Record<string, number> = {}
   let surplus = 0
   return seasonMonths(state, currentMonth).map((month) => {
@@ -136,7 +143,7 @@ export type Charge = {
   monthsOverdue: number
 }
 
-export function buildCharges(state: DemoState, today: string): Charge[] {
+export function buildCharges(state: AppData, today: string): Charge[] {
   const month = today.slice(0, 7)
   return state.accounts
     .map((account) => {
@@ -170,7 +177,7 @@ export function buildCharges(state: DemoState, today: string): Charge[] {
     .filter((c) => c.members.length > 0 || c.extraCharges.length > 0)
 }
 
-export function monthSessions(state: DemoState, today: string) {
+export function monthSessions(state: AppData, today: string) {
   const month = today.slice(0, 7)
   return state.sessions.filter((s) => s.date.startsWith(month))
 }
@@ -183,7 +190,7 @@ export type TeacherSettlementRow = {
   totalCents: number
 }
 
-export function sessionPay(state: DemoState, session: Session) {
+export function sessionPay(state: AppData, session: Session) {
   return teacherSessionPay({
     rate: resolveTeacherRate(session.category, state.teacherRates),
     enrolledStudents: session.studentIds.length,
@@ -192,7 +199,7 @@ export function sessionPay(state: DemoState, session: Session) {
   })
 }
 
-export function buildSettlements(state: DemoState, today: string): TeacherSettlementRow[] {
+export function buildSettlements(state: AppData, today: string): TeacherSettlementRow[] {
   const sessions = monthSessions(state, today)
   return state.teachers.map((teacher) => {
     const mine = sessions.filter((s) => s.teacherId === teacher.id && s.status === 'completed')
@@ -206,7 +213,7 @@ export function buildSettlements(state: DemoState, today: string): TeacherSettle
   })
 }
 
-export function groupProfitability(state: DemoState, today: string, charges = buildCharges(state, today)) {
+export function groupProfitability(state: AppData, today: string, charges = buildCharges(state, today)) {
   const sessions = monthSessions(state, today)
   return state.groups.map((group: Group) => {
     const cost = sessions
@@ -228,40 +235,9 @@ export function groupProfitability(state: DemoState, today: string, charges = bu
   })
 }
 
-/** Demo payments: past months paid, the current month paid, half paid or pending depending on the account. */
-export function seedPayments(state: DemoState, today: string): PaymentRecord[] {
-  const current = today.slice(0, 7)
-  const previous = addMonths(current, -1)
-  const methods = ['cash', 'transfer'] as const
-  const base: DemoState = { ...state, payments: [] }
-  const payments: PaymentRecord[] = []
-  state.accounts.forEach((account, index) => {
-    for (const statement of accountHistory(base, account, current)) {
-      let amount = statement.dueCents
-      if (statement.month === current) {
-        const mode = index % 4
-        amount =
-          mode === 0 || mode === 3 ? statement.dueCents : mode === 1 ? Math.round(statement.dueCents / 2) : 0
-      } else if (index % 5 === 0 && statement.month === previous) {
-        amount = 0
-      }
-      if (amount <= 0) continue
-      payments.push({
-        id: `seed-${account.id}-${statement.month}`,
-        accountId: account.id,
-        month: statement.month,
-        amountCents: amount,
-        method: methods[(index + statement.month.length) % 2],
-        paidOn: `${statement.month}-0${(index % 3) + 1}`,
-      })
-    }
-  })
-  return payments
-}
-
 /** What an account would be charged in a month if some members were not attending (simulator). */
 export function simulateMonth(
-  state: DemoState,
+  state: AppData,
   accountId: string,
   month: string,
   excludedMemberIds: readonly string[],

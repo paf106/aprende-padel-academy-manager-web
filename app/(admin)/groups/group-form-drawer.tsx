@@ -10,8 +10,8 @@ import { emptyGroupInput, groupConflicts, groupSchema, type GroupInput } from '@
 import { categoryLabels, levelLabels } from '@/lib/core/labels'
 import { studentCategories, studentLevels } from '@/lib/core/types'
 import { validate } from '@/lib/core/validation'
-import { fullName, teacherName, type Group } from '@/lib/demo/data'
-import { useDemo } from '@/lib/demo/use-demo'
+import { fullName, teacherName, type Group } from '@/lib/data/types'
+import { useAppData } from '@/lib/data/provider'
 
 export const WEEKDAY_OPTIONS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'].map(
   (label, index) => ({
@@ -24,7 +24,7 @@ const toOptions = <T extends string>(values: readonly T[], labels: Record<T, str
 
 export function GroupFormDrawer({ group, onClose }: { group?: Group; onClose: () => void }) {
   const toast = useToast()
-  const { actions, activeClubs, teachers, students, groups } = useDemo()
+  const { actions, activeClubs, teachers, students, groups } = useAppData()
   const [values, setValues] = useState<GroupInput>(
     group
       ? {

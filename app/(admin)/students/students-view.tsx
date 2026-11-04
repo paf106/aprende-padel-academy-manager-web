@@ -12,9 +12,9 @@ import { useToast } from '@/components/ds/toast'
 import { studentDeletionBlockers } from '@/lib/classes/deletion'
 import { categoryLabels, levelLabels } from '@/lib/core/labels'
 import { studentCategories, studentLevels } from '@/lib/core/types'
-import { fullName, type Club, type Student } from '@/lib/demo/data'
-import { studentUsage } from '@/lib/demo/store'
-import { useDemo } from '@/lib/demo/use-demo'
+import { fullName, type Club, type Student } from '@/lib/data/types'
+import { studentUsage } from '@/lib/data/mutations'
+import { useAppData } from '@/lib/data/provider'
 import { StudentFormDrawer } from './student-form-drawer'
 
 const defaultFilters = { club: '', level: '', category: '', state: 'active' }
@@ -46,6 +46,7 @@ const buildFilters = (clubs: readonly Club[]): FilterDef[] => [
     options: [
       { value: 'active', label: 'Activos' },
       { value: 'inactive', label: 'Bajas' },
+      { value: 'review', label: 'Datos por completar' },
     ],
   },
 ]
@@ -53,7 +54,7 @@ const buildFilters = (clubs: readonly Club[]): FilterDef[] => [
 export function StudentsView() {
   const router = useRouter()
   const toast = useToast()
-  const { students, groups, activeClubs, clubLabel, actions } = useDemo()
+  const { students, groups, activeClubs, clubLabel, actions } = useAppData()
   const filters = buildFilters(activeClubs)
   const [query, setQuery] = useState('')
   const [values, setValues] = useState(defaultFilters)
@@ -68,7 +69,8 @@ export function StudentsView() {
         (!values.club || s.clubId === values.club) &&
         (!values.level || s.level === values.level) &&
         (!values.category || s.category === values.category) &&
-        (!values.state || (values.state === 'active') === s.active),
+        (!values.state ||
+          (values.state === 'review' ? s.needsReview : (values.state === 'active') === s.active)),
     )
   }, [students, query, values])
 
@@ -117,7 +119,12 @@ export function StudentsView() {
           {
             key: 'status',
             header: 'Estado',
-            cell: (s) => <Badge tone={s.active ? 'brand' : 'neutral'}>{s.active ? 'Activo' : 'Baja'}</Badge>,
+            cell: (s) =>
+              s.needsReview ? (
+                <Badge tone="warning">Datos por completar</Badge>
+              ) : (
+                <Badge tone={s.active ? 'brand' : 'neutral'}>{s.active ? 'Activo' : 'Baja'}</Badge>
+              ),
           },
         ]}
         rowActions={(s) => [

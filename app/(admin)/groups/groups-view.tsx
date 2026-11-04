@@ -11,9 +11,9 @@ import { defaultCapacity } from '@/lib/classes/capacity'
 import { groupDeletionBlockers } from '@/lib/classes/deletion'
 import { categoryLabels, levelLabels } from '@/lib/core/labels'
 import { studentCategories, studentLevels } from '@/lib/core/types'
-import type { Club, Group, Teacher } from '@/lib/demo/data'
-import { teacherName } from '@/lib/demo/data'
-import { useDemo } from '@/lib/demo/use-demo'
+import type { Club, Group, Teacher } from '@/lib/data/types'
+import { teacherName } from '@/lib/data/types'
+import { useAppData } from '@/lib/data/provider'
 import { GroupFormDrawer, WEEKDAY_OPTIONS } from './group-form-drawer'
 
 const defaultFilters = { club: '', teacher: '', category: '', level: '', state: 'active' }
@@ -58,7 +58,7 @@ const buildFilters = (clubs: readonly Club[], teachers: readonly Teacher[]): Fil
 
 export function GroupsView() {
   const toast = useToast()
-  const { groups, sessions, teachers, activeClubs, clubLabel, teacherLabel, actions } = useDemo()
+  const { groups, sessions, teachers, activeClubs, clubLabel, teacherLabel, actions } = useAppData()
   const [query, setQuery] = useState('')
   const [values, setValues] = useState(defaultFilters)
   const [form, setForm] = useState<{ group?: Group } | null>(null)

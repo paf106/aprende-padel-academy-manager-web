@@ -1,7 +1,7 @@
 'use client'
 
 import { formatMoney } from '@/lib/core/money'
-import type { ExtraCharge } from '@/lib/demo/state'
+import type { ExtraCharge } from '@/lib/data/types'
 import type { MemberLine, RateOverride } from '@/lib/payments/monthly-charge'
 import type { AppliedOffer, RateCatalog } from '@/lib/payments/rates'
 

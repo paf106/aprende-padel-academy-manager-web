@@ -8,15 +8,15 @@ import { emptyStudentInput, studentSchema, type StudentInput } from '@/lib/class
 import { categoryLabels, genderLabels, levelLabels } from '@/lib/core/labels'
 import { studentCategories, studentGenders, studentLevels } from '@/lib/core/types'
 import { validate } from '@/lib/core/validation'
-import type { Student } from '@/lib/demo/data'
-import { useDemo } from '@/lib/demo/use-demo'
+import type { Student } from '@/lib/data/types'
+import { useAppData } from '@/lib/data/provider'
 
 const toOptions = <T extends string>(values: readonly T[], labels: Record<T, string>) =>
   values.map((value) => ({ value, label: labels[value] }))
 
 export function StudentFormDrawer({ student, onClose }: { student?: Student; onClose: () => void }) {
   const toast = useToast()
-  const { actions, activeClubs, accounts, students } = useDemo()
+  const { actions, activeClubs, accounts, students } = useAppData()
   const accountOptions = [
     { value: '', label: 'Cuenta individual nueva' },
     ...accounts.map((account) => {
@@ -82,7 +82,7 @@ export function StudentFormDrawer({ student, onClose }: { student?: Student; onC
         />
         <TextField
           id="last-name"
-          label="Apellidos"
+          label="Apellidos (opcional)"
           value={values.lastName}
           error={errors.lastName}
           onChange={(e) => set('lastName', e.target.value)}

@@ -10,8 +10,8 @@ import { MoneyInput } from '@/components/ds/money-input'
 import { useToast } from '@/components/ds/toast'
 import { formatMoney } from '@/lib/core/money'
 import { validate } from '@/lib/core/validation'
-import { fullName } from '@/lib/demo/data'
-import { useDemo } from '@/lib/demo/use-demo'
+import { fullName } from '@/lib/data/types'
+import { useAppData } from '@/lib/data/provider'
 import type { RateOverride } from '@/lib/payments/monthly-charge'
 import { overrideSchema, type OverrideInput } from '@/lib/payments/rate-schemas'
 import { SectionCard } from './section-card'
@@ -26,7 +26,7 @@ export function OverrideFormDrawer({
   onClose: () => void
 }) {
   const toast = useToast()
-  const { accounts, students, actions } = useDemo()
+  const { accounts, students, actions } = useAppData()
   const [values, setValues] = useState<OverrideInput>({
     scope: initial?.scope ?? 'account',
     targetId: initial?.targetId ?? '',
@@ -120,7 +120,7 @@ export function OverrideFormDrawer({
 
 export function OverridesSection({ month }: { month: string }) {
   const toast = useToast()
-  const { overrides, accounts, students, actions } = useDemo()
+  const { overrides, accounts, students, actions } = useAppData()
   const [form, setForm] = useState(false)
   const [deleting, setDeleting] = useState<RateOverride | null>(null)
   const targetName = (o: RateOverride) =>

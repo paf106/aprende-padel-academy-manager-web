@@ -2,13 +2,13 @@
 
 import { MoneyInput } from '@/components/ds/money-input'
 import { useToast } from '@/components/ds/toast'
-import { useDemo } from '@/lib/demo/use-demo'
+import { useAppData } from '@/lib/data/provider'
 import { SectionCard } from './section-card'
 
 /** Closed price of a course for each age segment. Combined offers are edited in the offers section. */
 export function CoursePricesSection() {
   const toast = useToast()
-  const { catalog, coursePrices, actions } = useDemo()
+  const { catalog, coursePrices, actions } = useAppData()
 
   const setPrice = (segmentId: string, cents: number | null) => {
     const others = coursePrices.rates.filter((r) => r.segmentId !== segmentId)

@@ -8,14 +8,14 @@ import { formatMoney } from '@/lib/core/money'
 import { BentoCard, BentoGrid, Stat } from '@/components/ds/card'
 import { ClassStatusBadge } from '@/components/ds/badge'
 import { PageContainer } from '@/components/ds/page-header'
-import { buildCharges, buildSettlements, groupProfitability, monthSessions } from '@/lib/demo/billing'
+import { buildCharges, buildSettlements, groupProfitability, monthSessions } from '@/lib/data/billing'
 import { categoryLabels } from '@/lib/core/labels'
-import { useDemo } from '@/lib/demo/use-demo'
+import { useAppData } from '@/lib/data/provider'
 
 const WEEKDAYS = ['L', 'M', 'X', 'J', 'V']
 
 export function DashboardView({ today }: { today: string }) {
-  const demo = useDemo()
+  const demo = useAppData()
   const { clubs, groups, students, teacherLabel, groupById } = demo
   const charges = useMemo(() => buildCharges(demo, today), [demo, today])
   const settlements = useMemo(() => buildSettlements(demo, today), [demo, today])

@@ -10,8 +10,8 @@ import { PageContainer, PageToolbar } from '@/components/ds/page-header'
 import { Tabs } from '@/components/ds/tabs'
 import { useToast } from '@/components/ds/toast'
 import { formatMoney } from '@/lib/core/money'
-import { buildCharges, buildSettlements, groupProfitability } from '@/lib/demo/billing'
-import { useDemo } from '@/lib/demo/use-demo'
+import { buildCharges, buildSettlements, groupProfitability } from '@/lib/data/billing'
+import { useAppData } from '@/lib/data/provider'
 import { ChargesTab } from './charges-tab'
 import { RatesTab } from './rates-tab'
 
@@ -33,7 +33,7 @@ function downloadCsv(name: string, rows: (string | number)[][]) {
 
 export function PaymentsView({ today, initialTab }: { today: string; initialTab: PaymentsTab }) {
   const toast = useToast()
-  const demo = useDemo()
+  const demo = useAppData()
   const [tab, setTab] = useState<PaymentsTab>(initialTab)
   const [paidTeachers, setPaidTeachers] = useState<string[]>([])
   const month = today.slice(0, 7)
