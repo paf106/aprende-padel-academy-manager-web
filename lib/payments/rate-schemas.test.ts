@@ -24,7 +24,7 @@ describe('segment schema', () => {
     expect(segmentOverlap(catalog.segments, { name: 'Bebés', minAge: 0, maxAge: 6 })).toBeUndefined()
     expect(segmentOverlap(catalog.segments, { name: 'Mayores', minAge: 70, maxAge: null })?.id).toBe('senior')
     expect(
-      segmentOverlap(catalog.segments, { name: 'Niños', minAge: 7, maxAge: 12 }, 'child'),
+      segmentOverlap(catalog.segments, { name: 'Niños', minAge: 7, maxAge: 11 }, 'child'),
     ).toBeUndefined()
   })
 })

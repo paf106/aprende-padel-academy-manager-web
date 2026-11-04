@@ -3,8 +3,8 @@ import type { RateCatalog } from '@/lib/payments/rates'
 /** AprendePadel Academy 2026-2027 rates, used as demo data and in tests. */
 export const aprendePadelCatalog: RateCatalog = {
   segments: [
-    { id: 'child', name: 'Niños (7 a 12 años)', minAge: 7, maxAge: 12 },
-    { id: 'adult', name: 'Adultos (13 a 65 años)', minAge: 13, maxAge: 65 },
+    { id: 'child', name: 'Niños (7 a 11 años)', minAge: 7, maxAge: 11 },
+    { id: 'adult', name: 'Adultos (12 a 65 años)', minAge: 12, maxAge: 65 },
     { id: 'senior', name: 'Mayores de 65 años', minAge: 66, maxAge: null },
   ],
   rates: [

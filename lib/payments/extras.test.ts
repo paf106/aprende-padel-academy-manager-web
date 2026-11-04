@@ -61,10 +61,10 @@ describe('private classes', () => {
       privateClassPrice({ extras, students: 3, durationMinutes: 60, courtPricePerHourCents: 0 }),
     ).toThrow()
   })
-  it('allows 1 or 2 students from 13 years old', () => {
+  it('allows 1 or 2 students from 12 years old', () => {
     expect(privateClassIssues(extras, [30])).toEqual([])
-    expect(privateClassIssues(extras, [30, 13])).toEqual([])
-    expect(privateClassIssues(extras, [12])).toHaveLength(1)
+    expect(privateClassIssues(extras, [30, 12])).toEqual([])
+    expect(privateClassIssues(extras, [11])).toHaveLength(1)
     expect(privateClassIssues(extras, [30, 30, 30])).toHaveLength(1)
     expect(privateClassIssues(extras, [])).toHaveLength(1)
   })
@@ -117,8 +117,8 @@ describe('course pricing (June intensive)', () => {
     ).toBe(7000 + 5000 + 5000)
   })
   it('takes the age on the first day of the course', () => {
-    expect(price([{ id: 'x', birthDate: '2014-06-01' }])).toBe(5000)
-    expect(price([{ id: 'x', birthDate: '2014-05-30' }])).toBe(7000)
+    expect(price([{ id: 'x', birthDate: '2015-06-01' }])).toBe(5000)
+    expect(price([{ id: 'x', birthDate: '2015-05-30' }])).toBe(7000)
   })
   it('exposes the prices as a single-frequency catalog', () => {
     expect(courseCatalog(segments, aprendePadelCoursePrices).rates.every((r) => r.classesPerWeek === 1)).toBe(

@@ -16,7 +16,7 @@ export const aprendePadelExtras: ExtraRates = {
   dropInCents: 1500,
   privateOneCents: 3000,
   privateTwoCents: 2500,
-  privateMinAge: 13,
+  privateMinAge: 12,
 }
 
 export const MAX_PRIVATE_STUDENTS = 2

@@ -19,21 +19,21 @@ const total = (members: PricingMember[]) =>
 
 describe('age segments', () => {
   it('computes whole years', () => {
-    expect(ageOn('2013-01-20', '2026-01-19')).toBe(12)
-    expect(ageOn('2013-01-20', '2026-01-20')).toBe(13)
+    expect(ageOn('2014-01-20', '2026-01-19')).toBe(11)
+    expect(ageOn('2014-01-20', '2026-01-20')).toBe(12)
   })
   it('maps ages to segments with open upper limit', () => {
     expect(segmentForAge(catalog.segments, 7)?.id).toBe('child')
-    expect(segmentForAge(catalog.segments, 12)?.id).toBe('child')
-    expect(segmentForAge(catalog.segments, 13)?.id).toBe('adult')
+    expect(segmentForAge(catalog.segments, 11)?.id).toBe('child')
+    expect(segmentForAge(catalog.segments, 12)?.id).toBe('adult')
     expect(segmentForAge(catalog.segments, 65)?.id).toBe('adult')
     expect(segmentForAge(catalog.segments, 66)?.id).toBe('senior')
     expect(segmentForAge(catalog.segments, 90)?.id).toBe('senior')
     expect(segmentForAge(catalog.segments, 5)).toBeNull()
   })
   it('changes the segment the month after the birthday', () => {
-    expect(segmentForMonth(catalog.segments, '2013-01-20', '2026-01')?.id).toBe('child')
-    expect(segmentForMonth(catalog.segments, '2013-01-20', '2026-02')?.id).toBe('adult')
+    expect(segmentForMonth(catalog.segments, '2014-01-20', '2026-01')?.id).toBe('child')
+    expect(segmentForMonth(catalog.segments, '2014-01-20', '2026-02')?.id).toBe('adult')
   })
 })
 

@@ -103,8 +103,8 @@ describe('families', () => {
     expect(result.offers.map((o) => o.offerId)).toEqual(['family-3-w1'])
     expect(result.totalCents).toBe(8000)
   })
-  it('a child turning 13 stops counting as a child the month after the birthday', () => {
-    const teen = member('teen', '2013-01-20')
+  it('a child turning 12 stops counting as a child the month after the birthday', () => {
+    const teen = member('teen', '2014-01-20')
     expect(run([...parents, teen], { month: '2026-01' }).totalCents).toBe(8000)
     expect(run([...parents, teen], { month: '2026-02' }).totalCents).toBe(6000 + 3500)
   })

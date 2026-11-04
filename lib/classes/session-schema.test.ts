@@ -65,7 +65,7 @@ describe('session conflicts', () => {
     expect(sessionConflicts({ ...base, existing: [{ ...existing[0], status: 'cancelled' }] })).toEqual({})
   })
   it('private classes require students of 13 or older and may mix categories', () => {
-    const extras = { dropInCents: 1500, privateOneCents: 3000, privateTwoCents: 2500, privateMinAge: 13 }
+    const extras = { dropInCents: 1500, privateOneCents: 3000, privateTwoCents: 2500, privateMinAge: 12 }
     const mixed = [
       { id: 'a', category: 'adult' as const },
       { id: 'b', category: 'child' as const },
