@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { TopbarActions } from '@/components/ds/topbar-actions'
 import { cn } from '@/lib/core/cn'
 
 export function PageContainer({ children, fill = false }: { children: ReactNode; fill?: boolean }) {
@@ -14,7 +15,7 @@ export function PageContainer({ children, fill = false }: { children: ReactNode;
   )
 }
 
-/** Row with filters on the left and page actions on the right. The h1 is only for assistive technology. */
+/** Row with the page filters. Page actions are shown in the top bar. The h1 is only for assistive technology. */
 export function PageToolbar({
   title,
   children,
@@ -28,7 +29,7 @@ export function PageToolbar({
     <div className="flex flex-wrap items-center gap-2">
       <h1 className="sr-only">{title}</h1>
       {children}
-      {actions ? <div className="ml-auto flex items-center gap-2">{actions}</div> : null}
+      {actions ? <TopbarActions>{actions}</TopbarActions> : null}
     </div>
   )
 }

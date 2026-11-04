@@ -26,6 +26,7 @@ export function FilterBar({
   onChange,
   onClear,
   trailing,
+  extraActive = false,
 }: {
   search?: { value: string; onChange: (value: string) => void; placeholder: string; label: string }
   filters?: readonly FilterDef[]
@@ -33,9 +34,13 @@ export function FilterBar({
   onChange: (key: string, value: string) => void
   onClear?: () => void
   trailing?: ReactNode
+  /** Marks the clear button as relevant when something outside the bar (e.g. a search box) is filtering. */
+  extraActive?: boolean
 }) {
   const active =
-    filters.some((f) => f.allLabel !== undefined && (values[f.key] ?? '') !== '') || Boolean(search?.value)
+    filters.some((f) => f.allLabel !== undefined && (values[f.key] ?? '') !== '') ||
+    Boolean(search?.value) ||
+    extraActive
   return (
     <>
       {search ? (

@@ -8,6 +8,7 @@ import { Card } from '@/components/ds/card'
 import { DataTable, type Column } from '@/components/ds/data-table'
 import { EmptyState } from '@/components/ds/empty-state'
 import { FilterBar, type FilterDef } from '@/components/ds/filter-bar'
+import { SearchInput } from '@/components/ds/input'
 import { PageContainer, PageToolbar } from '@/components/ds/page-header'
 
 export function EntityList<T>({
@@ -75,14 +76,23 @@ export function EntityList<T>({
         }
       >
         <FilterBar
-          search={search}
           filters={filters}
           values={filterValues}
           onChange={onFilterChange}
           onClear={onClear}
-          trailing={summary ? <span className="text-sm text-muted-foreground">{summary}</span> : null}
+          extraActive={Boolean(search.value)}
         />
       </PageToolbar>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <SearchInput
+          aria-label={search.label}
+          placeholder={search.placeholder}
+          value={search.value}
+          onChange={(event) => search.onChange(event.target.value)}
+          className="w-full sm:w-72"
+        />
+        {summary ? <span className="text-sm text-muted-foreground">{summary}</span> : null}
+      </div>
       {layout === 'cards' && renderCard ? (
         rows.length === 0 ? (
           <Card>
