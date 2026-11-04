@@ -11,7 +11,7 @@ import type { FilterDef } from '@/components/ds/filter-bar'
 import { useToast } from '@/components/ds/toast'
 import { teacherDeletionBlockers } from '@/lib/classes/deletion'
 import { formatMoney } from '@/lib/core/money'
-import type { TeacherSettlementRow } from '@/lib/demo/billing'
+import { buildSettlements } from '@/lib/demo/billing'
 import { teacherName, type Club, type Teacher } from '@/lib/demo/data'
 import { teacherUsage } from '@/lib/demo/store'
 import { useDemo } from '@/lib/demo/use-demo'
@@ -37,10 +37,12 @@ const buildFilters = (clubs: readonly Club[]): FilterDef[] => [
   },
 ]
 
-export function TeachersView({ settlements }: { settlements: TeacherSettlementRow[] }) {
+export function TeachersView({ today }: { today: string }) {
   const router = useRouter()
   const toast = useToast()
-  const { teachers, groups, activeClubs, clubLabel, actions } = useDemo()
+  const demo = useDemo()
+  const { teachers, groups, activeClubs, clubLabel, actions } = demo
+  const settlements = useMemo(() => buildSettlements(demo, today), [demo, today])
   const filters = buildFilters(activeClubs)
   const [query, setQuery] = useState('')
   const [values, setValues] = useState(defaultFilters)

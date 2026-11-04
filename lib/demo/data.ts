@@ -68,18 +68,12 @@ export type Session = {
   level?: StudentLevel
   attendance?: Record<string, 'unmarked' | 'present' | 'absent'>
   cancelReason?: string
-}
-export type FeePlan = {
-  id: string
-  name: string
-  monthlyCents: number
-  appliesTo: 'individual' | 'couple' | 'family'
+  /** When set, only these students get a credit for the cancellation (e.g. only one student showed up). */
+  creditedStudentIds?: string[]
 }
 export type Account = {
   id: string
   name: string
-  kind: 'individual' | 'couple' | 'family'
-  feePlanId: string
 }
 
 export const clubs: Club[] = [
@@ -164,12 +158,6 @@ export const teachers: Teacher[] = [
   },
 ]
 
-export const feePlans: FeePlan[] = [
-  { id: 'normal', name: 'Cuota normal', monthlyCents: 3500, appliesTo: 'individual' },
-  { id: 'pareja', name: 'Pareja (por persona)', monthlyCents: 3000, appliesTo: 'couple' },
-  { id: 'familia', name: 'Familia (por persona)', monthlyCents: 2800, appliesTo: 'family' },
-]
-
 const firstNames = [
   'Ana',
   'Pablo',
@@ -225,7 +213,7 @@ export const students: Student[] = firstNames.map((first, index) => {
     gender: index % 2 === 0 ? 'female' : 'male',
     category: child ? 'child' : 'adult',
     level: levels[index % levels.length],
-    birthDate: child ? `${2014 - (index % 4)}-0${(index % 9) + 1}-1${index % 9}` : `${1980 + index}-05-12`,
+    birthDate: child ? `${2018 - (index % 4)}-0${(index % 9) + 1}-1${index % 9}` : `${1980 + index}-05-12`,
     clubId,
     extraClubIds: [],
     email: '',
@@ -246,8 +234,6 @@ for (const student of students) {
       kind === 'individual'
         ? `${student.firstName} ${student.lastName.split(' ')[0]}`
         : `Familia ${student.lastName.split(' ')[0]}`,
-    kind,
-    feePlanId: kind === 'family' ? 'familia' : kind === 'couple' ? 'pareja' : 'normal',
   })
 }
 
@@ -310,6 +296,7 @@ export function generateSessions(today: string): Session[] {
         duration: group.duration,
         category: group.category,
         status,
+        cancelReason: status === 'cancelled' ? 'rain' : undefined,
         studentIds: group.studentIds,
       })
     }
@@ -321,6 +308,5 @@ export const clubById = (id: string) => clubs.find((c) => c.id === id)
 export const teacherById = (id: string) => teachers.find((t) => t.id === id)
 export const studentById = (id: string) => students.find((s) => s.id === id)
 export const groupById = (id: string) => groups.find((g) => g.id === id)
-export const accountById = (id: string) => accounts.find((a) => a.id === id)
 export const fullName = (s: Student) => `${s.firstName} ${s.lastName}`
 export const teacherName = (t: Teacher) => `${t.firstName} ${t.lastName}`

@@ -11,16 +11,18 @@ import { EntityHeader, PageContainer } from '@/components/ds/page-header'
 import { useToast } from '@/components/ds/toast'
 import { categoryLabels, levelLabels } from '@/lib/core/labels'
 import { formatMoney } from '@/lib/core/money'
-import type { TeacherSettlementRow } from '@/lib/demo/billing'
+import { buildSettlements } from '@/lib/demo/billing'
 import { teacherName } from '@/lib/demo/data'
 import { useDemo } from '@/lib/demo/use-demo'
 import { TeacherFormDrawer } from '../teacher-form-drawer'
 
 const DAYS = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
 
-export function TeacherProfile({ id, settlement }: { id: string; settlement: TeacherSettlementRow | null }) {
+export function TeacherProfile({ id, today }: { id: string; today: string }) {
   const toast = useToast()
-  const { teacherById, clubLabel, groups, actions } = useDemo()
+  const demo = useDemo()
+  const { teacherById, clubLabel, groups, actions } = demo
+  const settlement = buildSettlements(demo, today).find((s) => s.teacherId === id) ?? null
   const [editing, setEditing] = useState(false)
   const teacher = teacherById(id)
 

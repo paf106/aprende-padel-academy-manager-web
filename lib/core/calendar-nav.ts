@@ -47,3 +47,22 @@ export function visibleRange(date: string, view: CalendarView) {
   }
   return { from: `${value.getUTCFullYear()}-01-01`, to: `${value.getUTCFullYear()}-12-31` }
 }
+
+/** ISO weekday of a date: 1 = Monday ... 7 = Sunday. */
+export function isoWeekday(date: string) {
+  return ((parse(date).getUTCDay() + 6) % 7) + 1
+}
+
+/** Every date (YYYY-MM-DD) of a month (YYYY-MM). */
+export function monthDates(month: string) {
+  const { from, to } = visibleRange(`${month}-01`, 'month')
+  const dates: string[] = []
+  for (let date = from; date <= to; date = addDays(date, 1)) dates.push(date)
+  return dates
+}
+
+export function addMonths(month: string, delta: number) {
+  const [year, number] = month.split('-').map(Number)
+  const value = new Date(Date.UTC(year, number - 1 + delta, 1))
+  return `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, '0')}`
+}

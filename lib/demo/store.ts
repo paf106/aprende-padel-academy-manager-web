@@ -6,6 +6,7 @@ import type { StudentInput } from '@/lib/classes/student-schema'
 import type { TeacherInput } from '@/lib/classes/teacher-schema'
 import { localTodayInTimeZone } from '@/lib/core/dates'
 import {
+  accounts as seedAccounts,
   clubs as seedClubs,
   generateSessions,
   groups as seedGroups,
@@ -18,25 +19,34 @@ import {
   type Student,
   type Teacher,
 } from '@/lib/demo/data'
+import { seedPayments } from '@/lib/demo/billing'
+import type { DemoState, PaymentRecord } from '@/lib/demo/state'
+import type { RateOverride } from '@/lib/payments/monthly-charge'
+import type { RateCatalog } from '@/lib/payments/rates'
+import { aprendePadelCatalog } from '@/lib/payments/seed-catalog'
+import { defaultBillingSettings, type BillingSettings } from '@/lib/payments/settings'
+import { defaultTeacherRates, type TeacherRates } from '@/lib/payments/teacher-pay'
 
-export type DemoState = {
-  students: Student[]
-  teachers: Teacher[]
-  clubs: Club[]
-  groups: Group[]
-  sessions: Session[]
-  closures: Closure[]
-}
+export type { DemoState, PaymentRecord } from '@/lib/demo/state'
 
-const STORAGE_KEY = 'aprende-padel-demo-v2'
-const seed: DemoState = {
+const STORAGE_KEY = 'aprende-padel-demo-v3'
+const today = () => localTodayInTimeZone('Europe/Madrid')
+
+const baseSeed: DemoState = {
   students: seedStudents,
   teachers: seedTeachers,
   clubs: seedClubs,
   groups: seedGroups,
-  sessions: generateSessions(localTodayInTimeZone('Europe/Madrid')),
+  sessions: generateSessions(today()),
   closures: initialClosures,
+  accounts: seedAccounts,
+  catalog: aprendePadelCatalog,
+  billing: defaultBillingSettings,
+  overrides: [],
+  teacherRates: defaultTeacherRates,
+  payments: [],
 }
+const seed: DemoState = { ...baseSeed, payments: seedPayments(baseSeed, today()) }
 
 let state: DemoState = seed
 let loaded = false
@@ -82,12 +92,22 @@ export const demoStore = {
 
   createStudent(input: StudentInput) {
     const id = crypto.randomUUID()
-    const student: Student = { ...input, id, accountId: `ind-${id}`, active: true }
-    commit({ ...state, students: [...state.students, student] })
+    const accountId = input.accountId || `acc-${id}`
+    const student: Student = { ...input, id, accountId, active: true }
+    commit({
+      ...state,
+      students: [...state.students, student],
+      accounts: withAccount(state.accounts, accountId, input),
+    })
     return student
   },
   updateStudent(id: string, input: StudentInput) {
-    commit({ ...state, students: state.students.map((s) => (s.id === id ? { ...s, ...input } : s)) })
+    const accountId = input.accountId || `acc-${id}`
+    commit({
+      ...state,
+      students: state.students.map((s) => (s.id === id ? { ...s, ...input, accountId } : s)),
+      accounts: withAccount(state.accounts, accountId, input),
+    })
   },
   setStudentActive(id: string, active: boolean) {
     commit({ ...state, students: state.students.map((s) => (s.id === id ? { ...s, active } : s)) })
@@ -177,12 +197,39 @@ export const demoStore = {
     })
   },
 
+  addPayment(payment: Omit<PaymentRecord, 'id'>) {
+    commit({ ...state, payments: [...state.payments, { ...payment, id: crypto.randomUUID() }] })
+  },
+  setCatalog(catalog: RateCatalog) {
+    commit({ ...state, catalog })
+  },
+  setBilling(billing: BillingSettings) {
+    commit({ ...state, billing })
+  },
+  setTeacherRates(teacherRates: TeacherRates) {
+    commit({ ...state, teacherRates })
+  },
+  addOverride(override: Omit<RateOverride, 'id'>) {
+    commit({ ...state, overrides: [...state.overrides, { ...override, id: crypto.randomUUID() }] })
+  },
+  removeOverride(id: string) {
+    commit({ ...state, overrides: state.overrides.filter((o) => o.id !== id) })
+  },
+
   addClosure(closure: Closure) {
     commit({ ...state, closures: [...state.closures, closure] })
   },
 }
 
-const today = () => localTodayInTimeZone('Europe/Madrid')
+/** A student without an existing account gets a new individual billing account. */
+function withAccount(
+  accounts: DemoState['accounts'],
+  accountId: string,
+  student: { firstName: string; lastName: string },
+) {
+  if (accounts.some((a) => a.id === accountId)) return accounts
+  return [...accounts, { id: accountId, name: `${student.firstName} ${student.lastName.split(' ')[0]}` }]
+}
 
 function buildSessions(current: DemoState, group: Group, groupId: string): Session[] {
   const plan = planRegeneration([], groupId, group, today(), expandClosedDays(current.closures, group.clubId))

@@ -9,18 +9,19 @@ import { BentoCard, BentoGrid, Stat } from '@/components/ds/card'
 import { EmptyState } from '@/components/ds/empty-state'
 import { EntityHeader, PageContainer } from '@/components/ds/page-header'
 import { useToast } from '@/components/ds/toast'
-import { categoryLabels, genderLabels, levelLabels } from '@/lib/core/labels'
+import { accountKindLabel, categoryLabels, genderLabels, levelLabels } from '@/lib/core/labels'
 import { formatMoney } from '@/lib/core/money'
-import type { Charge } from '@/lib/demo/billing'
-import { accountById, fullName } from '@/lib/demo/data'
+import { buildCharges } from '@/lib/demo/billing'
+import { fullName } from '@/lib/demo/data'
 import { useDemo } from '@/lib/demo/use-demo'
 import { StudentFormDrawer } from '../student-form-drawer'
 
 const DAYS = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
 
-export function StudentProfile({ id, today, charge }: { id: string; today: string; charge: Charge | null }) {
+export function StudentProfile({ id, today }: { id: string; today: string }) {
   const toast = useToast()
-  const { studentById, teacherLabel, clubLabel, groups, actions } = useDemo()
+  const demo = useDemo()
+  const { studentById, teacherLabel, clubLabel, groups, actions } = demo
   const [editing, setEditing] = useState(false)
   const student = studentById(id)
 
@@ -41,7 +42,9 @@ export function StudentProfile({ id, today, charge }: { id: string; today: strin
     )
   }
 
-  const account = accountById(student.accountId)
+  const account = demo.accounts.find((a) => a.id === student.accountId)
+  const accountMembers = demo.students.filter((s) => s.accountId === student.accountId)
+  const charge = buildCharges(demo, today).find((c) => c.account.id === student.accountId) ?? null
   const mine = groups.filter((g) => g.studentIds.includes(student.id))
   const years = Math.floor((Date.parse(today) - Date.parse(student.birthDate)) / (365.25 * 86400000))
   const otherClubs = student.extraClubIds.map((clubId) => clubLabel(clubId)).filter(Boolean)
@@ -95,13 +98,9 @@ export function StudentProfile({ id, today, charge }: { id: string; today: strin
             <div>
               <p className="font-medium">{account?.name ?? 'Sin cuenta de cobro'}</p>
               <p className="text-xs text-muted-foreground">
-                {account?.kind === 'individual'
-                  ? 'Individual'
-                  : account?.kind === 'couple'
-                    ? 'Pareja'
-                    : account
-                      ? 'Familia'
-                      : ''}
+                {account
+                  ? `${accountKindLabel(accountMembers.length)} · ${accountMembers.length} ${accountMembers.length === 1 ? 'alumno' : 'alumnos'}`
+                  : ''}
               </p>
             </div>
             {charge ? <PaymentStatusBadge status={charge.status} /> : null}

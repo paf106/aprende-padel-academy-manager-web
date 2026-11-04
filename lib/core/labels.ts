@@ -54,3 +54,7 @@ export const cancellationReasonLabels: Record<CancellationReason, string> = {
   single_attendee: 'Solo asiste un alumno',
   other: 'Otro motivo',
 }
+
+/** Individual, couple or family, depending on how many students share the billing account. */
+export const accountKindLabel = (memberCount: number) =>
+  memberCount <= 1 ? 'Individual' : memberCount === 2 ? 'Pareja' : 'Familia'

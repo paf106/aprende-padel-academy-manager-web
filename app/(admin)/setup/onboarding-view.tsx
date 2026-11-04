@@ -11,12 +11,13 @@ import { Card } from '@/components/ds/card'
 import { Input, Label } from '@/components/ds/input'
 import { PageContainer } from '@/components/ds/page-header'
 import { useToast } from '@/components/ds/toast'
-import { clubs, feePlans } from '@/lib/demo/data'
+import { useDemo } from '@/lib/demo/use-demo'
 
 const steps = ['Sedes', 'Pistas', 'Tarifas', 'Reglas de pago', 'Alumnos'] as const
 
 export function OnboardingView() {
   const toast = useToast()
+  const { clubs, catalog } = useDemo()
   const [step, setStep] = useState(0)
   const [sites, setSites] = useState(clubs.map((c) => c.name))
   const [courts, setCourts] = useState(Object.fromEntries(clubs.map((c) => [c.id, c.courts])))
@@ -82,12 +83,17 @@ export function OnboardingView() {
         {step === 2 ? (
           <div className="grid max-w-md gap-2">
             <h2 className="text-lg font-semibold">Cuotas mensuales</h2>
-            {feePlans.map((p) => (
-              <p key={p.id} className="flex justify-between text-sm">
-                <span>{p.name}</span>
-                <span className="font-semibold tabular-nums">{formatMoney(p.monthlyCents)}</span>
-              </p>
-            ))}
+            {catalog.rates
+              .filter((rate) => rate.classesPerWeek === 1)
+              .map((rate) => (
+                <p key={rate.segmentId} className="flex justify-between text-sm">
+                  <span>{catalog.segments.find((s) => s.id === rate.segmentId)?.name}</span>
+                  <span className="font-semibold tabular-nums">{formatMoney(rate.monthlyCents)}</span>
+                </p>
+              ))}
+            <p className="text-sm text-muted-foreground">
+              {catalog.offers.filter((o) => o.active).length} ofertas combinadas activas.
+            </p>
             <p className="text-sm text-muted-foreground">Podrás editarlas en Pagos → Tarifas.</p>
           </div>
         ) : null}

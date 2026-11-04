@@ -24,6 +24,8 @@ export const studentSchema = z
     phone: z.string().trim(),
     guardianName: z.string().trim(),
     guardianPhone: z.string().trim(),
+    /** Empty means a new individual billing account. */
+    accountId: z.string(),
   })
   .superRefine((value, context) => {
     if (value.category === 'child' && !value.guardianName) {
@@ -50,4 +52,5 @@ export const emptyStudentInput: StudentInput = {
   phone: '',
   guardianName: '',
   guardianPhone: '',
+  accountId: '',
 }

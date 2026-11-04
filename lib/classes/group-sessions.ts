@@ -1,4 +1,4 @@
-import { addDays } from '@/lib/core/calendar-nav'
+import { addDays, isoWeekday } from '@/lib/core/calendar-nav'
 
 export type GroupSchedule = {
   weekday: number
@@ -13,8 +13,6 @@ type ExistingSession = { id: string; groupId: string; date: string; status: stri
 
 export const SESSION_HORIZON_WEEKS = 8
 
-const weekdayOf = (date: string) => ((new Date(`${date}T00:00:00Z`).getUTCDay() + 6) % 7) + 1
-
 /** Weekly class dates of a group inside [from, to], skipping closed days. Inactive groups generate nothing. */
 export function generateSlots(
   group: GroupSchedule,
@@ -26,7 +24,7 @@ export function generateSlots(
   const last = group.endsOn && group.endsOn < range.to ? group.endsOn : range.to
   const slots: GeneratedSlot[] = []
   for (let date = first; date <= last; date = addDays(date, 1)) {
-    if (weekdayOf(date) === group.weekday && !closedDays.includes(date)) {
+    if (isoWeekday(date) === group.weekday && !closedDays.includes(date)) {
       slots.push({ date, start: group.start, duration: group.duration })
     }
   }

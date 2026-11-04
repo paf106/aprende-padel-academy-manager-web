@@ -1,51 +1,23 @@
 'use client'
 
-import { ChevronDown, ChevronRight, Download } from 'lucide-react'
-import { Fragment, useMemo, useState } from 'react'
-import { accountStatement } from '@/lib/payments/account-billing'
-import { defaultTeacherRates, type TeacherRates } from '@/lib/payments/teacher-pay'
-import { formatMoney } from '@/lib/core/money'
+import { Download } from 'lucide-react'
+import { useMemo, useState } from 'react'
 import { PaymentStatusBadge } from '@/components/ds/badge'
 import { Button } from '@/components/ds/button'
-import { BentoCard, BentoGrid, Card, Stat } from '@/components/ds/card'
-import { DataTable, type Column } from '@/components/ds/data-table'
-import { Drawer } from '@/components/ds/drawer'
-import { Dropdown } from '@/components/ds/dropdown'
-import { FilterBar, type FilterDef } from '@/components/ds/filter-bar'
-import { Tabs } from '@/components/ds/tabs'
-import { Input, Label } from '@/components/ds/input'
+import { Card } from '@/components/ds/card'
+import { DataTable } from '@/components/ds/data-table'
 import { PageContainer, PageToolbar } from '@/components/ds/page-header'
+import { Tabs } from '@/components/ds/tabs'
 import { useToast } from '@/components/ds/toast'
-import type { Charge, TeacherSettlementRow } from '@/lib/demo/billing'
-import { clubById, feePlans as initialPlans } from '@/lib/demo/data'
+import { formatMoney } from '@/lib/core/money'
+import { buildCharges, buildSettlements, groupProfitability } from '@/lib/demo/billing'
+import { useDemo } from '@/lib/demo/use-demo'
+import { ChargesTab } from './charges-tab'
+import { RatesTab } from './rates-tab'
 
-type Tab = 'charges' | 'teachers' | 'rates' | 'profitability'
-type Profit = {
-  id: string
-  name: string
-  clubId: string
-  incomeCents: number
-  costCents: number
-  marginCents: number
-}
-type Method = 'cash' | 'transfer' | 'bizum'
-const statusFilters: FilterDef[] = [
-  {
-    key: 'status',
-    label: 'Estado',
-    allLabel: 'Todos los estados',
-    options: [
-      { value: 'pending', label: 'No pagado' },
-      { value: 'partial', label: 'Parcial' },
-      { value: 'paid', label: 'Pagado' },
-    ],
-  },
-]
-const methodLabel: Record<Method, string> = { cash: 'Efectivo', transfer: 'Transferencia', bizum: 'Bizum' }
-const methodOptions = (Object.keys(methodLabel) as Method[]).map((value) => ({
-  value,
-  label: methodLabel[value],
-}))
+export type PaymentsTab = 'charges' | 'teachers' | 'rates' | 'profitability'
+
+const euros = (cents: number) => (cents / 100).toFixed(2).replace('.', ',')
 
 function downloadCsv(name: string, rows: (string | number)[][]) {
   const csv = rows
@@ -58,174 +30,44 @@ function downloadCsv(name: string, rows: (string | number)[][]) {
   link.click()
   URL.revokeObjectURL(url)
 }
-const euros = (cents: number) => (cents / 100).toFixed(2).replace('.', ',')
 
-export function PaymentsView({
-  month,
-  initialTab,
-  charges: initialCharges,
-  settlements,
-  profitability,
-}: {
-  month: string
-  initialTab: Tab
-  charges: Charge[]
-  settlements: TeacherSettlementRow[]
-  profitability: Profit[]
-}) {
+export function PaymentsView({ today, initialTab }: { today: string; initialTab: PaymentsTab }) {
   const toast = useToast()
-  const [tab, setTab] = useState<Tab>(initialTab)
-  const [charges, setCharges] = useState(initialCharges)
-  const [query, setQuery] = useState('')
-  const [status, setStatus] = useState('')
-  const [open, setOpen] = useState<string | null>(null)
-  const [payFor, setPayFor] = useState<string | null>(null)
-  const [amount, setAmount] = useState('')
-  const [method, setMethod] = useState<Method>('bizum')
-  const [paidOn, setPaidOn] = useState(`${month}-15`)
-  const [plans, setPlans] = useState(initialPlans)
-  const [rates, setRates] = useState<TeacherRates>(defaultTeacherRates)
+  const demo = useDemo()
+  const [tab, setTab] = useState<PaymentsTab>(initialTab)
   const [paidTeachers, setPaidTeachers] = useState<string[]>([])
+  const month = today.slice(0, 7)
 
-  const rows = useMemo(
-    () =>
-      charges.filter(
-        (c) => c.account.name.toLowerCase().includes(query.toLowerCase()) && (!status || c.status === status),
-      ),
-    [charges, query, status],
-  )
-  const totals = {
-    due: charges.reduce((s, c) => s + c.dueCents, 0),
-    paid: charges.reduce((s, c) => s + c.paidCents, 0),
-    debt: charges.reduce((s, c) => s + c.debtCents, 0),
-  }
-  const payTarget = charges.find((c) => c.account.id === payFor)
+  const charges = useMemo(() => buildCharges(demo, today), [demo, today])
+  const settlements = useMemo(() => buildSettlements(demo, today), [demo, today])
+  const profitability = useMemo(() => groupProfitability(demo, today, charges), [demo, today, charges])
 
-  const registerPayment = () => {
-    const cents = Math.round(Number(amount.replace(',', '.')) * 100)
-    if (!payTarget || !Number.isFinite(cents) || cents <= 0) {
-      toast('Introduce un importe válido.', 'error')
-      return
+  const exportCsv = () => {
+    if (tab === 'teachers') {
+      downloadCsv(`liquidaciones-${month}.csv`, [
+        ['Profesor', 'Clases', 'Horas', 'Total'],
+        ...settlements.map((s) => [s.name, s.sessions, s.hours, euros(s.totalCents)]),
+      ])
+    } else {
+      downloadCsv(`cobros-${month}.csv`, [
+        ['Cuenta', 'A cobrar', 'Pagado', 'Pendiente', 'Estado'],
+        ...charges.map((c) => [
+          c.account.name,
+          euros(c.dueCents),
+          euros(c.paidCents),
+          euros(c.balanceCents),
+          c.status,
+        ]),
+      ])
     }
-    const statement = accountStatement({
-      members: payTarget.members.map((m) => ({ memberId: m.studentId, amountCents: m.proratedCents })),
-      paymentsCents: [payTarget.paidCents + cents],
-    })
-    setCharges((list) =>
-      list.map((c) =>
-        c.account.id === payTarget.account.id
-          ? {
-              ...c,
-              ...statement,
-              lastPayment: { date: paidOn, method },
-              debtCents: Math.max(0, c.debtCents - cents),
-            }
-          : c,
-      ),
-    )
-    setPayFor(null)
-    setAmount('')
-    toast(
-      statement.surplusCents > 0
-        ? `Pago registrado. ${formatMoney(statement.surplusCents)} quedan como saldo a favor para el mes siguiente.`
-        : 'Pago registrado.',
-    )
   }
-
-  const chargeColumns: Column<Charge>[] = [
-    {
-      key: 'account',
-      header: 'Cuenta',
-      cell: (c) => (
-        <button
-          type="button"
-          aria-expanded={open === c.account.id}
-          onClick={() => setOpen(open === c.account.id ? null : c.account.id)}
-          className="flex cursor-pointer items-center gap-2 font-medium"
-        >
-          {open === c.account.id ? (
-            <ChevronDown size={14} aria-hidden="true" />
-          ) : (
-            <ChevronRight size={14} aria-hidden="true" />
-          )}
-          {c.account.name}
-          <span className="text-xs font-normal text-muted-foreground">
-            {c.members.length > 1 ? `${c.members.length} miembros` : ''}
-          </span>
-        </button>
-      ),
-    },
-    { key: 'due', header: 'A cobrar', align: 'right', cell: (c) => formatMoney(c.dueCents) },
-    { key: 'paid', header: 'Pagado', align: 'right', cell: (c) => formatMoney(c.paidCents) },
-    {
-      key: 'debt',
-      header: 'Deuda total',
-      align: 'right',
-      cell: (c) =>
-        c.debtCents > 0 ? (
-          <span className={c.monthsOverdue > 0 ? 'font-semibold text-danger' : ''}>
-            {formatMoney(c.debtCents)}
-            {c.monthsOverdue > 0 ? ` · ${c.monthsOverdue} m.` : ''}
-          </span>
-        ) : (
-          '—'
-        ),
-    },
-    { key: 'status', header: 'Estado', cell: (c) => <PaymentStatusBadge status={c.status} /> },
-    {
-      key: 'method',
-      header: 'Último pago',
-      cell: (c) =>
-        c.lastPayment
-          ? `${c.lastPayment.date.split('-').reverse().join('/')} · ${methodLabel[c.lastPayment.method]}`
-          : '—',
-    },
-    {
-      key: 'actions',
-      header: '',
-      align: 'right',
-      cell: (c) =>
-        c.balanceCents > 0 ? (
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() => {
-              setPayFor(c.account.id)
-              setAmount((c.balanceCents / 100).toFixed(2))
-            }}
-          >
-            Registrar pago
-          </Button>
-        ) : null,
-    },
-  ]
 
   return (
     <PageContainer>
       <PageToolbar
         title="Pagos"
         actions={
-          <Button
-            variant="secondary"
-            onClick={() => {
-              if (tab === 'teachers')
-                downloadCsv(`liquidaciones-${month}.csv`, [
-                  ['Profesor', 'Clases', 'Horas', 'Total'],
-                  ...settlements.map((s) => [s.name, s.sessions, s.hours, euros(s.totalCents)]),
-                ])
-              else
-                downloadCsv(`cobros-${month}.csv`, [
-                  ['Cuenta', 'A cobrar', 'Pagado', 'Pendiente', 'Estado'],
-                  ...charges.map((c) => [
-                    c.account.name,
-                    euros(c.dueCents),
-                    euros(c.paidCents),
-                    euros(c.balanceCents),
-                    c.status,
-                  ]),
-                ])
-            }}
-          >
+          <Button variant="secondary" onClick={exportCsv}>
             <Download size={16} aria-hidden="true" />
             Exportar CSV
           </Button>
@@ -234,7 +76,7 @@ export function PaymentsView({
         <Tabs
           label="Sección"
           value={tab}
-          onChange={(v) => setTab(v as Tab)}
+          onChange={(v) => setTab(v as PaymentsTab)}
           tabs={[
             { value: 'charges', label: 'Cobros del mes' },
             { value: 'teachers', label: 'Liquidaciones' },
@@ -244,104 +86,7 @@ export function PaymentsView({
         />
       </PageToolbar>
 
-      {tab === 'charges' ? (
-        <>
-          <BentoGrid>
-            <BentoCard span="md">
-              <Stat value={formatMoney(totals.due)} label="A cobrar este mes" />
-            </BentoCard>
-            <BentoCard span="md">
-              <Stat
-                value={formatMoney(totals.paid)}
-                label="Cobrado"
-                hint={`${Math.round((totals.paid / Math.max(totals.due, 1)) * 100)}% del total`}
-              />
-            </BentoCard>
-            <BentoCard span="md">
-              <Stat
-                value={formatMoney(totals.debt)}
-                label="Deuda acumulada"
-                hint="Incluye meses anteriores"
-              />
-            </BentoCard>
-          </BentoGrid>
-          <div className="flex flex-wrap items-center gap-2">
-            <FilterBar
-              search={{
-                value: query,
-                onChange: setQuery,
-                placeholder: 'Buscar cuenta…',
-                label: 'Buscar cuenta',
-              }}
-              filters={statusFilters}
-              values={{ status }}
-              onChange={(_key, value) => setStatus(value)}
-              onClear={() => {
-                setQuery('')
-                setStatus('')
-              }}
-            />
-          </div>
-          <Card>
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-sm">
-                <thead>
-                  <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                    {chargeColumns.map((c) => (
-                      <th
-                        key={c.key}
-                        scope="col"
-                        className={`px-4 py-3 font-medium ${c.align === 'right' ? 'text-right' : ''}`}
-                      >
-                        {c.header}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((charge) => (
-                    <Fragment key={charge.account.id}>
-                      <tr className="border-b border-border/60">
-                        {chargeColumns.map((c) => (
-                          <td
-                            key={c.key}
-                            className={`px-4 py-3 ${c.align === 'right' ? 'text-right tabular-nums' : ''}`}
-                          >
-                            {c.cell(charge)}
-                          </td>
-                        ))}
-                      </tr>
-                      {open === charge.account.id ? (
-                        <tr className="bg-muted/40">
-                          <td colSpan={chargeColumns.length} className="px-10 py-3">
-                            <p className="mb-2 text-xs font-medium text-muted-foreground">
-                              Desglose por miembro
-                            </p>
-                            <ul className="grid gap-1.5 text-sm">
-                              {charge.members.map((m) => (
-                                <li key={m.studentId} className="flex justify-between gap-4">
-                                  <span>{m.name}</span>
-                                  <span className="tabular-nums text-muted-foreground">
-                                    {formatMoney(m.baseCents)} · {m.scheduled - m.cancelled}/{m.scheduled}{' '}
-                                    clases →{' '}
-                                    <span className="font-semibold text-foreground">
-                                      {formatMoney(m.proratedCents)}
-                                    </span>
-                                  </span>
-                                </li>
-                              ))}
-                            </ul>
-                          </td>
-                        </tr>
-                      ) : null}
-                    </Fragment>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Card>
-        </>
-      ) : null}
+      {tab === 'charges' ? <ChargesTab month={month} charges={charges} /> : null}
 
       {tab === 'teachers' ? (
         <Card>
@@ -388,107 +133,20 @@ export function PaymentsView({
         </Card>
       ) : null}
 
-      {tab === 'rates' ? (
-        <BentoGrid>
-          <BentoCard span="lg" title="Cuotas mensuales de alumnos">
-            <ul className="grid gap-3">
-              {plans.map((plan) => (
-                <li key={plan.id} className="flex items-center justify-between gap-3">
-                  <span className="text-sm font-medium">{plan.name}</span>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      aria-label={`Importe de ${plan.name}`}
-                      inputMode="decimal"
-                      className="w-24 text-right"
-                      value={euros(plan.monthlyCents)}
-                      onChange={(e) => {
-                        const cents = Math.round(Number(e.target.value.replace(',', '.')) * 100)
-                        if (Number.isFinite(cents))
-                          setPlans((list) =>
-                            list.map((p) => (p.id === plan.id ? { ...p, monthlyCents: cents } : p)),
-                          )
-                      }}
-                    />
-                    <span className="text-sm text-muted-foreground">€/mes</span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-            <Button className="mt-2 self-start" onClick={() => toast('Tarifas guardadas.')}>
-              Guardar tarifas
-            </Button>
-          </BentoCard>
-          <BentoCard span="lg" title="Pago a profesores (€/hora)">
-            <div className="grid gap-4">
-              {(['adult', 'child'] as const).map((category) => (
-                <fieldset key={category} className="grid grid-cols-3 gap-3">
-                  <legend className="mb-2 text-sm font-medium">
-                    {category === 'adult' ? 'Adultos' : 'Niños'}
-                  </legend>
-                  <div>
-                    <Label>Umbral alumnos</Label>
-                    <Input
-                      type="number"
-                      min={1}
-                      value={rates[category].threshold}
-                      onChange={(e) =>
-                        setRates((r) => ({
-                          ...r,
-                          [category]: { ...r[category], threshold: Number(e.target.value) },
-                        }))
-                      }
-                    />
-                  </div>
-                  <div>
-                    <Label>Menos del umbral</Label>
-                    <Input
-                      inputMode="decimal"
-                      value={euros(rates[category].belowCents)}
-                      onChange={(e) =>
-                        setRates((r) => ({
-                          ...r,
-                          [category]: {
-                            ...r[category],
-                            belowCents: Math.round(Number(e.target.value.replace(',', '.')) * 100) || 0,
-                          },
-                        }))
-                      }
-                    />
-                  </div>
-                  <div>
-                    <Label>Desde el umbral</Label>
-                    <Input
-                      inputMode="decimal"
-                      value={euros(rates[category].atOrAboveCents)}
-                      onChange={(e) =>
-                        setRates((r) => ({
-                          ...r,
-                          [category]: {
-                            ...r[category],
-                            atOrAboveCents: Math.round(Number(e.target.value.replace(',', '.')) * 100) || 0,
-                          },
-                        }))
-                      }
-                    />
-                  </div>
-                </fieldset>
-              ))}
-            </div>
-            <Button className="mt-2 self-start" onClick={() => toast('Reglas de pago guardadas.')}>
-              Guardar reglas
-            </Button>
-          </BentoCard>
-        </BentoGrid>
-      ) : null}
+      {tab === 'rates' ? <RatesTab /> : null}
 
       {tab === 'profitability' ? (
         <Card>
           <DataTable
             rows={profitability}
-            rowKey={(p) => p.id}
+            rowKey={(p) => p.group.id}
             columns={[
-              { key: 'group', header: 'Grupo', cell: (p) => <span className="font-medium">{p.name}</span> },
-              { key: 'club', header: 'Sede', cell: (p) => clubById(p.clubId)?.name },
+              {
+                key: 'group',
+                header: 'Grupo',
+                cell: (p) => <span className="font-medium">{p.group.name}</span>,
+              },
+              { key: 'club', header: 'Sede', cell: (p) => demo.clubLabel(p.group.clubId) },
               { key: 'income', header: 'Cobrado', align: 'right', cell: (p) => formatMoney(p.incomeCents) },
               { key: 'cost', header: 'Profesor', align: 'right', cell: (p) => formatMoney(p.costCents) },
               {
@@ -508,54 +166,6 @@ export function PaymentsView({
           </p>
         </Card>
       ) : null}
-
-      <Drawer
-        open={payTarget !== undefined && payFor !== null}
-        onClose={() => setPayFor(null)}
-        title="Registrar pago"
-        description={
-          payTarget
-            ? `${payTarget.account.name} · pendiente ${formatMoney(payTarget.balanceCents)}`
-            : undefined
-        }
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setPayFor(null)}>
-              Cancelar
-            </Button>
-            <Button onClick={registerPayment}>Guardar pago</Button>
-          </>
-        }
-      >
-        <div className="grid gap-5">
-          <div>
-            <Label htmlFor="pay-amount">Importe (€)</Label>
-            <Input
-              id="pay-amount"
-              inputMode="decimal"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-            />
-          </div>
-          <div>
-            <Label>Método</Label>
-            <Dropdown
-              aria-label="Método de pago"
-              value={method}
-              onChange={(v) => setMethod(v as Method)}
-              options={methodOptions}
-            />
-          </div>
-          <div>
-            <Label htmlFor="pay-date">Fecha</Label>
-            <Input id="pay-date" type="date" value={paidOn} onChange={(e) => setPaidOn(e.target.value)} />
-          </div>
-          <p className="rounded-xl bg-muted p-3 text-sm text-muted-foreground">
-            Los pagos son un registro inmutable: no se pueden editar ni borrar. Si te pasas, el excedente
-            queda como saldo a favor.
-          </p>
-        </div>
-      </Drawer>
     </PageContainer>
   )
 }

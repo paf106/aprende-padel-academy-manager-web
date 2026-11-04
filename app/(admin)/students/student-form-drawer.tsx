@@ -16,7 +16,18 @@ const toOptions = <T extends string>(values: readonly T[], labels: Record<T, str
 
 export function StudentFormDrawer({ student, onClose }: { student?: Student; onClose: () => void }) {
   const toast = useToast()
-  const { actions, activeClubs } = useDemo()
+  const { actions, activeClubs, accounts, students } = useDemo()
+  const accountOptions = [
+    { value: '', label: 'Cuenta individual nueva' },
+    ...accounts.map((account) => {
+      const members = students.filter((s) => s.accountId === account.id).length
+      return {
+        value: account.id,
+        label: account.name,
+        hint: `${members} ${members === 1 ? 'alumno' : 'alumnos'}`,
+      }
+    }),
+  ]
   const clubOptions = activeClubs.map((club) => ({ value: club.id, label: club.name }))
   const [values, setValues] = useState<StudentInput>(
     student
@@ -33,6 +44,7 @@ export function StudentFormDrawer({ student, onClose }: { student?: Student; onC
           phone: student.phone,
           guardianName: student.guardianName,
           guardianPhone: student.guardianPhone,
+          accountId: student.accountId,
         }
       : emptyStudentInput,
   )
@@ -113,6 +125,12 @@ export function StudentFormDrawer({ student, onClose }: { student?: Student; onC
         error={errors.clubId}
         onChange={(v) => set('clubId', v)}
         options={clubOptions}
+      />
+      <SelectField
+        label="Cuenta de cobro"
+        value={values.accountId}
+        onChange={(v) => set('accountId', v)}
+        options={accountOptions}
       />
       <MultiSelectField
         label="Otras sedes donde puede asistir"
