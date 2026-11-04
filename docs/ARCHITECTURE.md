@@ -34,8 +34,17 @@ docs/           Documentation
 
 - Class categories: adult (max 4 students) and child (max 6); categories are never mixed.
 - Class status: pending, completed, cancelled (rain, bad weather, other). Cancelled classes are not charged.
-- Fees are monthly. Proration: `fee × (scheduled − cancelled) / scheduled`. Student absences are still charged.
-- Mid-month joins, leaves and tariff changes are manual adjustments with a mandatory reason.
+- Fees are monthly and come from the organization's rates: age segments (children, adults, seniors) by classes per
+  week, plus combined offers (family, couple). Rates are generic; AprendePadel's 2026-2027 conditions are the demo seed.
+- The cheapest combination of offers and individual rates is applied each month. An offer needs all its members that
+  month and the same weekly frequency; if a child skips a month the family drops to the offer that fits.
+- Included-classes mode (default): the fee includes 4 classes per weekly class, a fifth class is charged in proportion,
+  and cancelled classes (rain, bad weather, teacher absent or 20+ minutes late, only one student showed up) and holidays
+  are credited the next month. Student absences are never credited. Prorate mode (same-month proration) is optional.
+- Leaving needs notice (10 days by default); without it the full month is charged and credits are lost.
+- Mid-month joins, leaves and tariff changes are manual price overrides with a mandatory reason.
+- Drop-in classes (15 €), private classes (1-2 students, 13+ years, court price added) and closed-price courses
+  (June intensive) are extra charges added to the account's month.
 - Teacher pay is hourly and depends on enrolled students (default 15 €/h from 3 students, 12 €/h below),
   configurable per organization, per category and per teacher. Only completed classes count.
 - Families and couples share one billing account: one monthly charge, with a per-member breakdown.

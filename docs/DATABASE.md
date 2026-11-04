@@ -153,7 +153,6 @@ erDiagram
     billing_account_members {
         uuid billing_account_id PK,FK
         uuid student_id PK,FK
-        uuid fee_plan_id FK
         date starts_on
         date ends_on
     }
@@ -250,7 +249,10 @@ Database rules (triggers and transactional functions):
 
 ```mermaid
 erDiagram
-    fee_plans ||--o{ billing_charges : "applied plan"
+    age_segments ||--o{ individual_rates : prices
+    pack_offers ||--o{ pack_offer_slots : composes
+    billing_charges ||--o{ extra_charges : "adds"
+    courses ||--o{ course_enrollments : enrolls
     billing_accounts_ref ||--o{ billing_periods_charges : cobra
     billing_periods ||--o{ billing_charges : contiene
     billing_charges ||--o{ billing_charge_lines : desglosa
@@ -261,13 +263,74 @@ erDiagram
     teacher_settlements ||--o{ teacher_settlement_lines : detalla
     teacher_pay_rates ||--o{ teacher_settlement_lines : tarifa
 
-    fee_plans {
+    age_segments {
         uuid id PK
         uuid organization_id FK
-        text name "Standard | Couple"
-        int monthly_cents "3500 | 3000"
-        text applies_to "individual|couple|family"
+        text name "Children | Adults | Seniors"
+        smallint min_age "7"
+        smallint max_age "null = no limit"
+    }
+    individual_rates {
+        uuid segment_id PK,FK
+        smallint classes_per_week PK "1 | 2"
+        int monthly_cents "3500 | 6000"
+    }
+    pack_offers {
+        uuid id PK
+        uuid organization_id FK
+        text name "Family of 3"
+        smallint classes_per_week "offers only combine equal frequencies"
+        int price_cents "8000"
         boolean active
+    }
+    pack_offer_slots {
+        uuid offer_id PK,FK
+        smallint position PK
+        smallint count "2 adults + 1 child"
+        uuid_array segment_ids "any of these segments"
+    }
+    billing_settings {
+        uuid organization_id PK
+        text mode "included|prorate"
+        smallint included_per_weekly_class "4"
+        boolean charge_extra_classes
+        text credit_timing "next_month|same_month"
+        text_array credit_reasons "rain, bad_weather, teacher_absent..."
+        smallint leave_notice_days "10"
+        text_array allowed_payment_methods "cash|transfer|bizum"
+    }
+    rate_overrides {
+        uuid id PK
+        uuid organization_id FK
+        text scope "student|account"
+        uuid target_id
+        int amount_cents
+        text reason "required"
+        text from_month "YYYY-MM"
+        text to_month "null = open ended"
+    }
+    extra_charges {
+        uuid id PK
+        uuid billing_account_id
+        uuid student_id
+        text kind "drop_in|private|course"
+        int amount_cents
+        text month "YYYY-MM"
+        uuid session_id "logical ref to classes"
+        uuid course_id "logical ref to classes"
+    }
+    courses {
+        uuid id PK
+        uuid organization_id FK
+        text name "June intensive"
+        date starts_on
+        date ends_on
+        smallint_array weekdays
+        int price_by_segment "course price list"
+    }
+    course_enrollments {
+        uuid course_id PK,FK
+        uuid student_id PK
     }
     billing_periods {
         uuid id PK
@@ -290,11 +353,14 @@ erDiagram
         uuid id PK
         uuid charge_id FK
         uuid student_id "logical ref to core"
-        uuid fee_plan_id FK
-        int base_cents
-        smallint scheduled_sessions
-        smallint cancelled_sessions
-        int prorated_cents
+        text source "offer|individual|override"
+        uuid offer_id FK
+        int share_cents "fee or share of the offer"
+        smallint included_classes
+        smallint extra_classes
+        int extra_cents
+        int earned_credit_cents "applied next month"
+        int applied_credit_cents
     }
     billing_adjustments {
         uuid id PK
@@ -368,8 +434,16 @@ Database rules:
 
 - `payments`, `billing_adjustments` and `session_audit` are **append-only** (a trigger rejects `update` and `delete`).
 - A `closed` period accepts no changes; corrections are adjustments in the following period.
-- `generate_charges(period)`: one charge per account and month; one line per member with
-  `prorated = round(base × (scheduled − cancelled) / scheduled)`.
+- Age segment is recalculated every month on day 1; a student turning 13 in January pays as an adult from February.
+- `generate_charges(period)`: one charge per account and month. Members are grouped by classes per week and priced with
+  the cheapest combination of pack offers and individual rates; if a member is missing that month the offer that
+  fits is applied instead (for example family of 3 instead of family of 4). Offer prices are split across members in
+  proportion to their individual rates.
+- Included-classes mode: the fee includes `included_per_weekly_class × classes_per_week` classes; extra classes are
+  charged `share / included` each; cancelled classes with a credit reason and holidays earn the same amount as credit,
+  applied to the next month. Prorate mode keeps the old `share × (scheduled − cancelled) / scheduled` inside the month.
+- A `rate_overrides` row replaces the automatic price for its months and always stores the reason.
+- Drop-in classes, private classes and course enrollments create `extra_charges`; cancelling the class removes its charge.
 - Overpayment: creates `account_credits`, applied to the next charge.
 - Accumulated debt: view `account_debt` (unpaid balances and age in months).
 - Profitability: view `group_profitability` = collected (share per group) − `teacher_settlement_lines`.
@@ -382,7 +456,7 @@ erDiagram
         uuid id PK
         uuid organization_id FK
         uuid actor_id
-        text entity "charge|fee_plan|session|payment"
+        text entity "charge|rate|session|payment"
         uuid entity_id
         text action
         jsonb before
@@ -393,7 +467,7 @@ erDiagram
     import_batches {
         uuid id PK
         uuid organization_id FK
-        text kind "students|groups|fee_plans"
+        text kind "students|groups|rates"
         text status "preview|confirmed|failed"
         uuid created_by
     }
