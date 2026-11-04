@@ -20,7 +20,13 @@ export const clubSchema = z.object({
   color: z.enum(clubColors),
   photo: z
     .string()
-    .refine((value) => value === '' || value.startsWith('data:image/'), 'La foto no es válida'),
+    .refine(
+      (value) =>
+        value === '' ||
+        value.startsWith('data:image/') ||
+        value.includes('/storage/v1/object/public/club-photos/'),
+      'La foto no es válida',
+    ),
 })
 
 export type ClubInput = z.infer<typeof clubSchema>

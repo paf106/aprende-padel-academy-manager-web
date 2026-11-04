@@ -6,14 +6,17 @@ import { Button } from '@/components/ds/button'
 import { cn } from '@/lib/core/cn'
 import { imageFileError, resizeImageToDataUrl } from '@/lib/core/image'
 
-/** Single image field with drag and drop. The image is scaled down in the browser and returned as a data URL. */
+/** Single image field with drag and drop. The image is scaled down in the browser; `upload` can turn it into a stored URL. */
 export function ImageUpload({
   value,
   onChange,
+  upload,
   error,
 }: {
   value: string
-  onChange: (dataUrl: string) => void
+  onChange: (value: string) => void
+  /** Stores the scaled image and returns the value to keep (for example a public URL). Throw to show an error. */
+  upload?: (dataUrl: string) => Promise<string>
   error?: string
 }) {
   const input = useRef<HTMLInputElement>(null)
@@ -31,9 +34,10 @@ export function ImageUpload({
     setLocalError('')
     setBusy(true)
     try {
-      onChange(await resizeImageToDataUrl(file))
-    } catch {
-      setLocalError('No se pudo leer la imagen')
+      const dataUrl = await resizeImageToDataUrl(file)
+      onChange(upload ? await upload(dataUrl) : dataUrl)
+    } catch (error) {
+      setLocalError(upload && error instanceof Error ? error.message : 'No se pudo leer la imagen')
     } finally {
       setBusy(false)
     }

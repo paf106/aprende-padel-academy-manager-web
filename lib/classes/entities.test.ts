@@ -26,6 +26,12 @@ describe('club schema', () => {
   it('rejects invalid postal codes and non-image photos', () => {
     expect(validate(clubSchema, { ...validClub, postalCode: '123' }).ok).toBe(false)
     expect(validate(clubSchema, { ...validClub, photo: 'https://x.com/a.png' }).ok).toBe(false)
+    expect(
+      validate(clubSchema, {
+        ...validClub,
+        photo: 'https://p.supabase.co/storage/v1/object/public/club-photos/org/a.webp',
+      }).ok,
+    ).toBe(true)
   })
 })
 

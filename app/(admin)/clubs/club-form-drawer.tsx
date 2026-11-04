@@ -6,6 +6,7 @@ import { ColorPicker } from '@/components/ds/color-picker'
 import { Field, TextField } from '@/components/ds/field'
 import { MoneyInput } from '@/components/ds/money-input'
 import { ImageUpload } from '@/components/ds/image-upload'
+import { uploadClubPhoto } from '@/lib/db/photos'
 import { useToast } from '@/components/ds/toast'
 import { clubSchema, emptyClubInput, type ClubInput } from '@/lib/classes/club-schema'
 import { validate } from '@/lib/core/validation'
@@ -54,7 +55,16 @@ export function ClubFormDrawer({ club, onClose }: { club?: Club; onClose: () => 
       onClose={onClose}
     >
       <Field label="Foto de la sede">
-        <ImageUpload value={values.photo} error={errors.photo} onChange={(photo) => set('photo', photo)} />
+        <ImageUpload
+          value={values.photo}
+          error={errors.photo}
+          onChange={(photo) => set('photo', photo)}
+          upload={async (dataUrl) => {
+            const result = await uploadClubPhoto(dataUrl)
+            if (!result.ok) throw new Error(result.error)
+            return result.url
+          }}
+        />
       </Field>
       <TextField
         id="club-name"
