@@ -39,7 +39,7 @@ import { defaultTeacherRates, type TeacherRates } from '@/lib/payments/teacher-p
 
 export type { DemoState, PaymentRecord } from '@/lib/demo/state'
 
-const STORAGE_KEY = 'aprende-padel-demo-v4'
+const STORAGE_KEY = 'aprende-padel-demo-v5'
 const today = () => localTodayInTimeZone('Europe/Madrid')
 
 const baseSeed: DemoState = {

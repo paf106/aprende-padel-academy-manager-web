@@ -29,7 +29,7 @@ export const defaultBillingSettings: BillingSettings = {
   creditTiming: 'next_month',
   creditReasons: ['rain', 'bad_weather', 'teacher_absent', 'teacher_late', 'single_attendee'],
   leaveNoticeDays: 10,
-  allowedPaymentMethods: ['cash', 'transfer'],
+  allowedPaymentMethods: ['cash', 'transfer', 'bizum'],
 }
 
 const dayNumber = (date: string) => Math.floor(Date.parse(`${date}T00:00:00Z`) / 86_400_000)
