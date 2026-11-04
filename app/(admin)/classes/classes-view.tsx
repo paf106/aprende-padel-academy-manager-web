@@ -17,6 +17,7 @@ import {
   type CalendarTone,
 } from '@/components/calendar/calendar'
 import { ClassStatusBadge } from '@/components/ds/badge'
+import { ConfirmDialog } from '@/components/crud/confirm-dialog'
 import { Button } from '@/components/ds/button'
 import { Drawer } from '@/components/ds/drawer'
 import { Dropdown } from '@/components/ds/dropdown'
@@ -63,6 +64,7 @@ export function ClassesView({ today }: { today: string }) {
     studentById,
     courses,
     extras,
+    extraCharges,
     actions,
   } = useAppData()
   const sessions = useMemo<SessionState[]>(
@@ -85,6 +87,7 @@ export function ClassesView({ today }: { today: string }) {
   const [massOpen, setMassOpen] = useState(false)
   const [reason, setReason] = useState<CancellationReason>('rain')
   const [cancelling, setCancelling] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState<string | null>(null)
   const [massClub, setMassClub] = useState(activeClubs[0]?.id ?? '')
   const [massDate, setMassDate] = useState(today)
   const [newSlot, setNewSlot] = useState<{ date: string; start: string; duration: 60 | 90 } | null>(null)
@@ -250,28 +253,41 @@ export function ClassesView({ today }: { today: string }) {
             : undefined
         }
         footer={
-          selected && selected.status === 'pending' ? (
+          selected && (selected.status === 'pending' || !selected.groupId) ? (
             <>
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  setSelectedId(null)
-                  openMass(selected.date, selected.clubId)
-                }}
-              >
-                Cancelar el día
-              </Button>
-              <Button variant="secondary" onClick={() => setCancelling(selected.id)}>
-                Cancelar clase
-              </Button>
-              <Button
-                onClick={() => {
-                  update(selected.id, { status: 'completed' })
-                  toast('Clase marcada como terminada.')
-                }}
-              >
-                Marcar terminada
-              </Button>
+              {!selected.groupId && !selected.courseId ? (
+                <Button
+                  variant="ghost"
+                  className="mr-auto text-danger"
+                  onClick={() => setDeleting(selected.id)}
+                >
+                  Eliminar clase
+                </Button>
+              ) : null}
+              {selected.status === 'pending' ? (
+                <>
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setSelectedId(null)
+                      openMass(selected.date, selected.clubId)
+                    }}
+                  >
+                    Cancelar el día
+                  </Button>
+                  <Button variant="secondary" onClick={() => setCancelling(selected.id)}>
+                    Cancelar clase
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      update(selected.id, { status: 'completed' })
+                      toast('Clase marcada como terminada.')
+                    }}
+                  >
+                    Marcar terminada
+                  </Button>
+                </>
+              ) : null}
             </>
           ) : undefined
         }
@@ -306,6 +322,12 @@ export function ClassesView({ today }: { today: string }) {
                 </div>
               ) : null}
             </dl>
+            {selected.groupId || selected.courseId ? (
+              <p className="rounded-xl bg-muted px-3 py-2 text-xs text-muted-foreground">
+                Esta clase sale de un {selected.courseId ? 'curso' : 'grupo'}. Para quitarla, usa «Cancelar
+                clase» o edita el {selected.courseId ? 'curso' : 'grupo'}.
+              </p>
+            ) : null}
             <div>
               <Label>Profesor que imparte</Label>
               <Dropdown
@@ -439,6 +461,23 @@ export function ClassesView({ today }: { today: string }) {
           </p>
         </div>
       </Drawer>
+      <ConfirmDialog
+        open={deleting !== null}
+        title="Eliminar clase"
+        description={deleteDescription(
+          sessions.find((s) => s.id === deleting),
+          extraCharges,
+        )}
+        confirmLabel="Eliminar"
+        onClose={() => setDeleting(null)}
+        onConfirm={() => {
+          if (!deleting) return
+          actions.deleteSession(deleting)
+          setDeleting(null)
+          setSelectedId(null)
+          toast('Clase eliminada.')
+        }}
+      />
       {cancelling ? (
         <CancelSessionDrawer
           studentIds={sessions.find((s) => s.id === cancelling)?.studentIds ?? []}
@@ -462,4 +501,17 @@ export function ClassesView({ today }: { today: string }) {
       ) : null}
     </PageContainer>
   )
+}
+
+function deleteDescription(
+  session: { id: string; date: string; start: string } | undefined,
+  charges: readonly { sessionId?: string; amountCents: number }[],
+) {
+  if (!session) return ''
+  const linked = charges.filter((c) => c.sessionId === session.id)
+  const when = `${session.date.split('-').reverse().join('/')} a las ${session.start}`
+  const extra = linked.length
+    ? ` y se quitarán ${linked.length} ${linked.length === 1 ? 'cargo' : 'cargos'} (${formatMoney(linked.reduce((sum, c) => sum + c.amountCents, 0))})`
+    : ''
+  return `Se eliminará la clase del ${when}${extra}. No se puede deshacer.`
 }

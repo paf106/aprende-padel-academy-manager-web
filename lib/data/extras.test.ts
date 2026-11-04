@@ -93,3 +93,36 @@ describe('cancellation credits', () => {
     expect(creditApplies(state, single, 'b')).toBe(false)
   })
 })
+
+describe('deleting a class', () => {
+  it('removes a private class with its charges', () => {
+    const base = makeAppData()
+    const adults = base.students.filter((s) => s.category === 'adult').slice(0, 2)
+    const session: Session = {
+      id: crypto.randomUUID(),
+      groupId: '',
+      kind: 'private',
+      clubId: base.clubs[0].id,
+      teacherId: base.teachers[0].id,
+      date: '2026-11-20',
+      start: '10:00',
+      duration: 60,
+      category: 'adult',
+      status: 'pending',
+      studentIds: adults.map((s) => s.id),
+    }
+    const added = mutations.addSession(base, session)
+    expect(added.extraCharges.length).toBeGreaterThan(base.extraCharges.length)
+    const removed = mutations.deleteSession(added, session.id)
+    expect(removed.sessions.some((s) => s.id === session.id)).toBe(false)
+    expect(removed.extraCharges).toEqual(base.extraCharges)
+  })
+
+  it('does not delete classes that come from a group or a course', () => {
+    const base = makeAppData()
+    const fromGroup = base.sessions.find((s) => s.groupId)!
+    expect(mutations.deleteSession(base, fromGroup.id)).toBe(base)
+    const fromCourse = base.sessions.find((s) => s.courseId)!
+    expect(mutations.deleteSession(base, fromCourse.id)).toBe(base)
+  })
+})
