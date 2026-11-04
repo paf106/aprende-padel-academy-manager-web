@@ -133,7 +133,7 @@ export function PaymentsView({ today, initialTab }: { today: string; initialTab:
         </Card>
       ) : null}
 
-      {tab === 'rates' ? <RatesTab /> : null}
+      {tab === 'rates' ? <RatesTab month={month} /> : null}
 
       {tab === 'profitability' ? (
         <Card>

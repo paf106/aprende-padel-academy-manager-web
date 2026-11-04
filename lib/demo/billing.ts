@@ -253,3 +253,30 @@ export function seedPayments(state: DemoState, today: string): PaymentRecord[] {
   })
   return payments
 }
+
+/** What an account would be charged in a month if some members were not attending (simulator). */
+export function simulateMonth(
+  state: DemoState,
+  accountId: string,
+  month: string,
+  excludedMemberIds: readonly string[],
+): ChargeResult {
+  const previous = addMonths(month, -1)
+  const before = monthlyCharge({
+    accountId,
+    month: previous,
+    members: memberMonths(state, accountId, previous),
+    catalog: state.catalog,
+    settings: state.billing,
+    overrides: state.overrides,
+  })
+  return monthlyCharge({
+    accountId,
+    month,
+    members: memberMonths(state, accountId, month).filter((m) => !excludedMemberIds.includes(m.memberId)),
+    catalog: state.catalog,
+    settings: state.billing,
+    carriedCredits: Object.fromEntries(before.lines.map((l) => [l.memberId, l.earnedCreditCents])),
+    overrides: state.overrides,
+  })
+}

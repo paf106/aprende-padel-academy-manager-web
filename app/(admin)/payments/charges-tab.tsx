@@ -10,6 +10,8 @@ import { Dropdown } from '@/components/ds/dropdown'
 import { FilterBar, type FilterDef } from '@/components/ds/filter-bar'
 import { Input, Label } from '@/components/ds/input'
 import { useToast } from '@/components/ds/toast'
+import { ChargeBreakdown } from './charge-breakdown'
+import { OverrideFormDrawer } from './rates/overrides-section'
 import { paymentMethodLabels } from '@/lib/core/labels'
 import { formatMoney } from '@/lib/core/money'
 import type { PaymentMethod } from '@/lib/core/types'
@@ -41,6 +43,7 @@ export function ChargesTab({ month, charges }: { month: string; charges: Charge[
   const [amount, setAmount] = useState('')
   const [method, setMethod] = useState<PaymentMethod>(billing.allowedPaymentMethods[0] ?? 'cash')
   const [paidOn, setPaidOn] = useState(`${month}-15`)
+  const [fixPriceFor, setFixPriceFor] = useState<string | null>(null)
 
   const rows = useMemo(
     () =>
@@ -55,9 +58,6 @@ export function ChargesTab({ month, charges }: { month: string; charges: Charge[
     debt: charges.reduce((s, c) => s + c.debtCents, 0),
   }
   const payTarget = charges.find((c) => c.account.id === payFor)
-  const segmentName = (id: string | null) =>
-    catalog.segments.find((s) => s.id === id)?.name ?? 'Sin tramo de edad'
-  const offerName = (id: string | null) => catalog.offers.find((o) => o.id === id)?.name
 
   const registerPayment = () => {
     const cents = Math.round(Number(amount.replace(',', '.')) * 100)
@@ -166,6 +166,9 @@ export function ChargesTab({ month, charges }: { month: string; charges: Charge[
                           : '—'}
                       </td>
                       <td className="px-4 py-3 text-right">
+                        <Button size="sm" variant="ghost" onClick={() => setFixPriceFor(charge.account.id)}>
+                          Fijar precio
+                        </Button>
                         {charge.balanceCents > 0 ? (
                           <Button
                             size="sm"
@@ -184,66 +187,15 @@ export function ChargesTab({ month, charges }: { month: string; charges: Charge[
                     {expanded ? (
                       <tr className="bg-muted/40">
                         <td colSpan={COLUMNS.length} className="px-10 py-4">
-                          <div className="grid gap-3">
-                            {charge.offers.map((offer) => (
-                              <p key={offer.offerId + offer.memberIds.join()} className="text-sm">
-                                <span className="font-semibold text-brand">Oferta aplicada:</span>{' '}
-                                {offer.name} · {formatMoney(offer.priceCents)}
-                              </p>
-                            ))}
-                            {charge.overrides.map((override) => (
-                              <p key={override.id} className="text-sm">
-                                <span className="font-semibold text-warning">Precio fijado a mano:</span>{' '}
-                                {formatMoney(override.amountCents)} · {override.reason}
-                              </p>
-                            ))}
-                            {charge.warnings.map((warning) => (
-                              <p key={warning} role="alert" className="text-sm text-danger">
-                                {warning}
-                              </p>
-                            ))}
-                            <ul className="grid gap-2 text-sm">
-                              {charge.members.map((line) => (
-                                <li
-                                  key={line.memberId}
-                                  className="grid gap-0.5 sm:flex sm:justify-between sm:gap-4"
-                                >
-                                  <span>
-                                    <span className="font-medium">{line.name}</span>
-                                    <span className="ml-2 text-xs text-muted-foreground">
-                                      {segmentName(line.segmentId)} · {line.classesPerWeek}{' '}
-                                      {line.classesPerWeek === 1 ? 'día' : 'días'}/semana ·{' '}
-                                      {line.source === 'offer'
-                                        ? (offerName(line.offerId) ?? 'Oferta')
-                                        : line.source === 'override'
-                                          ? 'Precio fijado'
-                                          : 'Cuota individual'}
-                                    </span>
-                                  </span>
-                                  <span className="tabular-nums text-muted-foreground">
-                                    {formatMoney(line.shareCents)}
-                                    {line.extraClasses > 0
-                                      ? ` + ${line.extraClasses} clase extra ${formatMoney(line.extraCents)}`
-                                      : ''}
-                                    {line.appliedCreditCents > 0
-                                      ? ` − descuento ${formatMoney(line.appliedCreditCents)}`
-                                      : ''}{' '}
-                                    ={' '}
-                                    <span className="font-semibold text-foreground">
-                                      {formatMoney(line.totalCents)}
-                                    </span>
-                                  </span>
-                                </li>
-                              ))}
-                            </ul>
-                            {charge.members.some((line) => line.earnedCreditCents > 0) ? (
-                              <p className="text-xs text-muted-foreground">
-                                Se descontarán{' '}
-                                {formatMoney(charge.members.reduce((s, l) => s + l.earnedCreditCents, 0))} de
-                                la mensualidad siguiente por clases canceladas o festivos de este mes.
-                              </p>
-                            ) : null}
-                          </div>
+                          <ChargeBreakdown
+                            data={{
+                              offers: charge.offers,
+                              overrides: charge.overrides,
+                              warnings: charge.warnings,
+                              lines: charge.members,
+                            }}
+                            catalog={catalog}
+                          />
                         </td>
                       </tr>
                     ) : null}
@@ -254,6 +206,14 @@ export function ChargesTab({ month, charges }: { month: string; charges: Charge[
           </table>
         </div>
       </Card>
+
+      {fixPriceFor ? (
+        <OverrideFormDrawer
+          initial={{ scope: 'account', targetId: fixPriceFor }}
+          month={month}
+          onClose={() => setFixPriceFor(null)}
+        />
+      ) : null}
 
       <Drawer
         open={payTarget !== undefined && payFor !== null}
