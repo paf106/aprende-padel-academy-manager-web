@@ -7,6 +7,7 @@ import { SelectField, TextField } from '@/components/ds/field'
 import { MultiComboboxField } from '@/components/ds/multi-combobox'
 import { defaultCapacity } from '@/lib/classes/capacity'
 import { expandClosedDays } from '@/lib/classes/closures'
+import { weeklyDates } from '@/lib/classes/series'
 import { sessionConflicts, sessionSchema, type SessionInput } from '@/lib/classes/session-schema'
 import { categoryLabels, levelLabels } from '@/lib/core/labels'
 import { formatMoney } from '@/lib/core/money'
@@ -35,7 +36,7 @@ export function SessionFormDrawer({
   defaultClubId: string
   existing: readonly ExistingSession[]
   onDraftChange: (draft: CalendarDraft) => void
-  onCreate: (input: SessionInput) => void
+  onCreate: (input: SessionInput, repeat: boolean) => void
   onClose: () => void
 }) {
   const {
@@ -47,6 +48,7 @@ export function SessionFormDrawer({
     groupById,
     closures,
     extras,
+    seasonEnd,
   } = useAppData()
   const [values, setValues] = useState<Values>({
     groupId: '',
@@ -62,6 +64,7 @@ export function SessionFormDrawer({
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [notice, setNotice] = useState('')
+  const [repeat, setRepeat] = useState(false)
   const isPrivate = values.kind === 'private'
 
   useEffect(() => {
@@ -166,7 +169,25 @@ export function SessionFormDrawer({
       setErrors(conflicts)
       return
     }
-    onCreate(parsed.data)
+    if (repeat) {
+      const later = weeklyDates(values.date, seasonEnd, expandClosedDays(closures, values.clubId)).slice(1)
+      for (const date of later) {
+        const clash = sessionConflicts({
+          slot: { date, start: values.start, duration: parsed.data.duration },
+          teacherId: values.teacherId,
+          category: values.category,
+          students: chosen,
+          existing,
+        })
+        if (clash.start) {
+          setErrors({
+            start: `El profesor ya tiene una clase el ${date.split('-').reverse().join('/')} a esa hora`,
+          })
+          return
+        }
+      }
+    }
+    onCreate(parsed.data, repeat)
   }
 
   return (
@@ -278,6 +299,21 @@ export function SessionFormDrawer({
           }))
           .sort((a, b) => a.section.localeCompare(b.section))}
       />
+      <label className="flex cursor-pointer items-start gap-3 text-sm">
+        <input
+          type="checkbox"
+          className="mt-0.5 size-4 accent-[var(--brand)]"
+          checked={repeat}
+          onChange={(e) => setRepeat(e.target.checked)}
+        />
+        <span>
+          Repetir cada semana hasta fin de temporada
+          <span className="block text-xs text-muted-foreground">
+            Hasta el {seasonEnd.split('-').reverse().join('/')}, el mismo día y a la misma hora. Los días de
+            cierre se saltan.
+          </span>
+        </span>
+      </label>
       {privatePrice ? (
         <p className="rounded-xl bg-muted px-3 py-2 text-sm text-muted-foreground">
           Cada alumno paga {privatePrice.perStudentCents.map(formatMoney).join(' y ')}:{' '}
@@ -288,8 +324,8 @@ export function SessionFormDrawer({
       {notice ? <p className="rounded-xl bg-warning-soft px-3 py-2 text-sm text-warning">{notice}</p> : null}
       {otherCategory.length > 0 ? (
         <p className="rounded-xl bg-warning-soft px-3 py-2 text-sm text-warning">
-          Este clase mezcla categorías: {otherCategory.map(fullName).join(', ')}{' '}
-          {otherCategory.length === 1 ? 'es de' : 'son de'} otra categoría que el clase.
+          Esta clase mezcla categorías: {otherCategory.map(fullName).join(', ')}{' '}
+          {otherCategory.length === 1 ? 'es de' : 'son de'} otra categoría que la clase.
         </p>
       ) : null}
     </FormDrawer>

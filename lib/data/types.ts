@@ -107,6 +107,8 @@ export type Session = {
   guests?: Record<string, 'drop_in'>
   /** Created by hand from the calendar: editing the group never removes it. */
   manual?: boolean
+  /** Classes repeated every week from the calendar share a series. */
+  seriesId?: string
 }
 export type Account = {
   id: string

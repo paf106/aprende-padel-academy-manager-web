@@ -3,6 +3,7 @@ import type { ClubInput } from '@/lib/classes/club-schema'
 import { generateCourseSlots, type CourseInput } from '@/lib/classes/course-schema'
 import type { GroupInput } from '@/lib/classes/group-schema'
 import { planRegeneration, type GeneratedSlot } from '@/lib/classes/group-sessions'
+import { weeklyDates } from '@/lib/classes/series'
 import type { StudentInput } from '@/lib/classes/student-schema'
 import type { TeacherInput } from '@/lib/classes/teacher-schema'
 import { localTodayInTimeZone } from '@/lib/core/dates'
@@ -173,14 +174,44 @@ export const mutations = {
   updateSession(state: AppData, id: string, patch: Partial<Session>): AppData {
     return { ...state, sessions: state.sessions.map((s) => (s.id === id ? { ...s, ...patch } : s)) }
   },
-  /** Removes a class with its charges. Editing the group afterwards can create it again if it fits the group's schedule. */
-  deleteSession(state: AppData, id: string): AppData {
-    const session = state.sessions.find((s) => s.id === id)
-    if (!session) return state
+  /** Creates a class by hand and, when `repeat` is set, the same class every week until the end of the season. */
+  addSessionSeries(state: AppData, session: Session, repeat: boolean): AppData {
+    const dates = repeat
+      ? weeklyDates(session.date, state.seasonEnd, expandClosedDays(state.closures, session.clubId))
+      : [session.date]
+    const seriesId = repeat && dates.length > 1 ? newId() : undefined
+    const created = dates.map((date, index) => ({
+      ...session,
+      id: index === 0 ? session.id : newId(),
+      date,
+      seriesId,
+    }))
     return {
       ...state,
-      sessions: state.sessions.filter((s) => s.id !== id),
-      extraCharges: state.extraCharges.filter((c) => c.sessionId !== id),
+      sessions: [...state.sessions, ...created],
+      extraCharges: [...state.extraCharges, ...created.flatMap((s) => privateCharges(state, s))],
+    }
+  },
+  /** Removes a class with its charges, or this class and the following ones of its weekly series. */
+  deleteSession(state: AppData, id: string, scope: 'one' | 'following' = 'one'): AppData {
+    const session = state.sessions.find((s) => s.id === id)
+    if (!session) return state
+    const removed = new Set(
+      state.sessions
+        .filter(
+          (s) =>
+            s.id === id ||
+            (scope === 'following' &&
+              session.seriesId &&
+              s.seriesId === session.seriesId &&
+              s.date >= session.date),
+        )
+        .map((s) => s.id),
+    )
+    return {
+      ...state,
+      sessions: state.sessions.filter((s) => !removed.has(s.id)),
+      extraCharges: state.extraCharges.filter((c) => !c.sessionId || !removed.has(c.sessionId)),
     }
   },
   /** Cancelled classes are not charged: extra charges linked to them disappear. */

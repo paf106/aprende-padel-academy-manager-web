@@ -3,6 +3,7 @@ import { buildCharges, creditApplies } from '@/lib/data/billing'
 import { makeAppData } from '@/lib/data/fixtures'
 import { mutations } from '@/lib/data/mutations'
 import type { AppData, Session } from '@/lib/data/types'
+import { addDays } from '@/lib/core/calendar-nav'
 import { localTodayInTimeZone } from '@/lib/core/dates'
 
 const today = localTodayInTimeZone('Europe/Madrid')
@@ -123,5 +124,64 @@ describe('deleting a class', () => {
     const removed = mutations.deleteSession(base, fromGroup.id)
     expect(removed.sessions.some((s) => s.id === fromGroup.id)).toBe(false)
     expect(removed.sessions).toHaveLength(base.sessions.length - 1)
+  })
+})
+
+describe('weekly series', () => {
+  const seed = (state: AppData, extra: Partial<Session> = {}): Session => ({
+    id: crypto.randomUUID(),
+    groupId: '',
+    clubId: state.clubs[0].id,
+    teacherId: state.teachers[0].id,
+    date: addDays(today, 1),
+    start: '10:00',
+    duration: 60,
+    category: 'adult',
+    status: 'pending',
+    manual: true,
+    studentIds: [state.students[0].id],
+    ...extra,
+  })
+
+  it('repeats the class every week until the end of the season', () => {
+    const base = makeAppData()
+    const session = seed(base)
+    const state = mutations.addSessionSeries(base, session, true)
+    const series = state.sessions.filter((s) => s.seriesId)
+    expect(series.length).toBeGreaterThan(1)
+    expect(series[0].date).toBe(session.date)
+    expect(series.every((s) => s.start === '10:00' && s.date <= base.seasonEnd)).toBe(true)
+    expect(new Set(series.map((s) => s.seriesId)).size).toBe(1)
+    expect(new Set(series.map((s) => s.id)).size).toBe(series.length)
+    expect(addDays(series.at(-1)!.date, 7) > base.seasonEnd).toBe(true)
+  })
+
+  it('creates a single class without a series when not repeated', () => {
+    const base = makeAppData()
+    const state = mutations.addSessionSeries(base, seed(base), false)
+    expect(state.sessions).toHaveLength(base.sessions.length + 1)
+    expect(state.sessions.some((s) => s.seriesId)).toBe(false)
+  })
+
+  it('charges every repeated private class', () => {
+    const base = makeAppData()
+    const adults = base.students.filter((s) => s.category === 'adult').slice(0, 1)
+    const session = seed(base, { kind: 'private', studentIds: adults.map((s) => s.id) })
+    const state = mutations.addSessionSeries(base, session, true)
+    const count = state.sessions.filter((s) => s.seriesId).length
+    expect(state.extraCharges.filter((c) => c.kind === 'private')).toHaveLength(count)
+  })
+
+  it('deletes only one class or this and the following ones', () => {
+    const base = makeAppData()
+    const state = mutations.addSessionSeries(base, seed(base), true)
+    const series = state.sessions.filter((s) => s.seriesId)
+    const third = series[2]
+    const one = mutations.deleteSession(state, third.id, 'one')
+    expect(one.sessions.filter((s) => s.seriesId)).toHaveLength(series.length - 1)
+    const following = mutations.deleteSession(state, third.id, 'following')
+    expect(following.sessions.filter((s) => s.seriesId).map((s) => s.date)).toEqual(
+      series.slice(0, 2).map((s) => s.date),
+    )
   })
 })

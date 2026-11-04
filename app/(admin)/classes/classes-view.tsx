@@ -89,6 +89,7 @@ export function ClassesView({ today }: { today: string }) {
   const [reason, setReason] = useState<CancellationReason>('rain')
   const [cancelling, setCancelling] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
+  const [deleteScope, setDeleteScope] = useState<'one' | 'following'>('one')
   const [massClub, setMassClub] = useState(activeClubs[0]?.id ?? '')
   const [massDate, setMassDate] = useState(today)
   const [newSlot, setNewSlot] = useState<{ date: string; start: string; duration: 60 | 90 } | null>(null)
@@ -131,6 +132,14 @@ export function ClassesView({ today }: { today: string }) {
     }
   })
   const selected = sessions.find((s) => s.id === selectedId) ?? null
+  const deletingSession = sessions.find((s) => s.id === deleting)
+  const deletedSessions = !deletingSession
+    ? []
+    : deleteScope === 'following' && deletingSession.seriesId
+      ? sessions
+          .filter((s) => s.seriesId === deletingSession.seriesId && s.date >= deletingSession.date)
+          .sort((a, b) => a.date.localeCompare(b.date))
+      : [deletingSession]
   // Group members first, then recoveries and single classes, each by name, so rows never jump after saving.
   const orderedAttendees = selected
     ? [...selected.studentIds].sort((a, b) => {
@@ -203,28 +212,33 @@ export function ClassesView({ today }: { today: string }) {
     setDraft(null)
   }
 
-  const createSession = (input: SessionInput) => {
-    actions.addSession({
-      id: crypto.randomUUID(),
-      groupId: input.groupId,
-      kind: input.kind,
-      clubId: input.clubId,
-      teacherId: input.teacherId,
-      date: input.date,
-      start: input.start,
-      duration: input.duration,
-      category: input.category,
-      level: input.level,
-      status: 'pending',
-      manual: true,
-      studentIds: input.studentIds,
-      attendance: Object.fromEntries(input.studentIds.map((studentId) => [studentId, 'unmarked'])),
-    })
+  const createSession = (input: SessionInput, repeat: boolean) => {
+    actions.addSessionSeries(
+      {
+        id: crypto.randomUUID(),
+        groupId: input.groupId,
+        kind: input.kind,
+        clubId: input.clubId,
+        teacherId: input.teacherId,
+        date: input.date,
+        start: input.start,
+        duration: input.duration,
+        category: input.category,
+        level: input.level,
+        status: 'pending',
+        manual: true,
+        studentIds: input.studentIds,
+        attendance: Object.fromEntries(input.studentIds.map((studentId) => [studentId, 'unmarked'])),
+      },
+      repeat,
+    )
     closeNew()
     toast(
-      input.kind === 'private'
-        ? 'Clase particular creada. El importe se suma al cobro de cada alumno.'
-        : 'Clase creada.',
+      repeat
+        ? 'Clase creada y repetida cada semana hasta fin de temporada.'
+        : input.kind === 'private'
+          ? 'Clase particular creada. El importe se suma al cobro de cada alumno.'
+          : 'Clase creada.',
     )
   }
 
@@ -462,20 +476,46 @@ export function ClassesView({ today }: { today: string }) {
       <ConfirmDialog
         open={deleting !== null}
         title="Eliminar clase"
-        description={deleteDescription(
-          sessions.find((s) => s.id === deleting),
-          extraCharges,
-        )}
-        confirmLabel="Eliminar"
-        onClose={() => setDeleting(null)}
+        description={deleteDescription(deletedSessions, extraCharges)}
+        confirmLabel={deletedSessions.length > 1 ? 'Eliminar clases' : 'Eliminar'}
+        onClose={() => {
+          setDeleting(null)
+          setDeleteScope('one')
+        }}
         onConfirm={() => {
           if (!deleting) return
-          actions.deleteSession(deleting)
+          actions.deleteSession(deleting, deleteScope)
           setDeleting(null)
+          setDeleteScope('one')
           setSelectedId(null)
-          toast('Clase eliminada.')
+          toast(
+            deletedSessions.length > 1 ? `${deletedSessions.length} clases eliminadas.` : 'Clase eliminada.',
+          )
         }}
-      />
+      >
+        {deletingSession?.seriesId ? (
+          <fieldset className="mt-4 grid gap-2 text-sm">
+            <legend className="sr-only">Qué clases eliminar</legend>
+            {(
+              [
+                ['one', 'Solo esta clase'],
+                ['following', 'Esta y las siguientes de la repetición'],
+              ] as const
+            ).map(([value, label]) => (
+              <label key={value} className="flex cursor-pointer items-center gap-2">
+                <input
+                  type="radio"
+                  name="delete-scope"
+                  className="size-4 accent-[var(--brand)]"
+                  checked={deleteScope === value}
+                  onChange={() => setDeleteScope(value)}
+                />
+                {label}
+              </label>
+            ))}
+          </fieldset>
+        ) : null}
+      </ConfirmDialog>
       {cancelling ? (
         <CancelSessionDrawer
           studentIds={sessions.find((s) => s.id === cancelling)?.studentIds ?? []}
@@ -502,14 +542,19 @@ export function ClassesView({ today }: { today: string }) {
 }
 
 function deleteDescription(
-  session: { id: string; date: string; start: string } | undefined,
+  sessions: readonly { id: string; date: string; start: string }[],
   charges: readonly { sessionId?: string; amountCents: number }[],
 ) {
-  if (!session) return ''
-  const linked = charges.filter((c) => c.sessionId === session.id)
-  const when = `${session.date.split('-').reverse().join('/')} a las ${session.start}`
+  if (sessions.length === 0) return ''
+  const ids = new Set(sessions.map((s) => s.id))
+  const linked = charges.filter((c) => c.sessionId && ids.has(c.sessionId))
+  const day = (date: string) => date.split('-').reverse().join('/')
+  const what =
+    sessions.length === 1
+      ? `la clase del ${day(sessions[0].date)} a las ${sessions[0].start}`
+      : `${sessions.length} clases, del ${day(sessions[0].date)} al ${day(sessions[sessions.length - 1].date)}`
   const extra = linked.length
     ? ` y se quitarán ${linked.length} ${linked.length === 1 ? 'cargo' : 'cargos'} (${formatMoney(linked.reduce((sum, c) => sum + c.amountCents, 0))})`
     : ''
-  return `Se eliminará la clase del ${when}${extra}. No se puede deshacer.`
+  return `Se eliminar${sessions.length === 1 ? 'á' : 'án'} ${what}${extra}. No se puede deshacer.`
 }
