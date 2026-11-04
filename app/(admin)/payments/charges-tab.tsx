@@ -193,6 +193,7 @@ export function ChargesTab({ month, charges }: { month: string; charges: Charge[
                               overrides: charge.overrides,
                               warnings: charge.warnings,
                               lines: charge.members,
+                              extraCharges: charge.extraCharges,
                             }}
                             catalog={catalog}
                           />

@@ -1,6 +1,7 @@
 'use client'
 
 import { formatMoney } from '@/lib/core/money'
+import type { ExtraCharge } from '@/lib/demo/state'
 import type { MemberLine, RateOverride } from '@/lib/payments/monthly-charge'
 import type { AppliedOffer, RateCatalog } from '@/lib/payments/rates'
 
@@ -9,6 +10,7 @@ export type BreakdownData = {
   overrides: RateOverride[]
   warnings: string[]
   lines: MemberLine[]
+  extraCharges?: ExtraCharge[]
 }
 
 /** Explains how a monthly charge was built: offers, manual prices, extra classes and credits. */
@@ -63,6 +65,16 @@ export function ChargeBreakdown({ data, catalog }: { data: BreakdownData; catalo
           </li>
         ))}
       </ul>
+      {data.extraCharges && data.extraCharges.length > 0 ? (
+        <ul className="grid gap-1 border-t border-border pt-3 text-sm">
+          {data.extraCharges.map((charge) => (
+            <li key={charge.id} className="flex justify-between gap-4">
+              <span>{charge.description}</span>
+              <span className="tabular-nums font-semibold">{formatMoney(charge.amountCents)}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
       {earned > 0 ? (
         <p className="text-xs text-muted-foreground">
           Se descontarán {formatMoney(earned)} de la mensualidad siguiente por clases canceladas o festivos de

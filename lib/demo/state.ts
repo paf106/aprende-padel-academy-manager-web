@@ -2,6 +2,7 @@ import type { Closure } from '@/lib/classes/closures'
 import type { PaymentMethod } from '@/lib/core/types'
 import type { Account, Club, Group, Session, Student, Teacher } from '@/lib/demo/data'
 import type { RateOverride } from '@/lib/payments/monthly-charge'
+import type { ExtraRates } from '@/lib/payments/extras'
 import type { RateCatalog } from '@/lib/payments/rates'
 import type { BillingSettings } from '@/lib/payments/settings'
 import type { TeacherRates } from '@/lib/payments/teacher-pay'
@@ -14,6 +15,19 @@ export type PaymentRecord = {
   amountCents: number
   method: PaymentMethod
   paidOn: string
+}
+
+/** A charge outside the monthly fee: a single class, a private class or a course. Added to the account's month. */
+export type ExtraCharge = {
+  id: string
+  accountId: string
+  studentId: string
+  kind: 'drop_in' | 'private' | 'course'
+  description: string
+  amountCents: number
+  month: string
+  sessionId?: string
+  courseId?: string
 }
 
 export type DemoState = {
@@ -29,4 +43,6 @@ export type DemoState = {
   overrides: RateOverride[]
   teacherRates: TeacherRates
   payments: PaymentRecord[]
+  extras: ExtraRates
+  extraCharges: ExtraCharge[]
 }

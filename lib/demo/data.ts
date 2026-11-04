@@ -10,6 +10,8 @@ export type Club = {
   postalCode: string
   color: string
   courts: number
+  /** Court rental price per hour, used by private classes. */
+  courtPriceCents: number
   photo: string
   active: boolean
 }
@@ -70,6 +72,9 @@ export type Session = {
   cancelReason?: string
   /** When set, only these students get a credit for the cancellation (e.g. only one student showed up). */
   creditedStudentIds?: string[]
+  kind?: 'group' | 'private'
+  /** Students added to a class they do not belong to: a free recovery or a paid single class. */
+  guests?: Record<string, 'recovery' | 'drop_in'>
 }
 export type Account = {
   id: string
@@ -85,6 +90,7 @@ export const clubs: Club[] = [
     postalCode: '19162',
     color: 'brand',
     courts: 2,
+    courtPriceCents: 1200,
     photo: '',
     active: true,
   },
@@ -96,6 +102,7 @@ export const clubs: Club[] = [
     postalCode: '19141',
     color: 'info',
     courts: 2,
+    courtPriceCents: 1200,
     photo: '',
     active: true,
   },
@@ -107,6 +114,7 @@ export const clubs: Club[] = [
     postalCode: '28811',
     color: 'warning',
     courts: 1,
+    courtPriceCents: 1200,
     photo: '',
     active: true,
   },
@@ -118,6 +126,7 @@ export const clubs: Club[] = [
     postalCode: '28813',
     color: 'danger',
     courts: 2,
+    courtPriceCents: 1200,
     photo: '',
     active: true,
   },

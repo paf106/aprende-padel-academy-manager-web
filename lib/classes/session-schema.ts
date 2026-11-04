@@ -2,10 +2,12 @@ import { z } from 'zod'
 import { defaultCapacity } from '@/lib/classes/capacity'
 import { slotsOverlap, type TimeSlot } from '@/lib/classes/sessions'
 import { studentCategories, studentLevels, type StudentCategory } from '@/lib/core/types'
+import { MAX_PRIVATE_STUDENTS, privateClassIssues, type ExtraRates } from '@/lib/payments/extras'
 
 export const sessionSchema = z
   .object({
     groupId: z.string(),
+    kind: z.enum(['group', 'private']),
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Indica el día'),
     start: z.string().regex(/^\d{2}:\d{2}$/, 'Indica la hora'),
     duration: z.union([z.literal(60), z.literal(90)]),
@@ -16,11 +18,15 @@ export const sessionSchema = z
     studentIds: z.array(z.string()).min(1, 'Añade al menos un alumno'),
   })
   .superRefine((value, context) => {
-    if (value.studentIds.length > defaultCapacity[value.category]) {
+    const capacity = value.kind === 'private' ? MAX_PRIVATE_STUDENTS : defaultCapacity[value.category]
+    if (value.studentIds.length > capacity) {
       context.addIssue({
         code: 'custom',
         path: ['studentIds'],
-        message: `Máximo ${defaultCapacity[value.category]} alumnos en clases de ${value.category === 'adult' ? 'adultos' : 'niños'}`,
+        message:
+          value.kind === 'private'
+            ? 'Las clases particulares son para 1 o 2 alumnos'
+            : `Máximo ${capacity} alumnos en clases de ${value.category === 'adult' ? 'adultos' : 'niños'}`,
       })
     }
   })
@@ -37,9 +43,18 @@ export function sessionConflicts(input: {
   students: readonly { id: string; category: StudentCategory }[]
   existing: readonly ExistingSession[]
   closedDays?: readonly string[]
+  kind?: 'group' | 'private'
+  /** Ages of the students on the class date; needed to validate private classes. */
+  studentAges?: readonly number[]
+  extras?: ExtraRates
 }) {
   const errors: Record<string, string> = {}
-  if (input.students.some((student) => student.category !== input.category)) {
+  const isPrivate = input.kind === 'private'
+  if (isPrivate && input.extras) {
+    const [issue] = privateClassIssues(input.extras, input.studentAges ?? [])
+    if (issue) errors.studentIds = issue
+  }
+  if (!isPrivate && input.students.some((student) => student.category !== input.category)) {
     errors.studentIds = 'No se pueden mezclar adultos y niños en la misma clase'
   }
   const clash = input.existing.find(

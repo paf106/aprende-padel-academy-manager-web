@@ -9,10 +9,13 @@ import { defaultCapacity } from '@/lib/classes/capacity'
 import { expandClosedDays } from '@/lib/classes/closures'
 import { sessionConflicts, sessionSchema, type SessionInput } from '@/lib/classes/session-schema'
 import { categoryLabels, levelLabels } from '@/lib/core/labels'
+import { formatMoney } from '@/lib/core/money'
 import { studentCategories, studentLevels } from '@/lib/core/types'
 import { validate } from '@/lib/core/validation'
 import { fullName, teacherName } from '@/lib/demo/data'
 import { useDemo } from '@/lib/demo/use-demo'
+import { MAX_PRIVATE_STUDENTS, privateClassPrice } from '@/lib/payments/extras'
+import { ageOn } from '@/lib/payments/pricing'
 
 type ExistingSession = { date: string; start: string; duration: number; teacherId: string; status: string }
 type Values = Omit<SessionInput, 'duration'> & { duration: '60' | '90' }
@@ -35,9 +38,10 @@ export function SessionFormDrawer({
   onCreate: (input: SessionInput) => void
   onClose: () => void
 }) {
-  const { students, teachers, activeClubs: clubs, clubById, groups, groupById, closures } = useDemo()
+  const { students, teachers, activeClubs: clubs, clubById, groups, groupById, closures, extras } = useDemo()
   const [values, setValues] = useState<Values>({
     groupId: '',
+    kind: 'group',
     date: initial.date,
     start: initial.start,
     duration: String(initial.duration) as '60' | '90',
@@ -49,37 +53,75 @@ export function SessionFormDrawer({
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [notice, setNotice] = useState('')
+  const isPrivate = values.kind === 'private'
 
   useEffect(() => {
-    onDraftChange({ date: values.date, start: values.start, duration: Number(values.duration) })
-  }, [values.date, values.start, values.duration, onDraftChange])
+    onDraftChange({
+      date: values.date,
+      start: values.start,
+      duration: Number(values.duration),
+      title: isPrivate ? 'Clase particular' : undefined,
+    })
+  }, [values.date, values.start, values.duration, isPrivate, onDraftChange])
 
   const clubTeachers = useMemo(
     () => teachers.filter((t) => t.active && t.clubIds.includes(values.clubId)),
     [teachers, values.clubId],
   )
   const eligible = useMemo(
-    () => students.filter((s) => s.active && s.category === values.category),
-    [students, values.category],
+    () =>
+      students.filter(
+        (s) =>
+          s.active &&
+          (isPrivate
+            ? ageOn(s.birthDate, values.date) >= extras.privateMinAge
+            : s.category === values.category),
+      ),
+    [students, values.category, values.date, isPrivate, extras.privateMinAge],
   )
-  const capacity = defaultCapacity[values.category]
+  const capacity = isPrivate ? MAX_PRIVATE_STUDENTS : defaultCapacity[values.category]
+  const club = clubById(values.clubId)
+  const privatePrice =
+    isPrivate && values.studentIds.length >= 1 && values.studentIds.length <= MAX_PRIVATE_STUDENTS
+      ? privateClassPrice({
+          extras,
+          students: values.studentIds.length,
+          durationMinutes: Number(values.duration),
+          courtPricePerHourCents: club?.courtPriceCents ?? 0,
+        })
+      : null
+
+  const clubTeachersOf = (clubId: string) => teachers.filter((t) => t.active && t.clubIds.includes(clubId))
 
   const patch = (changes: Partial<Values>) => {
     const next = { ...values, ...changes }
     const dropped: string[] = []
-    if ('category' in changes || 'clubId' in changes) {
+    if ('category' in changes || 'clubId' in changes || 'kind' in changes) {
       if (!clubTeachersOf(next.clubId).some((t) => t.id === next.teacherId)) next.teacherId = ''
-      next.studentIds = next.studentIds.filter((id) => {
-        const student = students.find((s) => s.id === id)
-        const fits = student?.category === next.category
-        if (!fits && student) dropped.push(fullName(student))
-        return fits
-      })
+      if (next.kind === 'group') {
+        next.studentIds = next.studentIds.filter((id) => {
+          const student = students.find((s) => s.id === id)
+          const fits = student?.category === next.category
+          if (!fits && student) dropped.push(fullName(student))
+          return fits
+        })
+      }
+    }
+    if (next.kind === 'private') {
+      next.groupId = ''
+      next.category = 'adult'
+      next.studentIds = next.studentIds
+        .filter((id) => {
+          const student = students.find((s) => s.id === id)
+          const fits = student ? ageOn(student.birthDate, next.date) >= extras.privateMinAge : false
+          if (!fits && student) dropped.push(fullName(student))
+          return fits
+        })
+        .slice(0, MAX_PRIVATE_STUDENTS)
     }
     setNotice(dropped.length ? `Se quitaron por no encajar: ${dropped.join(', ')}.` : '')
     setValues(next)
   }
-  const clubTeachersOf = (clubId: string) => teachers.filter((t) => t.active && t.clubIds.includes(clubId))
 
   const applyGroup = (groupId: string) => {
     const group = groupById(groupId)
@@ -106,13 +148,17 @@ export function SessionFormDrawer({
       setErrors(parsed.errors)
       return
     }
+    const chosen = students.filter((s) => values.studentIds.includes(s.id))
     const conflicts = sessionConflicts({
       slot: { date: values.date, start: values.start, duration: parsed.data.duration },
       teacherId: values.teacherId,
       category: values.category,
-      students: students.filter((s) => values.studentIds.includes(s.id)),
+      students: chosen,
       existing,
       closedDays: expandClosedDays(closures, values.clubId),
+      kind: values.kind,
+      studentAges: chosen.map((s) => ageOn(s.birthDate, values.date)),
+      extras,
     })
     if (Object.keys(conflicts).length) {
       setErrors(conflicts)
@@ -122,21 +168,34 @@ export function SessionFormDrawer({
   }
 
   return (
-    <FormDrawer open title="Nueva clase" submitLabel="Crear clase" onSubmit={submit} onClose={onClose}>
+    <FormDrawer
+      open
+      title={isPrivate ? 'Nueva clase particular' : 'Nueva clase'}
+      submitLabel="Crear clase"
+      onSubmit={submit}
+      onClose={onClose}
+    >
       <SelectField
-        label="Desde un grupo (opcional)"
-        placeholder="Clase libre, sin grupo"
-        value={values.groupId}
-        onChange={applyGroup}
+        label="Tipo de clase"
+        value={values.kind}
+        onChange={(v) => patch({ kind: v as Values['kind'] })}
         options={[
-          { value: '', label: 'Clase libre, sin grupo' },
-          ...groups.map((g) => ({
-            value: g.id,
-            label: g.name,
-            hint: clubById(g.clubId)?.name,
-          })),
+          { value: 'group', label: 'Clase de grupo' },
+          { value: 'private', label: 'Clase particular (1 o 2 alumnos)' },
         ]}
       />
+      {isPrivate ? null : (
+        <SelectField
+          label="Desde un grupo (opcional)"
+          placeholder="Clase libre, sin grupo"
+          value={values.groupId}
+          onChange={applyGroup}
+          options={[
+            { value: '', label: 'Clase libre, sin grupo' },
+            ...groups.map((g) => ({ value: g.id, label: g.name, hint: clubById(g.clubId)?.name })),
+          ]}
+        />
+      )}
       <div className="grid grid-cols-3 gap-3">
         <TextField
           id="session-date"
@@ -181,13 +240,15 @@ export function SessionFormDrawer({
         onChange={(v) => patch({ teacherId: v })}
         options={clubTeachers.map((t) => ({ value: t.id, label: teacherName(t) }))}
       />
-      <div className="grid grid-cols-2 gap-3">
-        <SelectField
-          label="Categoría"
-          value={values.category}
-          onChange={(v) => patch({ category: v as Values['category'] })}
-          options={toOptions(studentCategories, categoryLabels)}
-        />
+      <div className={isPrivate ? '' : 'grid grid-cols-2 gap-3'}>
+        {isPrivate ? null : (
+          <SelectField
+            label="Categoría"
+            value={values.category}
+            onChange={(v) => patch({ category: v as Values['category'] })}
+            options={toOptions(studentCategories, categoryLabels)}
+          />
+        )}
         <SelectField
           label="Nivel"
           value={values.level}
@@ -213,6 +274,13 @@ export function SessionFormDrawer({
           }))
           .sort((a, b) => a.section.localeCompare(b.section))}
       />
+      {privatePrice ? (
+        <p className="rounded-xl bg-muted px-3 py-2 text-sm text-muted-foreground">
+          Cada alumno paga {privatePrice.perStudentCents.map(formatMoney).join(' y ')}:{' '}
+          {formatMoney(privatePrice.instructorPerStudentCents)} de clase más la pista (
+          {formatMoney(privatePrice.courtCents[0])} por alumno). Se suma al cobro del mes.
+        </p>
+      ) : null}
       {notice ? <p className="rounded-xl bg-warning-soft px-3 py-2 text-sm text-warning">{notice}</p> : null}
     </FormDrawer>
   )

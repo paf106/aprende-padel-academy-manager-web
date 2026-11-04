@@ -2,9 +2,14 @@
 
 import { UserCheck } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { classStatusLabels } from '@/lib/core/labels'
+import { cancellationReasonLabels, classStatusLabels } from '@/lib/core/labels'
 import { type CalendarView } from '@/lib/core/dates'
-import { classStatuses, type StudentLevel } from '@/lib/core/types'
+import {
+  cancellationReasons,
+  classStatuses,
+  type CancellationReason,
+  type StudentLevel,
+} from '@/lib/core/types'
 import {
   Calendar,
   type CalendarDraft,
@@ -16,14 +21,19 @@ import { Button } from '@/components/ds/button'
 import { Drawer } from '@/components/ds/drawer'
 import { Dropdown } from '@/components/ds/dropdown'
 import { FilterBar, type FilterDef } from '@/components/ds/filter-bar'
+import { Badge } from '@/components/ds/badge'
 import { Label } from '@/components/ds/input'
 import { PageContainer, PageToolbar } from '@/components/ds/page-header'
 import { useToast } from '@/components/ds/toast'
 import type { SessionInput } from '@/lib/classes/session-schema'
 import { useDemo } from '@/lib/demo/use-demo'
+import { AddGuestPanel } from './add-guest-panel'
+import { CancelSessionDrawer } from './cancel-session-drawer'
 import { SessionFormDrawer } from './session-form-drawer'
 import { categoryLabels, levelLabels } from '@/lib/core/labels'
+import { formatMoney } from '@/lib/core/money'
 import { fullName, teacherName, type Session } from '@/lib/demo/data'
+import { dropInPrice } from '@/lib/payments/extras'
 
 type Attendance = 'unmarked' | 'present' | 'absent'
 type SessionState = Session & {
@@ -38,12 +48,6 @@ const clubTone: Record<string, CalendarTone> = {
   warning: 'warning',
   danger: 'danger',
 }
-const reasons = [
-  { value: 'rain', label: 'Lluvia' },
-  { value: 'bad_weather', label: 'Mal tiempo' },
-  { value: 'other', label: 'Otro motivo' },
-]
-const reasonLabel = Object.fromEntries(reasons.map((r) => [r.value, r.label]))
 const defaultFilters = { club: '', teacher: '', status: '', category: '' }
 
 export function ClassesView({ today }: { today: string }) {
@@ -57,6 +61,7 @@ export function ClassesView({ today }: { today: string }) {
     groups,
     groupById,
     studentById,
+    extras,
     actions,
   } = useDemo()
   const sessions = useMemo<SessionState[]>(
@@ -77,7 +82,8 @@ export function ClassesView({ today }: { today: string }) {
   const { club, teacher, status, category } = filterValues
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [massOpen, setMassOpen] = useState(false)
-  const [reason, setReason] = useState('rain')
+  const [reason, setReason] = useState<CancellationReason>('rain')
+  const [cancelling, setCancelling] = useState<string | null>(null)
   const [massClub, setMassClub] = useState(activeClubs[0]?.id ?? '')
   const [massDate, setMassDate] = useState(today)
   const [newSlot, setNewSlot] = useState<{ date: string; start: string; duration: 60 | 90 } | null>(null)
@@ -101,7 +107,7 @@ export function ClassesView({ today }: { today: string }) {
     end.setMinutes(end.getMinutes() + s.duration)
     return {
       id: s.id,
-      title: group?.name ?? 'Clase libre',
+      title: s.kind === 'private' ? 'Clase particular' : (group?.name ?? 'Clase libre'),
       subtitle: `${clubById(s.clubId)?.name} · ${teacherLabel(s.teacherId)}`,
       startsAt: start.toISOString(),
       endsAt: end.toISOString(),
@@ -159,7 +165,7 @@ export function ClassesView({ today }: { today: string }) {
     setMassOpen(false)
     toast(
       targets.length
-        ? `${targets.length} clases canceladas. El prorrateo y la liquidación se recalculan.`
+        ? `${targets.length} clases canceladas. Los descuentos y la liquidación se recalculan.`
         : 'No hay clases pendientes en esa sede y día.',
     )
   }
@@ -184,6 +190,7 @@ export function ClassesView({ today }: { today: string }) {
     actions.addSession({
       id: `${input.groupId || 'free'}-${input.date}-${input.start}-${sessions.length}`,
       groupId: input.groupId,
+      kind: input.kind,
       clubId: input.clubId,
       teacherId: input.teacherId,
       date: input.date,
@@ -196,7 +203,11 @@ export function ClassesView({ today }: { today: string }) {
       attendance: Object.fromEntries(input.studentIds.map((studentId) => [studentId, 'unmarked'])),
     })
     closeNew()
-    toast('Clase creada.')
+    toast(
+      input.kind === 'private'
+        ? 'Clase particular creada. El importe se suma al cobro de cada alumno.'
+        : 'Clase creada.',
+    )
   }
 
   return (
@@ -226,7 +237,13 @@ export function ClassesView({ today }: { today: string }) {
       <Drawer
         open={selected !== null}
         onClose={() => setSelectedId(null)}
-        title={selected ? (groupById(selected.groupId)?.name ?? 'Clase libre') : ''}
+        title={
+          selected
+            ? selected.kind === 'private'
+              ? 'Clase particular'
+              : (groupById(selected.groupId)?.name ?? 'Clase libre')
+            : ''
+        }
         description={
           selected
             ? `${selected.date.split('-').reverse().join('/')} · ${selected.start} · ${selected.duration} min`
@@ -244,13 +261,7 @@ export function ClassesView({ today }: { today: string }) {
               >
                 Cancelar el día
               </Button>
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  update(selected.id, { status: 'cancelled', cancelReason: 'other' })
-                  toast('Clase cancelada. No se cobrará a los alumnos.')
-                }}
-              >
+              <Button variant="secondary" onClick={() => setCancelling(selected.id)}>
                 Cancelar clase
               </Button>
               <Button
@@ -288,7 +299,10 @@ export function ClassesView({ today }: { today: string }) {
               {selected.cancelReason ? (
                 <div>
                   <dt className="text-muted-foreground">Motivo</dt>
-                  <dd className="mt-1 font-medium">{reasonLabel[selected.cancelReason]}</dd>
+                  <dd className="mt-1 font-medium">
+                    {cancellationReasonLabels[selected.cancelReason as CancellationReason] ??
+                      selected.cancelReason}
+                  </dd>
                 </div>
               ) : null}
             </dl>
@@ -330,7 +344,17 @@ export function ClassesView({ today }: { today: string }) {
                   const value = selected.attendance[id]
                   return (
                     <li key={id} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
-                      <span className="truncate">{student ? fullName(student) : id}</span>
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span className="truncate">{student ? fullName(student) : id}</span>
+                        {selected.guests?.[id] === 'recovery' ? (
+                          <Badge tone="info">Recuperación</Badge>
+                        ) : null}
+                        {selected.guests?.[id] === 'drop_in' ? (
+                          <Badge tone="warning">
+                            Suelta · {formatMoney(dropInPrice(extras, selected.duration))}
+                          </Badge>
+                        ) : null}
+                      </span>
                       <div
                         role="group"
                         aria-label={`Asistencia de ${student?.firstName}`}
@@ -356,9 +380,10 @@ export function ClassesView({ today }: { today: string }) {
                 })}
               </ul>
               <p className="mt-2 text-xs text-muted-foreground">
-                Las faltas del alumno se cobran; solo las cancelaciones del club se descuentan.
+                Las faltas del alumno se cobran; solo las cancelaciones con descuento se restan de la cuota.
               </p>
             </div>
+            {selected.status === 'pending' ? <AddGuestPanel session={selected} /> : null}
           </div>
         ) : null}
       </Drawer>
@@ -401,13 +426,30 @@ export function ClassesView({ today }: { today: string }) {
           </div>
           <div>
             <Label>Motivo</Label>
-            <Dropdown aria-label="Motivo" value={reason} onChange={setReason} options={reasons} />
+            <Dropdown
+              aria-label="Motivo"
+              value={reason}
+              onChange={(v) => setReason(v as CancellationReason)}
+              options={cancellationReasons.map((r) => ({ value: r, label: cancellationReasonLabels[r] }))}
+            />
           </div>
           <p className="rounded-xl bg-muted p-3 text-sm text-muted-foreground">
-            Las clases canceladas no se cobran a los alumnos (prorrateo) ni se pagan al profesor.
+            Según el motivo, los alumnos reciben un descuento en su cuota. Las clases canceladas no se pagan
+            al profesor.
           </p>
         </div>
       </Drawer>
+      {cancelling ? (
+        <CancelSessionDrawer
+          studentIds={sessions.find((s) => s.id === cancelling)?.studentIds ?? []}
+          onClose={() => setCancelling(null)}
+          onConfirm={(cancelReason, credited) => {
+            actions.cancelSessions([cancelling], cancelReason, credited)
+            setCancelling(null)
+            toast('Clase cancelada. No se paga al profesor y los descuentos se recalculan.')
+          }}
+        />
+      ) : null}
       {newSlot ? (
         <SessionFormDrawer
           initial={newSlot}

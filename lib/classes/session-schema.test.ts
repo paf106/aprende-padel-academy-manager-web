@@ -4,6 +4,7 @@ import { validate } from '@/lib/core/validation'
 
 const valid: SessionInput = {
   groupId: '',
+  kind: 'group',
   date: '2026-10-27',
   start: '19:00',
   duration: 60,
@@ -34,6 +35,15 @@ describe('session schema', () => {
   })
 })
 
+describe('private classes', () => {
+  const privateInput: SessionInput = { ...valid, kind: 'private', studentIds: ['a'] }
+  it('allows one or two students and rejects three', () => {
+    expect(validate(sessionSchema, privateInput).ok).toBe(true)
+    expect(validate(sessionSchema, { ...privateInput, studentIds: ['a', 'b'] }).ok).toBe(true)
+    expect(validate(sessionSchema, { ...privateInput, studentIds: ['a', 'b', 'c'] }).ok).toBe(false)
+  })
+})
+
 describe('session conflicts', () => {
   const slot = { date: '2026-10-27', start: '19:00', duration: 60 }
   const base = {
@@ -53,6 +63,19 @@ describe('session conflicts', () => {
     const existing = [{ date: slot.date, start: '19:30', duration: 60, teacherId: 't1', status: 'pending' }]
     expect(sessionConflicts({ ...base, existing })).toHaveProperty('start')
     expect(sessionConflicts({ ...base, existing: [{ ...existing[0], status: 'cancelled' }] })).toEqual({})
+  })
+  it('private classes require students of 13 or older and may mix categories', () => {
+    const extras = { dropInCents: 1500, privateOneCents: 3000, privateTwoCents: 2500, privateMinAge: 13 }
+    const mixed = [
+      { id: 'a', category: 'adult' as const },
+      { id: 'b', category: 'child' as const },
+    ]
+    expect(
+      sessionConflicts({ ...base, students: mixed, kind: 'private', studentAges: [30, 14], extras }),
+    ).toEqual({})
+    expect(
+      sessionConflicts({ ...base, students: mixed, kind: 'private', studentAges: [30, 11], extras }),
+    ).toHaveProperty('studentIds')
   })
   it('rejects closed days', () => {
     expect(sessionConflicts({ ...base, closedDays: [slot.date] })).toHaveProperty('date')

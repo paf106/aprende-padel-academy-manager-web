@@ -20,16 +20,22 @@ import {
   type Teacher,
 } from '@/lib/demo/data'
 import { seedPayments } from '@/lib/demo/billing'
-import type { DemoState, PaymentRecord } from '@/lib/demo/state'
+import type { DemoState, ExtraCharge, PaymentRecord } from '@/lib/demo/state'
 import type { RateOverride } from '@/lib/payments/monthly-charge'
 import type { RateCatalog } from '@/lib/payments/rates'
+import {
+  aprendePadelExtras,
+  dropInPrice,
+  privateClassPrice,
+  MAX_PRIVATE_STUDENTS,
+} from '@/lib/payments/extras'
 import { aprendePadelCatalog } from '@/lib/payments/seed-catalog'
 import { defaultBillingSettings, type BillingSettings } from '@/lib/payments/settings'
 import { defaultTeacherRates, type TeacherRates } from '@/lib/payments/teacher-pay'
 
 export type { DemoState, PaymentRecord } from '@/lib/demo/state'
 
-const STORAGE_KEY = 'aprende-padel-demo-v3'
+const STORAGE_KEY = 'aprende-padel-demo-v4'
 const today = () => localTodayInTimeZone('Europe/Madrid')
 
 const baseSeed: DemoState = {
@@ -45,6 +51,8 @@ const baseSeed: DemoState = {
   overrides: [],
   teacherRates: defaultTeacherRates,
   payments: [],
+  extras: aprendePadelExtras,
+  extraCharges: [],
 }
 const seed: DemoState = { ...baseSeed, payments: seedPayments(baseSeed, today()) }
 
@@ -183,17 +191,58 @@ export const demoStore = {
   },
 
   addSession(session: Session) {
-    commit({ ...state, sessions: [...state.sessions, session] })
+    commit({
+      ...state,
+      sessions: [...state.sessions, session],
+      extraCharges: [...state.extraCharges, ...privateCharges(state, session)],
+    })
+  },
+  /** Adds a student to a class they do not belong to: a free recovery or a paid single class. */
+  addGuestToSession(sessionId: string, studentId: string, mode: 'recovery' | 'drop_in') {
+    const session = state.sessions.find((s) => s.id === sessionId)
+    const student = state.students.find((s) => s.id === studentId)
+    if (!session || !student || session.studentIds.includes(studentId)) return
+    const charge: ExtraCharge[] =
+      mode === 'drop_in'
+        ? [
+            {
+              id: crypto.randomUUID(),
+              accountId: student.accountId,
+              studentId,
+              kind: 'drop_in',
+              description: `Clase suelta del ${session.date.split('-').reverse().join('/')}`,
+              amountCents: dropInPrice(state.extras, session.duration),
+              month: session.date.slice(0, 7),
+              sessionId,
+            },
+          ]
+        : []
+    commit({
+      ...state,
+      sessions: state.sessions.map((s) =>
+        s.id === sessionId
+          ? {
+              ...s,
+              studentIds: [...s.studentIds, studentId],
+              guests: { ...s.guests, [studentId]: mode },
+              attendance: { ...s.attendance, [studentId]: 'unmarked' },
+            }
+          : s,
+      ),
+      extraCharges: [...state.extraCharges, ...charge],
+    })
   },
   updateSession(id: string, patch: Partial<Session>) {
     commit({ ...state, sessions: state.sessions.map((s) => (s.id === id ? { ...s, ...patch } : s)) })
   },
-  cancelSessions(ids: readonly string[], reason: string) {
+  /** Cancelled classes are not charged: extra charges linked to them disappear. */
+  cancelSessions(ids: readonly string[], reason: string, creditedStudentIds?: string[]) {
     commit({
       ...state,
       sessions: state.sessions.map((s) =>
-        ids.includes(s.id) ? { ...s, status: 'cancelled', cancelReason: reason } : s,
+        ids.includes(s.id) ? { ...s, status: 'cancelled', cancelReason: reason, creditedStudentIds } : s,
       ),
+      extraCharges: state.extraCharges.filter((c) => !c.sessionId || !ids.includes(c.sessionId)),
     })
   },
 
@@ -219,6 +268,33 @@ export const demoStore = {
   addClosure(closure: Closure) {
     commit({ ...state, closures: [...state.closures, closure] })
   },
+}
+
+/** Charges of a private class: instructor price per student plus the court, split between the students. */
+function privateCharges(current: DemoState, session: Session): ExtraCharge[] {
+  if (session.kind !== 'private') return []
+  const students = session.studentIds
+    .slice(0, MAX_PRIVATE_STUDENTS)
+    .map((id) => current.students.find((s) => s.id === id))
+    .filter((s): s is Student => Boolean(s))
+  if (students.length === 0) return []
+  const club = current.clubs.find((c) => c.id === session.clubId)
+  const price = privateClassPrice({
+    extras: current.extras,
+    students: students.length,
+    durationMinutes: session.duration,
+    courtPricePerHourCents: club?.courtPriceCents ?? 0,
+  })
+  return students.map((student, index) => ({
+    id: crypto.randomUUID(),
+    accountId: student.accountId,
+    studentId: student.id,
+    kind: 'private' as const,
+    description: `Clase particular del ${session.date.split('-').reverse().join('/')}`,
+    amountCents: price.perStudentCents[index],
+    month: session.date.slice(0, 7),
+    sessionId: session.id,
+  }))
 }
 
 /** A student without an existing account gets a new individual billing account. */

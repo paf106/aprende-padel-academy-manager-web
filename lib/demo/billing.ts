@@ -2,7 +2,7 @@ import { expandClosedDays } from '@/lib/classes/closures'
 import { addMonths, isoWeekday, monthDates } from '@/lib/core/calendar-nav'
 import type { CancellationReason } from '@/lib/core/types'
 import { teacherName, type Account, type Group, type Session } from '@/lib/demo/data'
-import type { DemoState, PaymentRecord } from '@/lib/demo/state'
+import type { DemoState, ExtraCharge, PaymentRecord } from '@/lib/demo/state'
 import { accountDebt, accountStatement, type AccountStatus } from '@/lib/payments/account-billing'
 import {
   monthlyCharge,
@@ -69,6 +69,7 @@ export function memberMonths(state: DemoState, accountId: string, month: string)
 export type MonthStatement = {
   month: string
   result: ChargeResult
+  extraCharges: ExtraCharge[]
   dueCents: number
   paidCents: number
   balanceCents: number
@@ -105,13 +106,15 @@ export function accountHistory(state: DemoState, account: Account, currentMonth:
     })
     carried = Object.fromEntries(result.lines.map((l) => [l.memberId, l.earnedCreditCents]))
     const payments = state.payments.filter((p) => p.accountId === account.id && p.month === month)
+    const extraCharges = state.extraCharges.filter((c) => c.accountId === account.id && c.month === month)
     const statement = accountStatement({
       members: result.lines.map((l) => ({ memberId: l.memberId, amountCents: l.totalCents })),
+      adjustmentsCents: extraCharges.reduce((sum, c) => sum + c.amountCents, 0),
       creditCents: surplus,
       paymentsCents: payments.map((p) => p.amountCents),
     })
     surplus = statement.surplusCents
-    return { month, result, ...statement }
+    return { month, result, extraCharges, ...statement }
   })
 }
 
@@ -121,6 +124,7 @@ export type Charge = {
   members: MemberLine[]
   offers: AppliedOffer[]
   overrides: RateOverride[]
+  extraCharges: ExtraCharge[]
   warnings: string[]
   dueCents: number
   paidCents: number
@@ -151,6 +155,7 @@ export function buildCharges(state: DemoState, today: string): Charge[] {
         members: current.result.lines,
         offers: current.result.offers,
         overrides: current.result.overrides,
+        extraCharges: current.extraCharges,
         warnings: current.result.warnings,
         dueCents: current.dueCents,
         paidCents: current.paidCents,
@@ -162,7 +167,7 @@ export function buildCharges(state: DemoState, today: string): Charge[] {
         monthsOverdue: debt.monthsOverdue,
       }
     })
-    .filter((c) => c.members.length > 0)
+    .filter((c) => c.members.length > 0 || c.extraCharges.length > 0)
 }
 
 export function monthSessions(state: DemoState, today: string) {

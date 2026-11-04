@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { FormDrawer } from '@/components/crud/form-drawer'
 import { ColorPicker } from '@/components/ds/color-picker'
 import { Field, TextField } from '@/components/ds/field'
+import { MoneyInput } from '@/components/ds/money-input'
 import { ImageUpload } from '@/components/ds/image-upload'
 import { useToast } from '@/components/ds/toast'
 import { clubSchema, emptyClubInput, type ClubInput } from '@/lib/classes/club-schema'
@@ -22,6 +23,7 @@ export function ClubFormDrawer({ club, onClose }: { club?: Club; onClose: () => 
           city: club.city,
           postalCode: club.postalCode,
           courts: club.courts,
+          courtPriceCents: club.courtPriceCents,
           color: club.color as ClubInput['color'],
           photo: club.photo,
         }
@@ -94,6 +96,17 @@ export function ClubFormDrawer({ club, onClose }: { club?: Club; onClose: () => 
         error={errors.courts}
         onChange={(e) => set('courts', Number(e.target.value))}
       />
+      <Field
+        label="Precio de la pista por hora (€)"
+        hint="Se suma al precio de las clases particulares."
+        error={errors.courtPriceCents}
+      >
+        <MoneyInput
+          aria-label="Precio de la pista por hora"
+          valueCents={values.courtPriceCents}
+          onCommit={(cents) => set('courtPriceCents', cents ?? 0)}
+        />
+      </Field>
       <Field label="Color en el calendario">
         <ColorPicker
           label="Color en el calendario"

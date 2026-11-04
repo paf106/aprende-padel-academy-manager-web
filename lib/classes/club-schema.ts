@@ -16,6 +16,7 @@ export const clubSchema = z.object({
     .int('Indica un número entero')
     .min(1, 'Debe haber al menos 1 pista')
     .max(50, 'Demasiadas pistas'),
+  courtPriceCents: z.number().int().min(0, 'El precio no puede ser negativo'),
   color: z.enum(clubColors),
   photo: z
     .string()
@@ -30,6 +31,7 @@ export const emptyClubInput: ClubInput = {
   city: '',
   postalCode: '',
   courts: 1,
+  courtPriceCents: 0,
   color: 'brand',
   photo: '',
 }
