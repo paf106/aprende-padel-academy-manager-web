@@ -118,11 +118,11 @@ describe('deleting a class', () => {
     expect(removed.extraCharges).toEqual(base.extraCharges)
   })
 
-  it('does not delete classes that come from a group or a course', () => {
+  it('deletes a class of a group', () => {
     const base = makeAppData()
     const fromGroup = base.sessions.find((s) => s.groupId)!
-    expect(mutations.deleteSession(base, fromGroup.id)).toBe(base)
-    const fromCourse = base.sessions.find((s) => s.courseId)!
-    expect(mutations.deleteSession(base, fromCourse.id)).toBe(base)
+    const removed = mutations.deleteSession(base, fromGroup.id)
+    expect(removed.sessions.some((s) => s.id === fromGroup.id)).toBe(false)
+    expect(removed.sessions).toHaveLength(base.sessions.length - 1)
   })
 })

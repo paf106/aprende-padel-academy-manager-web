@@ -261,17 +261,15 @@ export function ClassesView({ today }: { today: string }) {
             : undefined
         }
         footer={
-          selected && (selected.status === 'pending' || !selected.groupId) ? (
+          selected ? (
             <>
-              {!selected.groupId && !selected.courseId ? (
-                <Button
-                  variant="ghost"
-                  className="mr-auto text-danger"
-                  onClick={() => setDeleting(selected.id)}
-                >
-                  Eliminar clase
-                </Button>
-              ) : null}
+              <Button
+                variant="ghost"
+                className="mr-auto text-danger"
+                onClick={() => setDeleting(selected.id)}
+              >
+                Eliminar clase
+              </Button>
               {selected.status === 'pending' ? (
                 <>
                   <Button
@@ -330,12 +328,6 @@ export function ClassesView({ today }: { today: string }) {
                 </div>
               ) : null}
             </dl>
-            {selected.groupId || selected.courseId ? (
-              <p className="rounded-xl bg-muted px-3 py-2 text-xs text-muted-foreground">
-                Esta clase sale de un {selected.courseId ? 'curso' : 'grupo'}. Para quitarla, usa «Cancelar
-                clase» o edita el {selected.courseId ? 'curso' : 'grupo'}.
-              </p>
-            ) : null}
             <div>
               <Label>Profesor que imparte</Label>
               <Dropdown

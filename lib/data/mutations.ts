@@ -175,10 +175,10 @@ export const mutations = {
   updateSession(state: AppData, id: string, patch: Partial<Session>): AppData {
     return { ...state, sessions: state.sessions.map((s) => (s.id === id ? { ...s, ...patch } : s)) }
   },
-  /** Removes a class created by hand, with its charges. Classes of a group or course are removed through them. */
+  /** Removes a class with its charges. Editing the group afterwards can create it again if it fits the group's schedule. */
   deleteSession(state: AppData, id: string): AppData {
     const session = state.sessions.find((s) => s.id === id)
-    if (!session || session.groupId || session.courseId) return state
+    if (!session) return state
     return {
       ...state,
       sessions: state.sessions.filter((s) => s.id !== id),
