@@ -62,6 +62,7 @@ export function ClassesView({ today }: { today: string }) {
     groups,
     groupById,
     studentById,
+    studentLabel,
     courses,
     extras,
     extraCharges,
@@ -130,6 +131,13 @@ export function ClassesView({ today }: { today: string }) {
     }
   })
   const selected = sessions.find((s) => s.id === selectedId) ?? null
+  // Group members first, then recoveries and single classes, each by name, so rows never jump after saving.
+  const orderedAttendees = selected
+    ? [...selected.studentIds].sort((a, b) => {
+        const guest = Number(Boolean(selected.guests?.[a])) - Number(Boolean(selected.guests?.[b]))
+        return guest || studentLabel(a).localeCompare(studentLabel(b), 'es')
+      })
+    : []
   const filters: FilterDef[] = [
     {
       key: 'club',
@@ -361,7 +369,7 @@ export function ClassesView({ today }: { today: string }) {
                 ) : null}
               </div>
               <ul className="divide-y divide-border rounded-2xl border border-border">
-                {selected.studentIds.map((id) => {
+                {orderedAttendees.map((id) => {
                   const student = studentById(id)
                   const value = selected.attendance[id]
                   return (

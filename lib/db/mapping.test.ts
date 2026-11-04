@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { makeAppData } from '@/lib/data/fixtures'
 import { mutations } from '@/lib/data/mutations'
-import { diffRows, fromRows, hasChanges, toRows } from '@/lib/db/mapping'
+import { diffRows, fromRows, hasChanges, orderColumns, TABLES, toRows } from '@/lib/db/mapping'
 
 const withTimes = (rows: ReturnType<typeof toRows>) =>
   // Postgres returns time columns with seconds.
@@ -73,6 +73,15 @@ describe('ids', () => {
           }
         }
       }
+    }
+  })
+})
+
+describe('read order', () => {
+  it('every table with keys sorts by a total order that ends with its keys', () => {
+    for (const spec of TABLES.filter((s) => s.keys.length > 0)) {
+      const columns = orderColumns(spec)
+      expect(columns.slice(-spec.keys.length), spec.table).toEqual(spec.keys)
     }
   })
 })

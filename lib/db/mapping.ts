@@ -15,26 +15,27 @@ export type TableSpec = {
   conflict: string
   /** Rows can be added but never edited or deleted. */
   appendOnly?: boolean
-  order?: string
+  /** Columns to sort by before the key columns, so lists keep a stable, readable order. */
+  order?: string[]
 }
 
 /** Parents come before children, so upserts run in this order and deletes run in reverse. */
 export const TABLES: TableSpec[] = [
-  { schema: 'core', table: 'clubs', keys: ['id'], conflict: 'id', order: 'created_at' },
-  { schema: 'core', table: 'club_closures', keys: ['id'], conflict: 'id', order: 'starts_on' },
-  { schema: 'core', table: 'teachers', keys: ['id'], conflict: 'id', order: 'created_at' },
+  { schema: 'core', table: 'clubs', keys: ['id'], conflict: 'id', order: ['created_at'] },
+  { schema: 'core', table: 'club_closures', keys: ['id'], conflict: 'id', order: ['starts_on'] },
+  { schema: 'core', table: 'teachers', keys: ['id'], conflict: 'id', order: ['created_at'] },
   { schema: 'core', table: 'teacher_clubs', keys: ['teacher_id', 'club_id'], conflict: 'teacher_id,club_id' },
-  { schema: 'core', table: 'billing_accounts', keys: ['id'], conflict: 'id' },
-  { schema: 'core', table: 'students', keys: ['id'], conflict: 'id', order: 'created_at' },
+  { schema: 'core', table: 'billing_accounts', keys: ['id'], conflict: 'id', order: ['name'] },
+  { schema: 'core', table: 'students', keys: ['id'], conflict: 'id', order: ['created_at', 'first_name'] },
   { schema: 'core', table: 'student_clubs', keys: ['student_id', 'club_id'], conflict: 'student_id,club_id' },
-  { schema: 'payments', table: 'age_segments', keys: ['id'], conflict: 'id', order: 'min_age' },
+  { schema: 'payments', table: 'age_segments', keys: ['id'], conflict: 'id', order: ['min_age'] },
   {
     schema: 'payments',
     table: 'individual_rates',
     keys: ['segment_id', 'classes_per_week'],
     conflict: 'segment_id,classes_per_week',
   },
-  { schema: 'payments', table: 'pack_offers', keys: ['id'], conflict: 'id' },
+  { schema: 'payments', table: 'pack_offers', keys: ['id'], conflict: 'id', order: ['name'] },
   { schema: 'payments', table: 'course_rates', keys: ['segment_id'], conflict: 'segment_id' },
   { schema: 'payments', table: 'billing_settings', keys: [], conflict: 'organization_id' },
   { schema: 'payments', table: 'extra_rates', keys: [], conflict: 'organization_id' },
@@ -44,38 +45,41 @@ export const TABLES: TableSpec[] = [
     keys: ['category'],
     conflict: 'organization_id,category',
   },
-  { schema: 'classes', table: 'groups', keys: ['id'], conflict: 'id' },
+  { schema: 'classes', table: 'groups', keys: ['id'], conflict: 'id', order: ['name'] },
   {
     schema: 'classes',
     table: 'group_members',
     keys: ['group_id', 'student_id'],
     conflict: 'group_id,student_id',
   },
-  { schema: 'classes', table: 'courses', keys: ['id'], conflict: 'id' },
+  { schema: 'classes', table: 'courses', keys: ['id'], conflict: 'id', order: ['starts_on'] },
   {
     schema: 'classes',
     table: 'course_enrollments',
     keys: ['course_id', 'student_id'],
     conflict: 'course_id,student_id',
   },
-  { schema: 'classes', table: 'sessions', keys: ['id'], conflict: 'id', order: 'date' },
+  { schema: 'classes', table: 'sessions', keys: ['id'], conflict: 'id', order: ['date', 'start_time'] },
   {
     schema: 'classes',
     table: 'session_attendees',
     keys: ['session_id', 'student_id'],
     conflict: 'session_id,student_id',
   },
-  { schema: 'payments', table: 'rate_overrides', keys: ['id'], conflict: 'id' },
+  { schema: 'payments', table: 'rate_overrides', keys: ['id'], conflict: 'id', order: ['from_month'] },
   {
     schema: 'payments',
     table: 'payments',
     keys: ['id'],
     conflict: 'id',
     appendOnly: true,
-    order: 'created_at',
+    order: ['created_at'],
   },
-  { schema: 'payments', table: 'extra_charges', keys: ['id'], conflict: 'id' },
+  { schema: 'payments', table: 'extra_charges', keys: ['id'], conflict: 'id', order: ['month'] },
 ]
+
+/** Sort columns of a table: its own order first, always ending with the key columns so the order is total. */
+export const orderColumns = (spec: TableSpec) => [...(spec.order ?? []), ...spec.keys]
 
 export const tableName = (spec: Pick<TableSpec, 'schema' | 'table'>) => `${spec.schema}.${spec.table}`
 export const rowKey = (spec: TableSpec, row: Row) => spec.keys.map((k) => String(row[k])).join('|')

@@ -1,5 +1,5 @@
 import type { AppData } from '@/lib/data/types'
-import { fromRows, TABLES, tableName, type Row, type TableRows } from '@/lib/db/mapping'
+import { fromRows, orderColumns, TABLES, tableName, type Row, type TableRows } from '@/lib/db/mapping'
 import { getSupabaseServer } from '@/lib/supabase/server'
 
 const PAGE = 1000
@@ -12,7 +12,7 @@ export async function loadAppData(): Promise<AppData> {
       const rows: Row[] = []
       for (let from = 0; ; from += PAGE) {
         let query = supabase.schema(spec.schema).from(spec.table).select('*')
-        if (spec.order) query = query.order(spec.order)
+        for (const column of orderColumns(spec)) query = query.order(column)
         const { data, error } = await query.range(from, from + PAGE - 1)
         if (error) throw new Error(`${tableName(spec)}: ${error.message}`)
         rows.push(...(data as Row[]))
