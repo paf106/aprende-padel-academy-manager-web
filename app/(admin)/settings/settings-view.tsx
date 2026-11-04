@@ -21,7 +21,6 @@ export function SettingsView() {
   const { billing, actions } = useAppData()
   const [values, setValues] = useState<BillingSettings>(billing)
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const prorate = values.mode === 'prorate'
   const set = <K extends keyof BillingSettings>(key: K, value: BillingSettings[K]) =>
     setValues((current) => ({ ...current, [key]: value }))
 
@@ -42,29 +41,13 @@ export function SettingsView() {
       <BentoGrid>
         <BentoCard span="xl" title="Cobro de cuotas">
           <div className="grid gap-5">
-            <SelectField
-              label="Cómo se cobran las cancelaciones y las clases de más"
-              value={values.mode}
-              onChange={(v) => set('mode', v as BillingSettings['mode'])}
-              options={[
-                {
-                  value: 'included',
-                  label: 'Clases incluidas en la cuota (cobra la clase de más y descuenta después)',
-                },
-                {
-                  value: 'prorate',
-                  label: 'Prorrateo en el mismo mes (35 € con 1 de 4 canceladas = 26,25 €)',
-                },
-              ]}
-            />
             <div className="grid gap-4 sm:grid-cols-2">
               <TextField
                 id="included-classes"
                 type="number"
                 min={1}
-                label="Clases incluidas por cada día a la semana"
-                hint="Una cuota de 1 día incluye este número de clases al mes."
-                disabled={prorate}
+                label="Clases que cubre la cuota por cada día a la semana"
+                hint="Si el mes tiene menos clases se cobra la parte proporcional; si tiene más, la clase de más."
                 value={values.includedPerWeeklyClass}
                 error={errors.includedPerWeeklyClass}
                 onChange={(e) => set('includedPerWeeklyClass', Number(e.target.value))}
@@ -74,35 +57,14 @@ export function SettingsView() {
                 type="number"
                 min={0}
                 label="Días de preaviso para dar de baja"
-                hint="Sin este preaviso se cobra el mes entero y se pierden los descuentos pendientes."
+                hint="Sin este preaviso se cobra el mes entero."
                 value={values.leaveNoticeDays}
                 error={errors.leaveNoticeDays}
                 onChange={(e) => set('leaveNoticeDays', Number(e.target.value))}
               />
             </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <SelectField
-                label="Cuándo se aplican los descuentos"
-                value={values.creditTiming}
-                onChange={(v) => set('creditTiming', v as BillingSettings['creditTiming'])}
-                options={[
-                  { value: 'next_month', label: 'En la mensualidad siguiente' },
-                  { value: 'same_month', label: 'En el mismo mes' },
-                ]}
-              />
-              <label className="flex cursor-pointer items-end gap-3 pb-2 text-sm">
-                <input
-                  type="checkbox"
-                  className="mb-0.5 size-4 accent-[var(--brand)]"
-                  checked={values.chargeExtraClasses}
-                  disabled={prorate}
-                  onChange={(e) => set('chargeExtraClasses', e.target.checked)}
-                />
-                Cobrar la parte proporcional cuando el mes tiene una clase de más
-              </label>
-            </div>
             <MultiSelectField
-              label="Motivos de cancelación que dan descuento al alumno"
+              label="Motivos de cancelación que no se cobran al alumno"
               value={values.creditReasons}
               onChange={(v) => set('creditReasons', v as BillingSettings['creditReasons'])}
               options={cancellationReasons.map((reason) => ({
@@ -111,7 +73,8 @@ export function SettingsView() {
               }))}
             />
             <p className="-mt-3 text-xs text-muted-foreground">
-              Si el alumno falta por su cuenta no hay descuento, sea cual sea el motivo.
+              Si el alumno falta por su cuenta se cobra la clase, sea cual sea el motivo. El descuento se
+              aplica en el mismo mes.
             </p>
             <MultiSelectField
               label="Métodos de pago permitidos"

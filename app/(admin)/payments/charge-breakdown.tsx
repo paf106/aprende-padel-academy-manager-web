@@ -18,7 +18,6 @@ export function ChargeBreakdown({ data, catalog }: { data: BreakdownData; catalo
   const segmentName = (id: string | null) =>
     catalog.segments.find((s) => s.id === id)?.name ?? 'Sin tramo de edad'
   const offerName = (id: string | null) => catalog.offers.find((o) => o.id === id)?.name
-  const earned = data.lines.reduce((sum, line) => sum + line.earnedCreditCents, 0)
 
   return (
     <div className="grid gap-3">
@@ -46,7 +45,8 @@ export function ChargeBreakdown({ data, catalog }: { data: BreakdownData; catalo
               <span className="font-medium">{line.name}</span>
               <span className="ml-2 text-xs text-muted-foreground">
                 {segmentName(line.segmentId)} · {line.classesPerWeek}{' '}
-                {line.classesPerWeek === 1 ? 'día' : 'días'}/semana ·{' '}
+                {line.classesPerWeek === 1 ? 'día' : 'días'}/semana · {line.billedClasses}{' '}
+                {line.billedClasses === 1 ? 'clase' : 'clases'} ·{' '}
                 {line.source === 'offer'
                   ? (offerName(line.offerId) ?? 'Oferta')
                   : line.source === 'override'
@@ -59,8 +59,10 @@ export function ChargeBreakdown({ data, catalog }: { data: BreakdownData; catalo
               {line.extraClasses > 0
                 ? ` + ${line.extraClasses} ${line.extraClasses === 1 ? 'clase extra' : 'clases extra'} ${formatMoney(line.extraCents)}`
                 : ''}
-              {line.appliedCreditCents > 0 ? ` − descuento ${formatMoney(line.appliedCreditCents)}` : ''} ={' '}
-              <span className="font-semibold text-foreground">{formatMoney(line.totalCents)}</span>
+              {line.discountCents > 0
+                ? ` − ${formatMoney(line.discountCents)} por ${line.includedClasses - line.billedClasses} ${line.includedClasses - line.billedClasses === 1 ? 'clase menos' : 'clases menos'}`
+                : ''}{' '}
+              = <span className="font-semibold text-foreground">{formatMoney(line.totalCents)}</span>
             </span>
           </li>
         ))}
@@ -74,12 +76,6 @@ export function ChargeBreakdown({ data, catalog }: { data: BreakdownData; catalo
             </li>
           ))}
         </ul>
-      ) : null}
-      {earned > 0 ? (
-        <p className="text-xs text-muted-foreground">
-          Se descontarán {formatMoney(earned)} de la mensualidad siguiente por clases canceladas o festivos de
-          este mes.
-        </p>
       ) : null}
     </div>
   )

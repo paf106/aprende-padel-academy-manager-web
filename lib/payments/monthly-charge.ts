@@ -8,15 +8,15 @@ export type MemberMonth = {
   memberId: string
   name: string
   birthDate: string
-  /** Number of active groups the member attends: how many days a week they come. */
+  /** Number of weekly classes (groups) the member attends: how many days a week they come. */
   classesPerWeek: number
-  /** Classes of the month, including those lost to holidays. */
+  /** Classes of the month in the calendar, including holidays and cancellations. */
   occurrences: number
-  /** Classes of the month that fell on a closed day. */
+  /** Classes of the month that fell on a closed day: they are not charged. */
   holidayClasses: number
-  /** Cancelled classes whose reason gives a credit to this member. */
+  /** Cancelled classes whose reason gives a discount to this member: they are not charged. */
   creditedCancellations: number
-  /** Leaving without enough notice: the month is charged in full and credits are lost. */
+  /** Leaving without enough notice: the month is charged in full. */
   forfeitCredits?: boolean
 }
 
@@ -44,10 +44,10 @@ export type MemberLine = {
   occurrences: number
   extraClasses: number
   extraCents: number
-  /** Classes (cancelled or lost to holidays) that earn a credit this month. */
-  creditClasses: number
-  earnedCreditCents: number
-  appliedCreditCents: number
+  /** Classes of the month that are charged: scheduled, minus holidays and discounted cancellations. */
+  billedClasses: number
+  /** Taken off the fee when the month has fewer classes than the fee covers. */
+  discountCents: number
   totalCents: number
 }
 
@@ -65,8 +65,6 @@ export type ChargeInput = {
   members: readonly MemberMonth[]
   catalog: RateCatalog
   settings: BillingSettings
-  /** Credits earned the previous month, in cents, by member. Used when credits apply the next month. */
-  carriedCredits?: Readonly<Record<string, number>>
   overrides?: readonly RateOverride[]
 }
 
@@ -115,26 +113,13 @@ export function monthlyCharge(input: ChargeInput): ChargeResult {
     const overridden = Boolean(studentOverride || accountOverride)
     const share = studentOverride ? studentOverride.amountCents : (shares.get(member.memberId) ?? 0)
     const included = member.classesPerWeek * settings.includedPerWeeklyClass
-    const offered = member.occurrences - member.holidayClasses
+    const billed = Math.max(0, member.occurrences - member.holidayClasses - member.creditedCancellations)
 
-    let extraClasses = 0
-    let extraCents = 0
-    let creditClasses = 0
-    let earned = 0
-    let applied = 0
-    if (settings.mode === 'prorate') {
-      const prorated = prorateFee(share, offered, Math.min(member.creditedCancellations, offered))
-      applied = member.forfeitCredits ? 0 : share - prorated
-      creditClasses = member.creditedCancellations
-    } else {
-      if (settings.chargeExtraClasses) extraClasses = Math.max(0, member.occurrences - included)
-      extraCents = included > 0 ? Math.round((share * extraClasses) / included) : 0
-      creditClasses = member.creditedCancellations + member.holidayClasses
-      earned = included > 0 ? Math.round((share * creditClasses) / included) : 0
-      const available =
-        settings.creditTiming === 'same_month' ? earned : (input.carriedCredits?.[member.memberId] ?? 0)
-      applied = member.forfeitCredits ? 0 : Math.min(available, share + extraCents)
-    }
+    // The fee covers `included` classes: a shorter month is prorated and a longer one charges the extra class.
+    const extraClasses = Math.max(0, billed - included)
+    const extraCents = included > 0 ? Math.round((share * extraClasses) / included) : 0
+    const missing = member.forfeitCredits ? 0 : Math.max(0, included - billed)
+    const discount = included > 0 ? Math.round((share * missing) / included) : 0
     return {
       memberId: member.memberId,
       name: member.name,
@@ -147,10 +132,9 @@ export function monthlyCharge(input: ChargeInput): ChargeResult {
       occurrences: member.occurrences,
       extraClasses,
       extraCents,
-      creditClasses,
-      earnedCreditCents: earned,
-      appliedCreditCents: applied,
-      totalCents: share + extraCents - applied,
+      billedClasses: billed,
+      discountCents: discount,
+      totalCents: share + extraCents - discount,
     }
   })
 

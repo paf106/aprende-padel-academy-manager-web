@@ -1,5 +1,5 @@
 import { expandClosedDays } from '@/lib/classes/closures'
-import { addMonths, isoWeekday, monthDates } from '@/lib/core/calendar-nav'
+import { addMonths } from '@/lib/core/calendar-nav'
 import type { CancellationReason } from '@/lib/core/types'
 import {
   teacherName,
@@ -31,42 +31,40 @@ export function creditApplies(state: AppData, session: Session, studentId: strin
   return !session.creditedStudentIds || session.creditedStudentIds.includes(studentId)
 }
 
-/** Classes, holidays and credited cancellations of every active member of an account for one month. */
+/**
+ * Classes of the month for every active member of an account, read from the calendar: the classes where the
+ * student is a member of the group. Holidays and discounted cancellations are not charged.
+ */
 export function memberMonths(state: AppData, accountId: string, month: string): MemberMonth[] {
-  const dates = monthDates(month)
+  const closedByClub = new Map<string, Set<string>>()
+  const closedOn = (clubId: string, date: string) => {
+    if (!closedByClub.has(clubId)) closedByClub.set(clubId, new Set(expandClosedDays(state.closures, clubId)))
+    return closedByClub.get(clubId)!.has(date)
+  }
   return state.students
     .filter((s) => s.accountId === accountId && s.active)
     .map((student) => {
-      const mine = state.groups.filter((g) => g.studentIds.includes(student.id))
-      let classesPerWeek = 0
-      let occurrences = 0
-      let holidayClasses = 0
-      const attended = new Set<string>()
-      for (const group of mine) {
-        const closed = new Set(expandClosedDays(state.closures, group.clubId))
-        const days = dates.filter(
-          (d) =>
-            isoWeekday(d) === group.weekday && d >= group.startsOn && (!group.endsOn || d <= group.endsOn),
-        )
-        if (days.length === 0) continue
-        classesPerWeek += 1
-        occurrences += days.length
-        holidayClasses += days.filter((d) => closed.has(d)).length
-        attended.add(group.id)
-      }
-      const creditedCancellations = state.sessions.filter(
+      const mine = state.sessions.filter(
         (s) =>
-          attended.has(s.groupId) &&
+          s.groupId &&
           s.date.startsWith(month) &&
-          s.status === 'cancelled' &&
-          creditApplies(state, s, student.id),
-      ).length
+          s.studentIds.includes(student.id) &&
+          !s.guests?.[student.id],
+      )
+      let holidayClasses = 0
+      let creditedCancellations = 0
+      for (const session of mine) {
+        if (closedOn(session.clubId, session.date)) holidayClasses += 1
+        else if (session.status === 'cancelled' && creditApplies(state, session, student.id)) {
+          creditedCancellations += 1
+        }
+      }
       return {
         memberId: student.id,
         name: memberName(student),
         birthDate: student.birthDate,
-        classesPerWeek,
-        occurrences,
+        classesPerWeek: new Set(mine.map((s) => s.groupId)).size,
+        occurrences: mine.length,
         holidayClasses,
         creditedCancellations,
       }
@@ -97,9 +95,8 @@ export function seasonMonths(state: AppData, currentMonth: string) {
   return months.slice(-MAX_HISTORY_MONTHS)
 }
 
-/** Month by month statements of an account, carrying credits and overpayments forward. */
+/** Month by month statements of an account, carrying overpayments forward. */
 export function accountHistory(state: AppData, account: Account, currentMonth: string): MonthStatement[] {
-  let carried: Record<string, number> = {}
   let surplus = 0
   return seasonMonths(state, currentMonth).map((month) => {
     const result = monthlyCharge({
@@ -108,10 +105,8 @@ export function accountHistory(state: AppData, account: Account, currentMonth: s
       members: memberMonths(state, account.id, month),
       catalog: state.catalog,
       settings: state.billing,
-      carriedCredits: carried,
       overrides: state.overrides,
     })
-    carried = Object.fromEntries(result.lines.map((l) => [l.memberId, l.earnedCreditCents]))
     const payments = state.payments.filter((p) => p.accountId === account.id && p.month === month)
     const extraCharges = state.extraCharges.filter((c) => c.accountId === account.id && c.month === month)
     const statement = accountStatement({
@@ -242,22 +237,12 @@ export function simulateMonth(
   month: string,
   excludedMemberIds: readonly string[],
 ): ChargeResult {
-  const previous = addMonths(month, -1)
-  const before = monthlyCharge({
-    accountId,
-    month: previous,
-    members: memberMonths(state, accountId, previous),
-    catalog: state.catalog,
-    settings: state.billing,
-    overrides: state.overrides,
-  })
   return monthlyCharge({
     accountId,
     month,
     members: memberMonths(state, accountId, month).filter((m) => !excludedMemberIds.includes(m.memberId)),
     catalog: state.catalog,
     settings: state.billing,
-    carriedCredits: Object.fromEntries(before.lines.map((l) => [l.memberId, l.earnedCreditCents])),
     overrides: state.overrides,
   })
 }

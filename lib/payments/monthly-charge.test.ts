@@ -20,7 +20,6 @@ const run = (
   members: MemberMonth[],
   options: {
     settings?: Partial<BillingSettings>
-    carried?: Record<string, number>
     overrides?: RateOverride[]
     month?: string
   } = {},
@@ -31,62 +30,41 @@ const run = (
     members,
     catalog,
     settings: { ...defaultBillingSettings, ...options.settings },
-    carriedCredits: options.carried,
     overrides: options.overrides,
   })
 
-describe('included classes mode (AprendePadel conditions)', () => {
+describe('fee by classes of the month (AprendePadel conditions)', () => {
   it('charges the plain fee for a four-class month', () => {
     expect(run([adult()]).totalCents).toBe(3500)
   })
-  it('charges the proportional extra class in a five-week month', () => {
+  it('prorates a month with fewer classes', () => {
+    const result = run([adult('a', { occurrences: 3 })])
+    expect(result.lines[0]).toMatchObject({ billedClasses: 3, discountCents: 875, totalCents: 2625 })
+  })
+  it('charges the extra class of a five-class month', () => {
     const result = run([adult('a', { occurrences: 5 })])
     expect(result.lines[0]).toMatchObject({ extraClasses: 1, extraCents: 875, totalCents: 4375 })
   })
-  it('earns a credit for a rain cancellation and applies it the next month', () => {
-    const november = run([adult('a', { occurrences: 5, creditedCancellations: 1 })])
-    expect(november.lines[0].earnedCreditCents).toBe(875)
-    const december = run([adult()], { carried: { a: november.lines[0].earnedCreditCents }, month: '2026-12' })
-    expect(december.totalCents).toBe(3500 - 875)
+  it('a cancellation with discount is taken off in the same month', () => {
+    expect(run([adult('a', { creditedCancellations: 1 })]).totalCents).toBe(2625)
+    expect(run([adult('a', { occurrences: 5, creditedCancellations: 1 })]).totalCents).toBe(3500)
   })
-  it('a holiday is charged as an extra class and credited later, netting zero over two months', () => {
-    const january = run([adult('a', { occurrences: 5, holidayClasses: 1 })])
-    expect(january.totalCents).toBe(4375)
-    expect(january.lines[0].earnedCreditCents).toBe(875)
+  it('holidays are not charged', () => {
+    expect(run([adult('a', { occurrences: 5, holidayClasses: 1 })]).totalCents).toBe(3500)
+    expect(run([adult('a', { occurrences: 4, holidayClasses: 1 })]).totalCents).toBe(2625)
   })
-  it('can apply credits in the same month', () => {
-    const result = run([adult('a', { creditedCancellations: 1 })], {
-      settings: { creditTiming: 'same_month' },
-    })
-    expect(result.totalCents).toBe(3500 - 875)
+  it('charges the full month when leaving without notice', () => {
+    expect(run([adult('a', { creditedCancellations: 1, forfeitCredits: true })]).totalCents).toBe(3500)
   })
-  it('does not apply credits when leaving without notice', () => {
-    const result = run([adult('a', { forfeitCredits: true })], { carried: { a: 875 } })
-    expect(result.totalCents).toBe(3500)
+  it('scales with the days per week', () => {
+    const result = run([adult('a', { classesPerWeek: 2, occurrences: 7 })])
+    expect(result.lines[0]).toMatchObject({ includedClasses: 8, billedClasses: 7, totalCents: 6000 - 750 })
   })
   it('never charges less than zero', () => {
-    expect(run([adult()], { carried: { a: 99999 } }).totalCents).toBe(0)
-  })
-  it('can disable extra classes', () => {
-    expect(
-      run([adult('a', { occurrences: 5 })], { settings: { chargeExtraClasses: false } }).totalCents,
-    ).toBe(3500)
+    expect(run([adult('a', { occurrences: 1, creditedCancellations: 1 })]).totalCents).toBe(0)
   })
   it('does not bill members without classes', () => {
     expect(run([adult('a'), adult('b', { classesPerWeek: 0, occurrences: 0 })]).lines).toHaveLength(1)
-  })
-})
-
-describe('prorate mode', () => {
-  const settings = { mode: 'prorate' as const }
-  it('prorates inside the same month', () => {
-    expect(run([adult('a', { creditedCancellations: 1 })], { settings }).totalCents).toBe(2625)
-    expect(run([adult('a', { occurrences: 5, creditedCancellations: 1 })], { settings }).totalCents).toBe(
-      2800,
-    )
-  })
-  it('holidays are not scheduled classes', () => {
-    expect(run([adult('a', { occurrences: 5, holidayClasses: 1 })], { settings }).totalCents).toBe(3500)
   })
 })
 
@@ -108,11 +86,12 @@ describe('families', () => {
     expect(run([...parents, teen], { month: '2026-01' }).totalCents).toBe(8000)
     expect(run([...parents, teen], { month: '2026-02' }).totalCents).toBe(6000 + 3500)
   })
-  it('extra classes and credits follow each member share', () => {
-    const result = run([...parents, child('c1', { occurrences: 5, creditedCancellations: 1 })])
-    const kid = result.lines.find((l) => l.memberId === 'c1')!
-    expect(kid.extraCents).toBe(Math.round(kid.shareCents / 4))
-    expect(kid.earnedCreditCents).toBe(Math.round(kid.shareCents / 4))
+  it('extra classes and discounts follow each member share', () => {
+    const result = run([...parents, child('c1', { occurrences: 5 }), child('c2', { occurrences: 3 })])
+    const long = result.lines.find((l) => l.memberId === 'c1')!
+    const short = result.lines.find((l) => l.memberId === 'c2')!
+    expect(long.extraCents).toBe(Math.round(long.shareCents / 4))
+    expect(short.discountCents).toBe(Math.round(short.shareCents / 4))
   })
 })
 

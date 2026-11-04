@@ -139,8 +139,8 @@ await sql.begin(async (tx) => {
   }
   const b = defaultBillingSettings
   await tx`
-    insert into payments.billing_settings (organization_id, mode, included_per_weekly_class, charge_extra_classes, credit_timing, credit_reasons, leave_notice_days, allowed_payment_methods)
-    values (${ORG_ID}, ${b.mode}, ${b.includedPerWeeklyClass}, ${b.chargeExtraClasses}, ${b.creditTiming}, ${b.creditReasons}, ${b.leaveNoticeDays}, ${b.allowedPaymentMethods})`
+    insert into payments.billing_settings (organization_id, included_per_weekly_class, credit_reasons, leave_notice_days, allowed_payment_methods)
+    values (${ORG_ID}, ${b.includedPerWeeklyClass}, ${b.creditReasons}, ${b.leaveNoticeDays}, ${b.allowedPaymentMethods})`
   await tx`
     insert into payments.extra_rates (organization_id, drop_in_cents, private_one_cents, private_two_cents, private_min_age)
     values (${ORG_ID}, ${aprendePadelExtras.dropInCents}, ${aprendePadelExtras.privateOneCents}, ${aprendePadelExtras.privateTwoCents}, ${aprendePadelExtras.privateMinAge})`

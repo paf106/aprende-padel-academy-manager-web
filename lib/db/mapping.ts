@@ -210,10 +210,7 @@ export function toRows(data: AppData): TableRows {
   const b = data.billing
   put('payments', 'billing_settings', [
     {
-      mode: b.mode,
       included_per_weekly_class: b.includedPerWeeklyClass,
-      charge_extra_classes: b.chargeExtraClasses,
-      credit_timing: b.creditTiming,
       credit_reasons: b.creditReasons,
       leave_notice_days: b.leaveNoticeDays,
       allowed_payment_methods: b.allowedPaymentMethods,
@@ -530,10 +527,7 @@ export function fromRows(rows: TableRows): AppData {
     },
     billing: billingRow
       ? {
-          mode: billingRow.mode,
           includedPerWeeklyClass: billingRow.included_per_weekly_class,
-          chargeExtraClasses: billingRow.charge_extra_classes,
-          creditTiming: billingRow.credit_timing,
           creditReasons: billingRow.credit_reasons,
           leaveNoticeDays: billingRow.leave_notice_days,
           allowedPaymentMethods: billingRow.allowed_payment_methods,

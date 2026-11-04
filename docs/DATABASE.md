@@ -21,7 +21,9 @@ The migrations in `supabase/migrations` implement a simplified version of the de
 - `classes.settings` holds the end of the season; `classes.sessions.manual` marks classes created by hand, which group edits never remove.
 - Club photos are stored in the public `club-photos` bucket under `<organization_id>/`; the `photo` column keeps the URL.
 
-The sections below describe the full target design.
+- The monthly fee is the rate times the classes of the month in the calendar divided by `included_per_weekly_class` per weekly class; holidays and cancellations with a discount reason are not charged, in the same month. There is no billing mode or credit timing.
+
+The sections below describe the full target design (credit and mode columns in it are not implemented).
 
 ## 1. Core: platform, organization and clubs
 
