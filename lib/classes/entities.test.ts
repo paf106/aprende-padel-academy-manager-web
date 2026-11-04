@@ -89,3 +89,19 @@ describe('deletion rules', () => {
     expect(groupDeletionBlockers({ completedSessions: 3 })).toHaveLength(1)
   })
 })
+
+describe('mixed groups', () => {
+  it('allows a child and an adult in the same group', () => {
+    expect(
+      groupConflicts({
+        teacherId: 't',
+        weekday: 1,
+        start: '19:00',
+        duration: 60,
+        category: 'child',
+        students: [{ category: 'child' }, { category: 'adult' }],
+        others: [],
+      }),
+    ).toEqual({})
+  })
+})

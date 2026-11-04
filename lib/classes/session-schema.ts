@@ -35,7 +35,7 @@ export type SessionInput = z.infer<typeof sessionSchema>
 
 type ExistingSession = TimeSlot & { teacherId: string; status: string }
 
-/** Rules that need other data: category mixing, teacher overlaps and closed days. Returns messages per field. */
+/** Rules that need other data: teacher overlaps and closed days. Adults and children can share a class. Returns messages per field. */
 export function sessionConflicts(input: {
   slot: TimeSlot
   teacherId: string
@@ -53,9 +53,6 @@ export function sessionConflicts(input: {
   if (isPrivate && input.extras) {
     const [issue] = privateClassIssues(input.extras, input.studentAges ?? [])
     if (issue) errors.studentIds = issue
-  }
-  if (!isPrivate && input.students.some((student) => student.category !== input.category)) {
-    errors.studentIds = 'No se pueden mezclar adultos y niños en la misma clase'
   }
   const clash = input.existing.find(
     (session) =>

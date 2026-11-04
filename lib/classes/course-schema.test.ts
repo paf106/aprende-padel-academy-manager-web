@@ -62,8 +62,8 @@ describe('course conflicts', () => {
     expect(courseConflicts({ ...base, existing })).toHaveProperty('start')
     expect(courseConflicts({ ...base, existing: [{ ...existing[0], status: 'cancelled' }] })).toEqual({})
   })
-  it('does not mix categories', () => {
-    expect(courseConflicts({ ...base, students: [{ category: 'child' }] })).toHaveProperty('studentIds')
+  it('allows adults and children in the same course', () => {
+    expect(courseConflicts({ ...base, students: [{ category: 'child' }] })).toEqual({})
   })
 })
 

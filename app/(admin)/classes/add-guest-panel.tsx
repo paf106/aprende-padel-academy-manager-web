@@ -27,9 +27,7 @@ export function AddGuestPanel({ session }: { session: Session }) {
     (s) =>
       s.active &&
       !session.studentIds.includes(s.id) &&
-      (isPrivate
-        ? ageOn(s.birthDate, session.date) >= extras.privateMinAge
-        : s.category === session.category),
+      (!isPrivate || ageOn(s.birthDate, session.date) >= extras.privateMinAge),
   )
 
   if (full) {

@@ -74,7 +74,7 @@ export function generateCourseSlots(
 
 type ExistingSession = { date: string; start: string; duration: number; teacherId: string; status: string }
 
-/** Rules that need other data: category mixing and teacher overlaps on any class of the course. */
+/** Rules that need other data: teacher overlaps on any class of the course. Adults and children can share a course. */
 export function courseConflicts(input: {
   teacherId: string
   category: StudentCategory
@@ -83,9 +83,6 @@ export function courseConflicts(input: {
   existing: readonly ExistingSession[]
 }) {
   const errors: Record<string, string> = {}
-  if (input.students.some((student) => student.category !== input.category)) {
-    errors.studentIds = 'No se pueden mezclar adultos y niños en el mismo curso'
-  }
   for (const slot of input.slots) {
     const clash = input.existing.find(
       (s) => s.teacherId === input.teacherId && s.status !== 'cancelled' && slotsOverlap(slot, s),

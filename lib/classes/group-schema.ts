@@ -59,7 +59,7 @@ type OtherGroup = {
   active: boolean
 }
 
-/** Rules needing other data: category mixing and teacher overlaps with other active groups. */
+/** Rules needing other data: teacher overlaps with other active groups. Adults and children can share a group. */
 export function groupConflicts(input: {
   groupId?: string
   teacherId: string
@@ -71,9 +71,6 @@ export function groupConflicts(input: {
   others: readonly OtherGroup[]
 }) {
   const errors: Record<string, string> = {}
-  if (input.students.some((student) => student.category !== input.category)) {
-    errors.studentIds = 'No se pueden mezclar adultos y niños en el mismo grupo'
-  }
   const slot = { date: `weekday-${input.weekday}`, start: input.start, duration: input.duration }
   const clash = input.others.find(
     (other) =>

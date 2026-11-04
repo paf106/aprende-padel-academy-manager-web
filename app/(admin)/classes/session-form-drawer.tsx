@@ -80,14 +80,14 @@ export function SessionFormDrawer({
   const eligible = useMemo(
     () =>
       students.filter(
-        (s) =>
-          s.active &&
-          (isPrivate
-            ? ageOn(s.birthDate, values.date) >= extras.privateMinAge
-            : s.category === values.category),
+        (s) => s.active && (!isPrivate || ageOn(s.birthDate, values.date) >= extras.privateMinAge),
       ),
-    [students, values.category, values.date, isPrivate, extras.privateMinAge],
+    [students, values.date, isPrivate, extras.privateMinAge],
   )
+  const otherCategory = students.filter(
+    (s) => values.studentIds.includes(s.id) && !isPrivate && s.category !== values.category,
+  )
+
   const capacity = isPrivate ? MAX_PRIVATE_STUDENTS : defaultCapacity[values.category]
   const club = clubById(values.clubId)
   const privatePrice =
@@ -107,14 +107,6 @@ export function SessionFormDrawer({
     const dropped: string[] = []
     if ('category' in changes || 'clubId' in changes || 'kind' in changes) {
       if (!clubTeachersOf(next.clubId).some((t) => t.id === next.teacherId)) next.teacherId = ''
-      if (next.kind === 'group') {
-        next.studentIds = next.studentIds.filter((id) => {
-          const student = students.find((s) => s.id === id)
-          const fits = student?.category === next.category
-          if (!fits && student) dropped.push(fullName(student))
-          return fits
-        })
-      }
     }
     if (next.kind === 'private') {
       next.groupId = ''
@@ -277,9 +269,11 @@ export function SessionFormDrawer({
             value: s.id,
             label: fullName(s),
             section:
-              s.clubId === values.clubId || s.extraClubIds.includes(values.clubId)
-                ? 'De esta sede'
-                : 'De otras sedes',
+              !isPrivate && s.category !== values.category
+                ? 'Otra categoría'
+                : s.clubId === values.clubId || s.extraClubIds.includes(values.clubId)
+                  ? 'De esta sede'
+                  : 'De otras sedes',
           }))
           .sort((a, b) => a.section.localeCompare(b.section))}
       />
@@ -291,6 +285,12 @@ export function SessionFormDrawer({
         </p>
       ) : null}
       {notice ? <p className="rounded-xl bg-warning-soft px-3 py-2 text-sm text-warning">{notice}</p> : null}
+      {otherCategory.length > 0 ? (
+        <p className="rounded-xl bg-warning-soft px-3 py-2 text-sm text-warning">
+          Este clase mezcla categorías: {otherCategory.map(fullName).join(', ')}{' '}
+          {otherCategory.length === 1 ? 'es de' : 'son de'} otra categoría que el clase.
+        </p>
+      ) : null}
     </FormDrawer>
   )
 }

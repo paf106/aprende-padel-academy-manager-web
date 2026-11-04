@@ -54,10 +54,8 @@ describe('session conflicts', () => {
     existing: [],
   }
   it('is empty without conflicts', () => expect(sessionConflicts(base)).toEqual({}))
-  it('rejects mixed categories', () => {
-    expect(sessionConflicts({ ...base, students: [{ id: 'a', category: 'child' }] })).toHaveProperty(
-      'studentIds',
-    )
+  it('allows adults and children in the same class', () => {
+    expect(sessionConflicts({ ...base, students: [{ id: 'a', category: 'child' }] })).toEqual({})
   })
   it('rejects teacher overlaps but ignores cancelled classes', () => {
     const existing = [{ date: slot.date, start: '19:30', duration: 60, teacherId: 't1', status: 'pending' }]

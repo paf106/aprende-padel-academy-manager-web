@@ -48,28 +48,17 @@ export function GroupFormDrawer({ group, onClose }: { group?: Group; onClose: ()
   )
   const [regenerate, setRegenerate] = useState('future')
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const [notice, setNotice] = useState('')
 
   const teachersOf = (clubId: string) => teachers.filter((t) => t.active && t.clubIds.includes(clubId))
-  const eligible = useMemo(
-    () => students.filter((s) => s.active && s.category === values.category),
-    [students, values.category],
+  const eligible = useMemo(() => students.filter((s) => s.active), [students])
+  const otherCategory = students.filter(
+    (s) => values.studentIds.includes(s.id) && s.category !== values.category,
   )
 
   const patch = (changes: Partial<GroupInput>) => {
     const next = { ...values, ...changes }
-    const dropped: string[] = []
     if ('clubId' in changes && !teachersOf(next.clubId).some((t) => t.id === next.teacherId))
       next.teacherId = ''
-    if ('category' in changes) {
-      next.studentIds = next.studentIds.filter((id) => {
-        const student = students.find((s) => s.id === id)
-        const fits = student?.category === next.category
-        if (!fits && student) dropped.push(fullName(student))
-        return fits
-      })
-    }
-    setNotice(dropped.length ? `Se quitaron por no encajar: ${dropped.join(', ')}.` : '')
     setValues(next)
   }
 
@@ -200,13 +189,20 @@ export function GroupFormDrawer({ group, onClose }: { group?: Group; onClose: ()
             value: s.id,
             label: fullName(s),
             section:
-              s.clubId === values.clubId || s.extraClubIds.includes(values.clubId)
-                ? 'De esta sede'
-                : 'De otras sedes',
+              s.category !== values.category
+                ? 'Otra categoría'
+                : s.clubId === values.clubId || s.extraClubIds.includes(values.clubId)
+                  ? 'De esta sede'
+                  : 'De otras sedes',
           }))
           .sort((a, b) => a.section.localeCompare(b.section))}
       />
-      {notice ? <p className="rounded-xl bg-warning-soft px-3 py-2 text-sm text-warning">{notice}</p> : null}
+      {otherCategory.length > 0 ? (
+        <p className="rounded-xl bg-warning-soft px-3 py-2 text-sm text-warning">
+          Este grupo mezcla categorías: {otherCategory.map(fullName).join(', ')}{' '}
+          {otherCategory.length === 1 ? 'es de' : 'son de'} otra categoría que el grupo.
+        </p>
+      ) : null}
       {group ? (
         <SelectField
           label="Aplicar los cambios al calendario"
