@@ -1,0 +1,171 @@
+'use client'
+
+import Link from 'next/link'
+import { useState } from 'react'
+import { Badge } from '@/components/ds/badge'
+import { Button } from '@/components/ds/button'
+import { BentoCard, BentoGrid } from '@/components/ds/card'
+import { MultiSelectField, SelectField, TextField } from '@/components/ds/field'
+import { PageContainer } from '@/components/ds/page-header'
+import { useToast } from '@/components/ds/toast'
+import { defaultCapacity } from '@/lib/classes/capacity'
+import { cancellationReasonLabels, moduleLabels, paymentMethodLabels } from '@/lib/core/labels'
+import { cancellationReasons, type ModuleId, type PaymentMethod } from '@/lib/core/types'
+import { validate } from '@/lib/core/validation'
+import { useDemo } from '@/lib/demo/use-demo'
+import { modules } from '@/lib/modules'
+import { billingSettingsSchema, type BillingSettings } from '@/lib/payments/settings'
+
+export function SettingsView() {
+  const toast = useToast()
+  const { billing, actions } = useDemo()
+  const [values, setValues] = useState<BillingSettings>(billing)
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const prorate = values.mode === 'prorate'
+  const set = <K extends keyof BillingSettings>(key: K, value: BillingSettings[K]) =>
+    setValues((current) => ({ ...current, [key]: value }))
+
+  const save = () => {
+    const parsed = validate(billingSettingsSchema, values)
+    if (!parsed.ok) {
+      setErrors(parsed.errors)
+      return
+    }
+    setErrors({})
+    actions.setBilling(parsed.data)
+    toast('Ajustes de cobro guardados. Se aplican a los cobros calculados desde ahora.')
+  }
+
+  return (
+    <PageContainer>
+      <h1 className="sr-only">Ajustes</h1>
+      <BentoGrid>
+        <BentoCard span="xl" title="Cobro de cuotas">
+          <div className="grid gap-5">
+            <SelectField
+              label="Cómo se cobran las cancelaciones y las clases de más"
+              value={values.mode}
+              onChange={(v) => set('mode', v as BillingSettings['mode'])}
+              options={[
+                {
+                  value: 'included',
+                  label: 'Clases incluidas en la cuota (cobra la clase de más y descuenta después)',
+                },
+                {
+                  value: 'prorate',
+                  label: 'Prorrateo en el mismo mes (35 € con 1 de 4 canceladas = 26,25 €)',
+                },
+              ]}
+            />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <TextField
+                id="included-classes"
+                type="number"
+                min={1}
+                label="Clases incluidas por cada día a la semana"
+                hint="Una cuota de 1 día incluye este número de clases al mes."
+                disabled={prorate}
+                value={values.includedPerWeeklyClass}
+                error={errors.includedPerWeeklyClass}
+                onChange={(e) => set('includedPerWeeklyClass', Number(e.target.value))}
+              />
+              <TextField
+                id="notice-days"
+                type="number"
+                min={0}
+                label="Días de preaviso para dar de baja"
+                hint="Sin este preaviso se cobra el mes entero y se pierden los descuentos pendientes."
+                value={values.leaveNoticeDays}
+                error={errors.leaveNoticeDays}
+                onChange={(e) => set('leaveNoticeDays', Number(e.target.value))}
+              />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <SelectField
+                label="Cuándo se aplican los descuentos"
+                value={values.creditTiming}
+                onChange={(v) => set('creditTiming', v as BillingSettings['creditTiming'])}
+                options={[
+                  { value: 'next_month', label: 'En la mensualidad siguiente' },
+                  { value: 'same_month', label: 'En el mismo mes' },
+                ]}
+              />
+              <label className="flex cursor-pointer items-end gap-3 pb-2 text-sm">
+                <input
+                  type="checkbox"
+                  className="mb-0.5 size-4 accent-[var(--brand)]"
+                  checked={values.chargeExtraClasses}
+                  disabled={prorate}
+                  onChange={(e) => set('chargeExtraClasses', e.target.checked)}
+                />
+                Cobrar la parte proporcional cuando el mes tiene una clase de más
+              </label>
+            </div>
+            <MultiSelectField
+              label="Motivos de cancelación que dan descuento al alumno"
+              value={values.creditReasons}
+              onChange={(v) => set('creditReasons', v as BillingSettings['creditReasons'])}
+              options={cancellationReasons.map((reason) => ({
+                value: reason,
+                label: cancellationReasonLabels[reason],
+              }))}
+            />
+            <p className="-mt-3 text-xs text-muted-foreground">
+              Si el alumno falta por su cuenta no hay descuento, sea cual sea el motivo.
+            </p>
+            <MultiSelectField
+              label="Métodos de pago permitidos"
+              value={values.allowedPaymentMethods}
+              error={errors.allowedPaymentMethods}
+              onChange={(v) => set('allowedPaymentMethods', v as PaymentMethod[])}
+              options={(Object.keys(paymentMethodLabels) as PaymentMethod[]).map((method) => ({
+                value: method,
+                label: paymentMethodLabels[method],
+              }))}
+            />
+            <Button className="w-fit" onClick={save}>
+              Guardar ajustes de cobro
+            </Button>
+          </div>
+        </BentoCard>
+        <BentoCard span="md" title="Reglas de clase">
+          <dl className="grid gap-3 text-sm">
+            <div className="flex justify-between">
+              <dt className="text-muted-foreground">Aforo adultos</dt>
+              <dd className="font-semibold">{defaultCapacity.adult}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-muted-foreground">Aforo niños</dt>
+              <dd className="font-semibold">{defaultCapacity.child}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-muted-foreground">Duración habitual</dt>
+              <dd className="font-semibold">60 min (o 90 min)</dd>
+            </div>
+          </dl>
+          <Link href="/payments?view=rates" className="text-sm font-medium text-brand">
+            Editar tarifas, ofertas y pago a profesores
+          </Link>
+        </BentoCard>
+        <BentoCard span="full" title="Módulos">
+          <ul className="divide-y divide-border">
+            {modules.map((module) => (
+              <li key={module.id} className="flex items-center justify-between gap-3 py-3 text-sm">
+                <span>
+                  <span className="font-medium">{moduleLabels[module.id as ModuleId]}</span>
+                  <span className="block text-xs text-muted-foreground">{module.description}</span>
+                </span>
+                <Badge tone={module.status === 'active' ? 'brand' : 'neutral'}>
+                  {module.status === 'active' ? 'Disponible' : 'Próximamente'}
+                </Badge>
+              </li>
+            ))}
+          </ul>
+          <p className="text-xs text-muted-foreground">
+            La contratación de módulos la gestiona el equipo de plataforma.
+          </p>
+        </BentoCard>
+      </BentoGrid>
+    </PageContainer>
+  )
+}

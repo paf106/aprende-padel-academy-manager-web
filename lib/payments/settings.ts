@@ -1,4 +1,5 @@
-import type { CancellationReason, PaymentMethod } from '@/lib/core/types'
+import { z } from 'zod'
+import { cancellationReasons, type CancellationReason, type PaymentMethod } from '@/lib/core/types'
 
 /**
  * included: the fee includes N classes per weekly class; extra classes are charged and credits apply later.
@@ -37,3 +38,23 @@ const dayNumber = (date: string) => Math.floor(Date.parse(`${date}T00:00:00Z`) /
 export function leaveNoticeMet(requestedOn: string, lastClassOn: string, noticeDays: number) {
   return dayNumber(lastClassOn) - dayNumber(requestedOn) >= noticeDays
 }
+
+export const billingSettingsSchema = z.object({
+  mode: z.enum(['included', 'prorate']),
+  includedPerWeeklyClass: z
+    .number()
+    .int('Indica un número entero')
+    .min(1, 'Mínimo 1 clase')
+    .max(10, 'Máximo 10 clases'),
+  chargeExtraClasses: z.boolean(),
+  creditTiming: z.enum(['next_month', 'same_month']),
+  creditReasons: z.array(z.enum(cancellationReasons)),
+  leaveNoticeDays: z
+    .number()
+    .int('Indica un número entero')
+    .min(0, 'No puede ser negativo')
+    .max(60, 'Máximo 60 días'),
+  allowedPaymentMethods: z
+    .array(z.enum(['cash', 'transfer', 'bizum']))
+    .min(1, 'Permite al menos un método de pago'),
+})
