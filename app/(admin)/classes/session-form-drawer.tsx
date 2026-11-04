@@ -140,6 +140,7 @@ export function SessionFormDrawer({
       level: group.level,
       studentIds: group.studentIds.filter((id) => students.some((s) => s.id === id && s.active)),
       duration: String(group.duration) as '60' | '90',
+      start: group.start,
     }))
   }
 
