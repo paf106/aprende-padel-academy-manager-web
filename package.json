@@ -13,7 +13,8 @@
     "test:watch": "vitest",
     "prepare": "husky",
     "db:migrate": "bun scripts/db-migrate.ts",
-    "db:seed": "bun scripts/seed-aprendepadel.ts"
+    "db:seed": "bun scripts/seed-aprendepadel.ts",
+    "db:verify": "bun scripts/db-verify.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",
