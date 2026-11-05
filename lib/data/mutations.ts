@@ -146,16 +146,7 @@ export const mutations = {
     const session = state.sessions.find((s) => s.id === sessionId)
     const student = state.students.find((s) => s.id === studentId)
     if (!session || !student || session.studentIds.includes(studentId)) return state
-    const charge: ExtraCharge = {
-      id: newId(),
-      accountId: student.accountId,
-      studentId,
-      kind: 'drop_in',
-      description: `Clase suelta del ${session.date.split('-').reverse().join('/')}`,
-      amountCents: dropInPrice(state.extras, session.duration),
-      month: session.date.slice(0, 7),
-      sessionId,
-    }
+    const charge = dropInCharge(state, session, student)
     return {
       ...state,
       sessions: state.sessions.map((s) =>
@@ -245,6 +236,31 @@ export const mutations = {
       ...state,
       sessions: state.sessions.filter((s) => !removed.has(s.id)),
       extraCharges: state.extraCharges.filter((c) => !c.sessionId || !removed.has(c.sessionId)),
+    }
+  },
+  /** A cancelled or finished class goes back to pending; the charges removed when it was cancelled come back. */
+  resetSession(state: AppData, id: string): AppData {
+    const session = state.sessions.find((s) => s.id === id)
+    if (!session || session.status === 'pending') return state
+    const reset: Session = {
+      ...session,
+      status: 'pending',
+      cancelReason: undefined,
+      creditedStudentIds: undefined,
+    }
+    const charged = (studentId?: string) =>
+      state.extraCharges.some((c) => c.sessionId === id && (!studentId || c.studentId === studentId))
+    const guests = Object.keys(session.guests ?? {})
+      .filter((studentId) => !charged(studentId))
+      .flatMap((studentId) => {
+        const student = state.students.find((s) => s.id === studentId)
+        return student ? [dropInCharge(state, session, student)] : []
+      })
+    const privateAgain = session.kind === 'private' && !charged() ? privateCharges(state, reset) : []
+    return {
+      ...state,
+      sessions: state.sessions.map((s) => (s.id === id ? reset : s)),
+      extraCharges: [...state.extraCharges, ...guests, ...privateAgain],
     }
   },
   /** Cancelled classes are not charged: extra charges linked to them disappear. */
@@ -472,6 +488,20 @@ function courseCharges(current: AppData, course: Course): ExtraCharge[] {
       }
     })
   })
+}
+
+/** The single-class charge of a student added to a class that is not theirs. */
+function dropInCharge(state: AppData, session: Session, student: Student): ExtraCharge {
+  return {
+    id: newId(),
+    accountId: student.accountId,
+    studentId: student.id,
+    kind: 'drop_in',
+    description: `Clase suelta del ${session.date.split('-').reverse().join('/')}`,
+    amountCents: dropInPrice(state.extras, session.duration),
+    month: session.date.slice(0, 7),
+    sessionId: session.id,
+  }
 }
 
 /** Charges of a private class: instructor price per student plus the court, split between the students. */

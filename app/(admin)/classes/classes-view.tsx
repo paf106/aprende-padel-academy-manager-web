@@ -91,6 +91,7 @@ export function ClassesView({ today }: { today: string }) {
   const [cancelling, setCancelling] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
   const [deleteScope, setDeleteScope] = useState<'one' | 'following'>('one')
+  const [resetting, setResetting] = useState<string | null>(null)
   const [removing, setRemoving] = useState<{ sessionId: string; studentId: string } | null>(null)
   const [removeScope, setRemoveScope] = useState<'one' | 'following'>('one')
   const [massClub, setMassClub] = useState(activeClubs[0]?.id ?? '')
@@ -294,6 +295,11 @@ export function ClassesView({ today }: { today: string }) {
               >
                 Eliminar clase
               </Button>
+              {selected.status !== 'pending' ? (
+                <Button variant="secondary" onClick={() => setResetting(selected.id)}>
+                  Volver a pendiente
+                </Button>
+              ) : null}
               {selected.status === 'pending' ? (
                 <>
                   <Button
@@ -498,6 +504,20 @@ export function ClassesView({ today }: { today: string }) {
           </p>
         </div>
       </Drawer>
+      <ConfirmDialog
+        open={resetting !== null}
+        title="Volver a pendiente"
+        description="La clase volverá a estar pendiente. Se recalculan las cuotas y el pago al profesor; la asistencia marcada se mantiene."
+        confirmLabel="Volver a pendiente"
+        tone="primary"
+        onClose={() => setResetting(null)}
+        onConfirm={() => {
+          if (!resetting) return
+          actions.resetSession(resetting)
+          setResetting(null)
+          toast('La clase vuelve a estar pendiente.')
+        }}
+      />
       <ConfirmDialog
         open={removing !== null}
         title="Quitar alumno de la clase"
