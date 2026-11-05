@@ -239,7 +239,7 @@ erDiagram
     session_attendees {
         uuid session_id PK,FK
         uuid student_id PK,FK
-        text origin "group|drop_in|recovery"
+        text origin "group|drop_in"
         text attendance "unmarked|present|absent|justified"
     }
     session_audit {
@@ -257,7 +257,7 @@ erDiagram
 
 Database rules (triggers and transactional functions):
 
-- Capacity: `count(session_attendees) <= capacity` per category; categories are never mixed.
+- Capacity: `count(session_attendees) <= capacity` per category.
 - No overlaps: a teacher cannot have two overlapping sessions.
 - No sessions on `club_closures` days; session generation skips those days.
 - `cancel_by_range(club, from, to, reason)`: bulk rain cancellation in one transaction.

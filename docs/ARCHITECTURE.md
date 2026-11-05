@@ -17,7 +17,7 @@ lib/
   db/           Row mapping, server loading and saving (server actions), club photo upload
   modules.ts    Module registry: routes and navigation per module
   auth.ts       requireAdmin, requirePlatformAdmin
-supabase/       Supabase configuration (migrations will live here)
+supabase/       Migrations (supabase/migrations), applied with bun run db:migrate
 docs/           Documentation
 ```
 
@@ -26,31 +26,57 @@ docs/           Documentation
 - **Language:** code in English, UI text in Spanish. User-facing strings live in the components or in
   `lib/core/labels.ts`; never mix Spanish into identifiers, routes or enum values.
 - **Routes:** English slugs (`/classes`, `/students`, `/payments`...).
-- **Money:** integer euro cents everywhere. Time zone `Europe/Madrid`.
+- **Money:** integer euro cents everywhere.
+- **Dates and times:** see "Dates and times" below; the organization always works in `Europe/Madrid`.
 - **Roles:** stored in `app_metadata` (`role`, `is_platform_admin`), never in `user_metadata`.
 - **Imports:** use the `@/` alias (`@/lib/payments/proration`).
 - **Tests:** next to the code (`*.test.ts`), run with Vitest.
 
 ## Business rules
 
-- Class categories: adult (max 4 students) and child (max 6); categories are never mixed.
+- Class categories: adult (max 4 students) and child (max 6). Adults and children can share a group, class or
+  course (for example a girl who turns 12 stays in her children's group); the group's category sets the capacity and
+  the teacher pay rate.
 - Class status: pending, completed, cancelled (rain, bad weather, other). Cancelled classes are not charged.
-- Fees are monthly and come from the organization's rates: age segments (children, adults, seniors) by classes per
-  week, plus combined offers (family, couple). Rates are generic; AprendePadel's 2026-2027 conditions are loaded by the seed script.
+- Age segments: 7 to 11 children, 12 to 65 adults, 66 and over seniors. A student changes segment the month after
+  their birthday, because the segment is read on the first day of each month.
+- Fees are monthly and come from the organization's rates: age segments by classes per week, plus combined offers
+  (family, couple). Rates are generic; AprendePadel's 2026-2027 conditions are loaded by the seed script.
 - The cheapest combination of offers and individual rates is applied each month. An offer needs all its members that
   month and the same weekly frequency; if a child skips a month the family drops to the offer that fits.
-- Included-classes mode (default): the fee includes 4 classes per weekly class, a fifth class is charged in proportion,
-  and cancelled classes (rain, bad weather, teacher absent or 20+ minutes late, only one student showed up) and holidays
-  are credited the next month. Student absences are never credited. Prorate mode (same-month proration) is optional.
-- Leaving needs notice (10 days by default); without it the full month is charged and credits are lost.
-- Mid-month joins, leaves and tariff changes are manual price overrides with a mandatory reason.
-- Drop-in classes (15 €), private classes (1-2 students, 13+ years, court price added) and closed-price courses
+- The monthly fee follows the classes in the calendar: rate × classes of the month ÷ 4 per weekly class. A month
+  with 3 classes is prorated (35 € becomes 26,25 €); one with 5 charges the extra class (43,75 €). Closed days and
+  cancelled classes with a discount reason (rain, bad weather, teacher absent or 20+ minutes late, only one student
+  showed up) are not charged, in the same month. Student absences are always charged. Joining or leaving in the
+  middle of the month is prorated by itself, because only the classes the student has count.
+- Leaving needs notice (10 days by default); without it the full month is charged.
+- Manual price overrides (with a mandatory reason) are for exceptions such as scholarships.
+- There are no make-up classes: a student added to a class that is not theirs pays a single class.
+- Groups generate their classes from their start date until the end of the season (30 June). Editing a group updates
+  its pending classes from a chosen date: attendance, single-class guests and substitute teachers are kept, and
+  finished, cancelled and manually created classes are never touched. Deleting a class is allowed; editing the group
+  can create it again if the date still fits. Classes can also be repeated every week from the calendar.
+- Single classes (15 €), private classes (1-2 students, 12+ years, court price added) and closed-price courses
   (June intensive) are extra charges added to the account's month.
 - Teacher pay is hourly and depends on enrolled students (default 15 €/h from 3 students, 12 €/h below),
   configurable per organization, per category and per teacher. Only completed classes count.
-- Families and couples share one billing account: one monthly charge, with a per-member breakdown.
-- Payments are an append-only ledger (cash, transfer or Bizum). Overpayments become credit for the next month.
-- Closed billing periods cannot be modified; corrections are adjustments in the following period.
+- Families and couples share one billing account: put the students in the same account and the offer applies by
+  itself. One monthly charge, with a per-member breakdown.
+- Payments are an append-only ledger (cash, transfer or Bizum), registered for the month being viewed. Overpayments
+  become credit for the next month.
+
+## Dates and times
+
+- The organization works in `Europe/Madrid`, with summer time. "Today", billing months, ages and default dates are
+  always computed with Madrid time (`localTodayInTimeZone('Europe/Madrid')`), never with UTC (`toISOString`) or the
+  browser's time zone.
+- Classes are stored as a date (`date`) and a wall-clock time (`time`) without time zone: "Monday 19:00" is 19:00 in
+  Madrid all year. To draw a class on the calendar, build its instant with `zonedInstant(date, time, 'Europe/Madrid')`;
+  never write a fixed offset such as `+02:00`.
+- Dates without time (weeks, months, closures, notice days, age) are `YYYY-MM-DD` strings. UTC arithmetic is used only
+  to count days (`addDays`, `addMonths`, `ageOn`). Check text typed by the user with `isIsoDate` and `isMonth`.
+- Shown to the user as 24-hour time (19:00) and `dd/mm/yyyy` dates, with month and day names in Spanish. System
+  moments (`created_at`) are `timestamptz`.
 
 ## Future
 
