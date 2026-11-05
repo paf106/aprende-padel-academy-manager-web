@@ -1,8 +1,9 @@
 'use client'
 
-import { UserCheck } from 'lucide-react'
+import { UserCheck, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { cancellationReasonLabels, classStatusLabels } from '@/lib/core/labels'
+import { followingScope } from '@/lib/data/mutations'
 import { zonedInstant, type CalendarView } from '@/lib/core/dates'
 import {
   cancellationReasons,
@@ -90,6 +91,8 @@ export function ClassesView({ today }: { today: string }) {
   const [cancelling, setCancelling] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
   const [deleteScope, setDeleteScope] = useState<'one' | 'following'>('one')
+  const [removing, setRemoving] = useState<{ sessionId: string; studentId: string } | null>(null)
+  const [removeScope, setRemoveScope] = useState<'one' | 'following'>('one')
   const [massClub, setMassClub] = useState(activeClubs[0]?.id ?? '')
   const [massDate, setMassDate] = useState(today)
   const [newSlot, setNewSlot] = useState<{ date: string; start: string; duration: 60 | 90 } | null>(null)
@@ -131,6 +134,13 @@ export function ClassesView({ today }: { today: string }) {
     }
   })
   const selected = sessions.find((s) => s.id === selectedId) ?? null
+  const removingSession = removing ? sessions.find((s) => s.id === removing.sessionId) : undefined
+  const removeFollowing =
+    removing && removingSession ? followingScope(groups, removingSession, removing.studentId) : null
+  const removeDescription = removeText(removingSession, removing?.studentId, removeScope, removeFollowing, {
+    label: studentLabel,
+    dropInCents: removingSession ? dropInPrice(extras, removingSession.duration) : 0,
+  })
   const deletingSession = sessions.find((s) => s.id === deleting)
   const deletedSessions = !deletingSession
     ? []
@@ -407,6 +417,20 @@ export function ClassesView({ today }: { today: string }) {
                             {option === 'present' ? 'Asiste' : 'Falta'}
                           </button>
                         ))}
+                        <button
+                          type="button"
+                          aria-label={`Quitar a ${student?.firstName ?? 'alumno'} de la clase`}
+                          title={
+                            selected.kind === 'private' && selected.studentIds.length <= 1
+                              ? 'Para quitar al único alumno, elimina la clase'
+                              : 'Quitar de la clase'
+                          }
+                          disabled={selected.kind === 'private' && selected.studentIds.length <= 1}
+                          onClick={() => setRemoving({ sessionId: selected.id, studentId: id })}
+                          className="grid size-8 cursor-pointer place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-danger disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          <X size={14} aria-hidden="true" />
+                        </button>
                       </div>
                     </li>
                   )
@@ -472,6 +496,53 @@ export function ClassesView({ today }: { today: string }) {
           </p>
         </div>
       </Drawer>
+      <ConfirmDialog
+        open={removing !== null}
+        title="Quitar alumno de la clase"
+        description={removeDescription}
+        confirmLabel="Quitar"
+        onClose={() => {
+          setRemoving(null)
+          setRemoveScope('one')
+        }}
+        onConfirm={() => {
+          if (!removing) return
+          actions.removeStudentFromSession(removing.sessionId, removing.studentId, removeScope)
+          toast(
+            `${studentLabel(removing.studentId)} ya no está en ${removeScope === 'following' ? 'estas clases' : 'esta clase'}.`,
+          )
+          setRemoving(null)
+          setRemoveScope('one')
+        }}
+      >
+        {removeFollowing ? (
+          <fieldset className="mt-4 grid gap-2 text-sm">
+            <legend className="sr-only">De qué clases quitarlo</legend>
+            {(
+              [
+                ['one', 'Solo de esta clase'],
+                [
+                  'following',
+                  removeFollowing === 'group'
+                    ? 'De esta y las siguientes (sale del grupo desde esta fecha)'
+                    : 'De esta y las siguientes de la repetición',
+                ],
+              ] as const
+            ).map(([value, label]) => (
+              <label key={value} className="flex cursor-pointer items-center gap-2">
+                <input
+                  type="radio"
+                  name="remove-scope"
+                  className="size-4 accent-[var(--brand)]"
+                  checked={removeScope === value}
+                  onChange={() => setRemoveScope(value)}
+                />
+                {label}
+              </label>
+            ))}
+          </fieldset>
+        ) : null}
+      </ConfirmDialog>
       <ConfirmDialog
         open={deleting !== null}
         title="Eliminar clase"
@@ -556,4 +627,34 @@ function deleteDescription(
     ? ` y se quitarán ${linked.length} ${linked.length === 1 ? 'cargo' : 'cargos'} (${formatMoney(linked.reduce((sum, c) => sum + c.amountCents, 0))})`
     : ''
   return `Se eliminar${sessions.length === 1 ? 'á' : 'án'} ${what}${extra}. No se puede deshacer.`
+}
+
+function removeText(
+  session:
+    | { date: string; guests?: Record<string, 'drop_in'>; kind?: 'group' | 'private'; courseId?: string }
+    | undefined,
+  studentId: string | undefined,
+  scope: 'one' | 'following',
+  following: 'series' | 'group' | null,
+  info: { label: (id: string) => string; dropInCents: number },
+) {
+  if (!session || !studentId) return ''
+  const name = info.label(studentId)
+  const day = session.date.split('-').reverse().join('/')
+  if (scope === 'following' && following === 'group') {
+    return `${name} saldrá del grupo desde la clase del ${day}. Las clases anteriores no cambian y se le dejará de cobrar desde esa fecha.`
+  }
+  if (scope === 'following') {
+    return `${name} se quitará de la clase del ${day} y de las siguientes de la repetición, con sus cargos.`
+  }
+  if (session.guests?.[studentId]) {
+    return `Se quitará a ${name} de la clase del ${day} y se borrará su cargo de ${formatMoney(info.dropInCents)}.`
+  }
+  if (session.kind === 'private') {
+    return `Se quitará a ${name} de la clase particular del ${day}. Se recalcula el precio de la otra persona.`
+  }
+  if (session.courseId) {
+    return `Se quitará a ${name} de la clase del ${day}. El curso se paga una vez, así que el precio no cambia; para desinscribirlo, edita el curso.`
+  }
+  return `Se quitará a ${name} de la clase del ${day}. Ese mes se le cobrará una clase menos.`
 }

@@ -171,6 +171,39 @@ export const mutations = {
       extraCharges: [...state.extraCharges, charge],
     }
   },
+  /**
+   * Takes a student out of a class, or out of this class and the following ones: of the weekly series, or of the
+   * group when the class comes from it. Their charges for the class go too, and a private class is priced again.
+   */
+  removeStudentFromSession(
+    state: AppData,
+    sessionId: string,
+    studentId: string,
+    scope: 'one' | 'following',
+  ): AppData {
+    const session = state.sessions.find((s) => s.id === sessionId)
+    if (!session?.studentIds.includes(studentId)) return state
+    if (session.kind === 'private' && session.studentIds.length <= 1) return state
+    const following = scope === 'following' ? followingScope(state.groups, session, studentId) : null
+    let next = withoutStudent(state, [sessionId], studentId)
+    if (following === 'series') {
+      const later = state.sessions
+        .filter(
+          (s) => s.seriesId === session.seriesId && s.date > session.date && s.studentIds.includes(studentId),
+        )
+        .map((s) => s.id)
+      next = withoutStudent(next, later, studentId)
+    } else if (following === 'group') {
+      const group = state.groups.find((g) => g.id === session.groupId)!
+      const updated: Group = { ...group, studentIds: group.studentIds.filter((id) => id !== studentId) }
+      next = {
+        ...next,
+        groups: next.groups.map((g) => (g.id === group.id ? updated : g)),
+        sessions: replaceFutureSessions(next, updated, session.date),
+      }
+    }
+    return next
+  },
   updateSession(state: AppData, id: string, patch: Partial<Session>): AppData {
     return { ...state, sessions: state.sessions.map((s) => (s.id === id ? { ...s, ...patch } : s)) }
   },
@@ -322,6 +355,50 @@ export type Actions = {
   [K in keyof Mutations]: Mutations[K] extends (state: AppData, ...args: infer A) => AppData
     ? (...args: A) => void
     : never
+}
+
+/** Whether "this and the following" means the weekly series or the group of the class, or is not available. */
+export function followingScope(
+  groups: readonly Group[],
+  session: Pick<Session, 'seriesId' | 'groupId' | 'guests' | 'courseId' | 'kind'>,
+  studentId: string,
+): 'series' | 'group' | null {
+  if (session.seriesId) return 'series'
+  const group = groups.find((g) => g.id === session.groupId)
+  const member = Boolean(group?.studentIds.includes(studentId)) && !session.guests?.[studentId]
+  return group && member && !session.courseId && session.kind !== 'private' ? 'group' : null
+}
+
+/** Removes the student from those classes with their attendance and charges; a private class is priced again. */
+function withoutStudent(state: AppData, sessionIds: readonly string[], studentId: string): AppData {
+  const touched = new Set(sessionIds)
+  const sessions = state.sessions.map((s) => {
+    if (!touched.has(s.id) || !s.studentIds.includes(studentId)) return s
+    const { [studentId]: _attendance, ...attendance } = s.attendance ?? {}
+    const { [studentId]: _guest, ...guests } = s.guests ?? {}
+    return {
+      ...s,
+      studentIds: s.studentIds.filter((id) => id !== studentId),
+      attendance,
+      guests: Object.keys(guests).length > 0 ? guests : undefined,
+      creditedStudentIds: s.creditedStudentIds?.filter((id) => id !== studentId),
+    }
+  })
+  const base = { ...state, sessions }
+  const privateAgain = sessions.filter((s) => touched.has(s.id) && s.kind === 'private')
+  const privateIds = new Set(privateAgain.map((s) => s.id))
+  return {
+    ...base,
+    extraCharges: [
+      ...state.extraCharges.filter(
+        (c) =>
+          !c.sessionId ||
+          !touched.has(c.sessionId) ||
+          (c.studentId !== studentId && !privateIds.has(c.sessionId)),
+      ),
+      ...privateAgain.flatMap((s) => privateCharges(base, s)),
+    ],
+  }
 }
 
 function rebuildCourse(state: AppData, course: Course): AppData {
