@@ -344,6 +344,8 @@ export function toRows(data: AppData): TableRows {
       amount_cents: p.amountCents,
       method: p.method,
       paid_on: p.paidOn,
+      reverses_id: p.reversesId ?? null,
+      void_reason: p.voidReason ?? '',
     })),
   )
   put(
@@ -562,6 +564,8 @@ export function fromRows(rows: TableRows): AppData {
       amountCents: p.amount_cents,
       method: p.method,
       paidOn: p.paid_on,
+      reversesId: p.reverses_id ?? undefined,
+      voidReason: p.void_reason || undefined,
     })),
     extraCharges: get('payments.extra_charges').map((c) => ({
       id: c.id,

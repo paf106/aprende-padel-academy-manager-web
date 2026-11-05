@@ -23,6 +23,12 @@ import type { RateOverride } from '@/lib/payments/monthly-charge'
 
 const MAX_HISTORY_MONTHS = 14
 
+/** Payments that count: not voided, and not the entries that void others. */
+export function activePayments(payments: readonly PaymentRecord[]) {
+  const voided = new Set(payments.flatMap((p) => (p.reversesId ? [p.reversesId] : [])))
+  return payments.filter((p) => !p.reversesId && !voided.has(p.id))
+}
+
 const memberName = (s: { firstName: string; lastName: string }) => `${s.firstName} ${s.lastName}`
 
 export function creditApplies(state: AppData, session: Session, studentId: string) {
@@ -111,7 +117,9 @@ export function accountHistory(state: AppData, account: Account, currentMonth: s
       settings: state.billing,
       overrides: state.overrides,
     })
-    const payments = state.payments.filter((p) => p.accountId === account.id && p.month === month)
+    const payments = activePayments(state.payments).filter(
+      (p) => p.accountId === account.id && p.month === month,
+    )
     const extraCharges = state.extraCharges.filter((c) => c.accountId === account.id && c.month === month)
     const statement = accountStatement({
       members: result.lines.map((l) => ({ memberId: l.memberId, amountCents: l.totalCents })),
@@ -152,7 +160,7 @@ export function buildCharges(state: AppData, today: string): Charge[] {
         history.map((h) => ({ month: h.month, dueCents: h.dueCents, paidCents: h.paidCents })),
         month,
       )
-      const lastPayment = state.payments
+      const lastPayment = activePayments(state.payments)
         .filter((p) => p.accountId === account.id && p.month === month)
         .sort((a, b) => b.paidOn.localeCompare(a.paidOn))[0]
       return {

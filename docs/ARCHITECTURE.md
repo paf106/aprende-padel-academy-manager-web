@@ -67,7 +67,10 @@ docs/           Documentation
 - Families and couples share one billing account: put the students in the same account and the offer applies by
   itself. One monthly charge, with a per-member breakdown.
 - Payments are an append-only ledger (cash, transfer or Bizum), registered for the month being viewed. Overpayments
-  become credit for the next month.
+  become credit for the next month. A payment entered by mistake is voided, never deleted: a new entry points to it
+  (`reverses_id`), neither counts, and the month goes back to unpaid. A payment can be voided once.
+- The payments page can be filtered by club: accounts with a student whose usual club it is, the classes given there
+  and its groups.
 
 ## Dates and times
 

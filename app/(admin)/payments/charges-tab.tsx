@@ -11,6 +11,7 @@ import { FilterBar, type FilterDef } from '@/components/ds/filter-bar'
 import { Input, Label } from '@/components/ds/input'
 import { useToast } from '@/components/ds/toast'
 import { ChargeBreakdown } from './charge-breakdown'
+import { PaymentHistory } from './payment-history'
 import { monthLabel } from './month-picker'
 import { OverrideFormDrawer } from './rates/overrides-section'
 import { paymentMethodLabels } from '@/lib/core/labels'
@@ -202,6 +203,7 @@ export function ChargesTab({ month, today, charges }: { month: string; today: st
                             }}
                             catalog={catalog}
                           />
+                          <PaymentHistory accountId={charge.account.id} month={month} />
                         </td>
                       </tr>
                     ) : null}

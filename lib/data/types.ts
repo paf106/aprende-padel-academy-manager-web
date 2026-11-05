@@ -123,6 +123,9 @@ export type PaymentRecord = {
   amountCents: number
   method: PaymentMethod
   paidOn: string
+  /** A voiding entry points to the payment it cancels. Neither of the two counts. */
+  reversesId?: string
+  voidReason?: string
 }
 
 /** A charge outside the monthly fee: a single class, a private class or a course. Added to the account's month. */

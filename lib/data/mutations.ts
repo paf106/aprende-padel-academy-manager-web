@@ -19,6 +19,7 @@ import type {
   Student,
   Teacher,
 } from '@/lib/data/types'
+import { activePayments } from '@/lib/data/billing'
 import { priceCourseEnrollment, type CoursePrices } from '@/lib/payments/courses'
 import { dropInPrice, privateClassPrice, MAX_PRIVATE_STUDENTS } from '@/lib/payments/extras'
 import type { RateOverride } from '@/lib/payments/monthly-charge'
@@ -329,6 +330,21 @@ export const mutations = {
   },
   addPayment(state: AppData, payment: Omit<PaymentRecord, 'id'>): AppData {
     return { ...state, payments: [...state.payments, { ...payment, id: newId() }] }
+  },
+  /** Voids a payment with a new entry that points to it. The payment stays in the history. */
+  voidPayment(state: AppData, id: string, reason: string): AppData {
+    const payment = state.payments.find((p) => p.id === id)
+    if (!payment || !activePayments(state.payments).some((p) => p.id === id)) return state
+    return {
+      ...state,
+      payments: [...state.payments, { ...payment, id: newId(), reversesId: id, voidReason: reason.trim() }],
+    }
+  },
+  /** Voids every payment of an account in a month, so the month goes back to unpaid. */
+  voidMonthPayments(state: AppData, accountId: string, month: string, reason: string): AppData {
+    return activePayments(state.payments)
+      .filter((p) => p.accountId === accountId && p.month === month)
+      .reduce((current, p) => mutations.voidPayment(current, p.id, reason), state)
   },
   setCatalog(state: AppData, catalog: RateCatalog): AppData {
     return { ...state, catalog }
