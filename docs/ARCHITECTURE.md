@@ -37,7 +37,11 @@ docs/           Documentation
 - Class categories: adult (max 4 students) and child (max 6). Adults and children can share a group, class or
   course (for example a girl who turns 12 stays in her children's group); the group's category sets the capacity and
   the teacher pay rate.
-- Class status: pending, completed, cancelled (rain, bad weather, other). Cancelled classes are not charged.
+- Class status: pending, completed, cancelled (rain, bad weather, teacher absent or late, only one student, no student
+  came, other). Cancelled classes are not paid to the teacher, except when no student came: then the students lose the
+  class (it is charged) and the teacher is paid as if it had been given. With "only one student", the student who could
+  come is not charged and the others are, and the teacher is not paid. A cancelled or finished class can be set back to
+  pending.
 - Age segments: 7 to 11 children, 12 to 65 adults, 66 and over seniors. A student changes segment the month after
   their birthday, because the segment is read on the first day of each month.
 - Fees are monthly and come from the organization's rates: age segments by classes per week, plus combined offers

@@ -68,10 +68,12 @@ export function SettingsView() {
               label="Motivos de cancelación que no se cobran al alumno"
               value={values.creditReasons}
               onChange={(v) => set('creditReasons', v as BillingSettings['creditReasons'])}
-              options={cancellationReasons.map((reason) => ({
-                value: reason,
-                label: cancellationReasonLabels[reason],
-              }))}
+              options={cancellationReasons
+                .filter((reason) => reason !== 'no_show')
+                .map((reason) => ({
+                  value: reason,
+                  label: cancellationReasonLabels[reason],
+                }))}
             />
             <p className="-mt-3 text-xs text-muted-foreground">
               Si el alumno falta por su cuenta se cobra la clase, sea cual sea el motivo. El descuento se

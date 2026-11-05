@@ -487,7 +487,9 @@ export function ClassesView({ today }: { today: string }) {
               aria-label="Motivo"
               value={reason}
               onChange={(v) => setReason(v as CancellationReason)}
-              options={cancellationReasons.map((r) => ({ value: r, label: cancellationReasonLabels[r] }))}
+              options={cancellationReasons
+                .filter((r) => r !== 'no_show')
+                .map((r) => ({ value: r, label: cancellationReasonLabels[r] }))}
             />
           </div>
           <p className="rounded-xl bg-muted p-3 text-sm text-muted-foreground">
@@ -593,7 +595,11 @@ export function ClassesView({ today }: { today: string }) {
           onConfirm={(cancelReason, credited) => {
             actions.cancelSessions([cancelling], cancelReason, credited)
             setCancelling(null)
-            toast('Clase cancelada. No se paga al profesor y los descuentos se recalculan.')
+            toast(
+              cancelReason === 'no_show'
+                ? 'Clase cancelada. Se cobra a los alumnos y se paga al profesor.'
+                : 'Clase cancelada. No se paga al profesor y los descuentos se recalculan.',
+            )
           }}
         />
       ) : null}

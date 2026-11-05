@@ -18,7 +18,7 @@ import {
   type MemberMonth,
 } from '@/lib/payments/monthly-charge'
 import type { AppliedOffer } from '@/lib/payments/rates'
-import { resolveTeacherRate, teacherSessionPay } from '@/lib/payments/teacher-pay'
+import { resolveTeacherRate, teacherIsPaid, teacherSessionPay } from '@/lib/payments/teacher-pay'
 import type { RateOverride } from '@/lib/payments/monthly-charge'
 
 const MAX_HISTORY_MONTHS = 14
@@ -27,6 +27,8 @@ const memberName = (s: { firstName: string; lastName: string }) => `${s.firstNam
 
 export function creditApplies(state: AppData, session: Session, studentId: string) {
   const reason = (session.cancelReason ?? 'rain') as CancellationReason
+  // Nobody came: the students lose the class and the teacher is paid for it.
+  if (reason === 'no_show') return false
   if (!state.billing.creditReasons.includes(reason)) return false
   return !session.creditedStudentIds || session.creditedStudentIds.includes(studentId)
 }
@@ -191,13 +193,14 @@ export function sessionPay(state: AppData, session: Session) {
     enrolledStudents: session.studentIds.length,
     durationMinutes: session.duration,
     status: session.status,
+    cancelReason: session.cancelReason,
   })
 }
 
 export function buildSettlements(state: AppData, today: string): TeacherSettlementRow[] {
   const sessions = monthSessions(state, today)
   return state.teachers.map((teacher) => {
-    const mine = sessions.filter((s) => s.teacherId === teacher.id && s.status === 'completed')
+    const mine = sessions.filter((s) => s.teacherId === teacher.id && teacherIsPaid(s.status, s.cancelReason))
     return {
       teacherId: teacher.id,
       name: teacherName(teacher),

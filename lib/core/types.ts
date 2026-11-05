@@ -22,6 +22,7 @@ export const cancellationReasons = [
   'teacher_absent',
   'teacher_late',
   'single_attendee',
+  'no_show',
   'other',
 ] as const
 export type CancellationReason = (typeof cancellationReasons)[number]

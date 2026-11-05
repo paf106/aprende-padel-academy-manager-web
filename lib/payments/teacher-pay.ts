@@ -18,13 +18,19 @@ export function resolveTeacherRate(
   return { ...organization[category], ...teacher[category] }
 }
 
+/** The teacher is paid for finished classes, and for classes cancelled because no student came. */
+export function teacherIsPaid(status: 'pending' | 'completed' | 'cancelled', cancelReason?: string) {
+  return status === 'completed' || (status === 'cancelled' && cancelReason === 'no_show')
+}
+
 export function teacherSessionPay(input: {
   rate: TeacherRate
   enrolledStudents: number
   durationMinutes: number
   status: 'pending' | 'completed' | 'cancelled'
+  cancelReason?: string
 }) {
-  if (input.status !== 'completed') return 0
+  if (!teacherIsPaid(input.status, input.cancelReason)) return 0
   if (!Number.isInteger(input.enrolledStudents) || input.enrolledStudents < 0)
     throw new Error('Enrolled students must be a non-negative integer')
   if (!Number.isInteger(input.durationMinutes) || input.durationMinutes <= 0)

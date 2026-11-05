@@ -52,6 +52,7 @@ export const cancellationReasonLabels: Record<CancellationReason, string> = {
   teacher_absent: 'El monitor no asiste',
   teacher_late: 'Retraso del monitor (20 min o más)',
   single_attendee: 'Solo asiste un alumno',
+  no_show: 'No vino ningún alumno',
   other: 'Otro motivo',
 }
 

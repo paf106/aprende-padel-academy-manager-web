@@ -24,13 +24,14 @@ export function CancelSessionDrawer({
   const [attendee, setAttendee] = useState('')
   const gives = billing.creditReasons.includes(reason)
   const single = reason === 'single_attendee'
+  const noShow = reason === 'no_show'
 
   return (
     <Drawer
       open
       onClose={onClose}
       title="Cancelar la clase"
-      description="El motivo decide si los alumnos reciben un descuento en su cuota."
+      description="El motivo decide si la clase se cobra a los alumnos y si se paga al profesor."
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>
@@ -70,10 +71,13 @@ export function CancelSessionDrawer({
           </div>
         ) : null}
         <p className="rounded-xl bg-muted p-3 text-sm text-muted-foreground">
-          {gives
-            ? 'Este motivo da descuento: la clase se resta de la mensualidad de los alumnos afectados.'
-            : 'Este motivo no da descuento: la clase se cobra igualmente.'}{' '}
-          La clase cancelada no se paga al profesor.
+          {noShow
+            ? 'Los alumnos pierden la clase: se les cobra igualmente. El profesor sí cobra la clase.'
+            : `${
+                gives
+                  ? 'Este motivo da descuento: la clase se resta de la mensualidad de los alumnos afectados.'
+                  : 'Este motivo no da descuento: la clase se cobra igualmente.'
+              } La clase cancelada no se paga al profesor.`}
         </p>
       </div>
     </Drawer>
