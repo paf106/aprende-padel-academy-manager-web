@@ -13,6 +13,7 @@ import { formatMoney } from '@/lib/core/money'
 import { buildCharges, buildSettlements, groupProfitability } from '@/lib/data/billing'
 import { useAppData } from '@/lib/data/provider'
 import { ChargesTab } from './charges-tab'
+import { MonthPicker } from './month-picker'
 import { RatesTab } from './rates-tab'
 
 export type PaymentsTab = 'charges' | 'teachers' | 'rates' | 'profitability'
@@ -31,16 +32,36 @@ function downloadCsv(name: string, rows: (string | number)[][]) {
   URL.revokeObjectURL(url)
 }
 
-export function PaymentsView({ today, initialTab }: { today: string; initialTab: PaymentsTab }) {
+export function PaymentsView({
+  today,
+  initialMonth,
+  initialTab,
+}: {
+  today: string
+  initialMonth: string
+  initialTab: PaymentsTab
+}) {
   const toast = useToast()
   const demo = useAppData()
   const [tab, setTab] = useState<PaymentsTab>(initialTab)
   const [paidTeachers, setPaidTeachers] = useState<string[]>([])
-  const month = today.slice(0, 7)
+  const [month, setMonth] = useState(initialMonth)
+  // The billing functions read the month from a date, so the first day of the chosen month stands for it.
+  const monthStart = `${month}-01`
 
-  const charges = useMemo(() => buildCharges(demo, today), [demo, today])
-  const settlements = useMemo(() => buildSettlements(demo, today), [demo, today])
-  const profitability = useMemo(() => groupProfitability(demo, today, charges), [demo, today, charges])
+  const charges = useMemo(() => buildCharges(demo, monthStart), [demo, monthStart])
+  const settlements = useMemo(() => buildSettlements(demo, monthStart), [demo, monthStart])
+  const profitability = useMemo(
+    () => groupProfitability(demo, monthStart, charges),
+    [demo, monthStart, charges],
+  )
+
+  const chooseMonth = (next: string) => {
+    setMonth(next)
+    const url = new URL(window.location.href)
+    url.searchParams.set('month', next)
+    window.history.replaceState(null, '', url)
+  }
 
   const exportCsv = () => {
     if (tab === 'teachers') {
@@ -67,10 +88,13 @@ export function PaymentsView({ today, initialTab }: { today: string; initialTab:
       <PageToolbar
         title="Pagos"
         actions={
-          <Button variant="secondary" onClick={exportCsv}>
-            <Download size={16} aria-hidden="true" />
-            Exportar CSV
-          </Button>
+          <>
+            <MonthPicker month={month} currentMonth={today.slice(0, 7)} onChange={chooseMonth} />
+            <Button variant="secondary" onClick={exportCsv}>
+              <Download size={16} aria-hidden="true" />
+              Exportar CSV
+            </Button>
+          </>
         }
       >
         <Tabs
@@ -78,7 +102,7 @@ export function PaymentsView({ today, initialTab }: { today: string; initialTab:
           value={tab}
           onChange={(v) => setTab(v as PaymentsTab)}
           tabs={[
-            { value: 'charges', label: 'Cobros del mes' },
+            { value: 'charges', label: 'Cobros' },
             { value: 'teachers', label: 'Liquidaciones' },
             { value: 'rates', label: 'Tarifas' },
             { value: 'profitability', label: 'Rentabilidad' },
@@ -86,7 +110,7 @@ export function PaymentsView({ today, initialTab }: { today: string; initialTab:
         />
       </PageToolbar>
 
-      {tab === 'charges' ? <ChargesTab month={month} charges={charges} /> : null}
+      {tab === 'charges' ? <ChargesTab month={month} today={today} charges={charges} /> : null}
 
       {tab === 'teachers' ? (
         <Card>

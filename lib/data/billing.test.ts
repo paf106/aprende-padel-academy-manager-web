@@ -86,3 +86,35 @@ describe('monthly fee from the calendar', () => {
     expect(line).toBeUndefined()
   })
 })
+
+describe('charges of a chosen month', () => {
+  const longSeason = mutations.setSeasonEnd(makeAppData(), addDays(today, 120))
+  const month = addMonths(today.slice(0, 7), 1)
+
+  it('builds the charges of that month, not the current one', () => {
+    const next = buildCharges(longSeason, `${month}-01`)
+    expect(next.length).toBeGreaterThan(0)
+    expect(next.every((c) => c.month === month)).toBe(true)
+    const madre = longSeason.students.find((s) => s.firstName === 'Madre')!
+    const charge = next.find((c) => c.account.id === madre.accountId)!
+    expect(charge.dueCents).toBe(simulateMonth(longSeason, madre.accountId, month, []).totalCents)
+  })
+
+  it('a payment is counted in the month it was registered for', () => {
+    const madre = longSeason.students.find((s) => s.firstName === 'Madre')!
+    const charge = buildCharges(longSeason, `${month}-01`).find((c) => c.account.id === madre.accountId)!
+    const paid = mutations.addPayment(longSeason, {
+      accountId: madre.accountId,
+      month,
+      amountCents: charge.dueCents,
+      method: 'bizum',
+      paidOn: today,
+    })
+    expect(buildCharges(paid, `${month}-01`).find((c) => c.account.id === madre.accountId)?.status).toBe(
+      'paid',
+    )
+    expect(
+      buildCharges(paid, `${today.slice(0, 7)}-01`).find((c) => c.account.id === madre.accountId)?.paidCents,
+    ).toBe(0)
+  })
+})

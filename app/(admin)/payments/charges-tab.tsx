@@ -11,6 +11,7 @@ import { FilterBar, type FilterDef } from '@/components/ds/filter-bar'
 import { Input, Label } from '@/components/ds/input'
 import { useToast } from '@/components/ds/toast'
 import { ChargeBreakdown } from './charge-breakdown'
+import { monthLabel } from './month-picker'
 import { OverrideFormDrawer } from './rates/overrides-section'
 import { paymentMethodLabels } from '@/lib/core/labels'
 import { formatMoney } from '@/lib/core/money'
@@ -33,7 +34,7 @@ const statusFilters: FilterDef[] = [
 
 const COLUMNS = ['Cuenta', 'A cobrar', 'Pagado', 'Deuda total', 'Estado', 'Último pago', '']
 
-export function ChargesTab({ month, charges }: { month: string; charges: Charge[] }) {
+export function ChargesTab({ month, today, charges }: { month: string; today: string; charges: Charge[] }) {
   const toast = useToast()
   const { billing, catalog, actions } = useAppData()
   const [query, setQuery] = useState('')
@@ -42,7 +43,7 @@ export function ChargesTab({ month, charges }: { month: string; charges: Charge[
   const [payFor, setPayFor] = useState<string | null>(null)
   const [amount, setAmount] = useState('')
   const [method, setMethod] = useState<PaymentMethod>(billing.allowedPaymentMethods[0] ?? 'cash')
-  const [paidOn, setPaidOn] = useState(`${month}-15`)
+  const [paidOn, setPaidOn] = useState(today)
   const [fixPriceFor, setFixPriceFor] = useState<string | null>(null)
 
   const rows = useMemo(
@@ -72,7 +73,7 @@ export function ChargesTab({ month, charges }: { month: string; charges: Charge[
     toast(
       surplus > 0
         ? `Pago registrado. ${formatMoney(surplus)} quedan como saldo a favor para el mes siguiente.`
-        : 'Pago registrado.',
+        : `Pago de ${monthLabel(month)} registrado.`,
     )
   }
 
@@ -80,7 +81,7 @@ export function ChargesTab({ month, charges }: { month: string; charges: Charge[
     <>
       <BentoGrid>
         <BentoCard span="md">
-          <Stat value={formatMoney(totals.due)} label="A cobrar este mes" />
+          <Stat value={formatMoney(totals.due)} label={`A cobrar en ${monthLabel(month)}`} />
         </BentoCard>
         <BentoCard span="md">
           <Stat
@@ -90,7 +91,11 @@ export function ChargesTab({ month, charges }: { month: string; charges: Charge[
           />
         </BentoCard>
         <BentoCard span="md">
-          <Stat value={formatMoney(totals.debt)} label="Deuda acumulada" hint="Incluye meses anteriores" />
+          <Stat
+            value={formatMoney(totals.debt)}
+            label="Deuda acumulada"
+            hint="Hasta este mes, con los anteriores"
+          />
         </BentoCard>
       </BentoGrid>
       <div className="flex flex-wrap items-center gap-2">
