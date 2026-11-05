@@ -7,17 +7,18 @@ import { weeklyDates } from '@/lib/classes/series'
 import type { StudentInput } from '@/lib/classes/student-schema'
 import type { TeacherInput } from '@/lib/classes/teacher-schema'
 import { localTodayInTimeZone } from '@/lib/core/dates'
-import type {
-  Account,
-  AppData,
-  Club,
-  Course,
-  ExtraCharge,
-  Group,
-  PaymentRecord,
-  Session,
-  Student,
-  Teacher,
+import {
+  fullName,
+  type Account,
+  type AppData,
+  type Club,
+  type Course,
+  type ExtraCharge,
+  type Group,
+  type PaymentRecord,
+  type Session,
+  type Student,
+  type Teacher,
 } from '@/lib/data/types'
 import { activePayments } from '@/lib/data/billing'
 import { priceCourseEnrollment, type CoursePrices } from '@/lib/payments/courses'
@@ -35,11 +36,11 @@ export const mutations = {
   createStudent(state: AppData, input: StudentInput): AppData {
     const accountId = input.accountId || newId()
     const student: Student = { ...input, id: newId(), accountId, active: true, needsReview: false }
-    return {
+    return withIndividualNames({
       ...state,
       students: [...state.students, student],
       accounts: withAccount(state.accounts, accountId, input),
-    }
+    })
   },
   updateStudent(state: AppData, id: string, input: StudentInput): AppData {
     const previous = state.students.find((s) => s.id === id)
@@ -49,18 +50,21 @@ export const mutations = {
       s.id === id ? { ...s, ...input, accountId, needsReview: false } : s,
     )
     const next = { ...state, students, accounts: withAccount(state.accounts, accountId, input) }
-    return previous.accountId === accountId ? next : dropAccountIfUnused(next, previous.accountId)
+    return withIndividualNames(
+      previous.accountId === accountId ? next : dropAccountIfUnused(next, previous.accountId),
+    )
   },
+  /** Only shared accounts (couple, family) have a name of their own; an individual one is named after its student. */
   renameAccount(state: AppData, id: string, name: string): AppData {
     const trimmed = name.trim()
-    if (!trimmed) return state
+    if (!trimmed || state.students.filter((s) => s.accountId === id).length <= 1) return state
     return { ...state, accounts: state.accounts.map((a) => (a.id === id ? { ...a, name: trimmed } : a)) }
   },
   setStudentActive(state: AppData, id: string, active: boolean): AppData {
     return { ...state, students: state.students.map((s) => (s.id === id ? { ...s, active } : s)) }
   },
   deleteStudent(state: AppData, id: string): AppData {
-    return { ...state, students: state.students.filter((s) => s.id !== id) }
+    return withIndividualNames({ ...state, students: state.students.filter((s) => s.id !== id) })
   },
 
   createTeacher(state: AppData, input: TeacherInput): AppData {
@@ -557,6 +561,20 @@ function dropAccountIfUnused(state: AppData, accountId: string): AppData {
   return inUse ? state : { ...state, accounts: state.accounts.filter((a) => a.id !== accountId) }
 }
 
+/** An account with a single student is named after that student: their full name. */
+export function withIndividualNames(state: AppData): AppData {
+  let changed = false
+  const accounts = state.accounts.map((account) => {
+    const members = state.students.filter((s) => s.accountId === account.id)
+    if (members.length !== 1) return account
+    const name = fullName(members[0])
+    if (name === account.name) return account
+    changed = true
+    return { ...account, name }
+  })
+  return changed ? { ...state, accounts } : state
+}
+
 /** A student without an existing account gets a new individual billing account. */
 function withAccount(
   accounts: Account[],
@@ -564,8 +582,7 @@ function withAccount(
   student: { firstName: string; lastName: string },
 ): Account[] {
   if (accounts.some((a) => a.id === accountId)) return accounts
-  const name = `${student.firstName} ${student.lastName.split(' ')[0]}`.trim()
-  return [...accounts, { id: accountId, name }]
+  return [...accounts, { id: accountId, name: fullName(student) }]
 }
 
 function newSession(group: Group, slot: GeneratedSlot): Session {

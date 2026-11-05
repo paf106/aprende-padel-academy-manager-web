@@ -126,7 +126,7 @@ export function StudentProfile({ id, today }: { id: string; today: string }) {
               ) : (
                 <p className="flex items-center gap-2 font-medium">
                   {account?.name ?? 'Sin cuenta de cobro'}
-                  {account ? (
+                  {account && accountMembers.length > 1 ? (
                     <button
                       type="button"
                       className="text-xs font-normal text-brand hover:underline"

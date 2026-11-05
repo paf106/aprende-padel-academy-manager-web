@@ -65,7 +65,8 @@ docs/           Documentation
 - Teacher pay is hourly and depends on enrolled students (default 15 €/h from 3 students, 12 €/h below),
   configurable per organization, per category and per teacher. Only completed classes count.
 - Families and couples share one billing account: put the students in the same account and the offer applies by
-  itself. One monthly charge, with a per-member breakdown.
+  itself. One monthly charge, with a per-member breakdown. A shared account has a name of its own ("Denisa y
+  Jesús"); an account with a single student is always named after that student, with their full name.
 - Payments are an append-only ledger (cash, transfer or Bizum), registered for the month being viewed. Overpayments
   become credit for the next month. A payment entered by mistake is voided, never deleted: a new entry points to it
   (`reverses_id`), neither counts, and the month goes back to unpaid. A payment can be voided once.

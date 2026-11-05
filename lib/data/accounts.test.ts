@@ -61,3 +61,61 @@ describe('billing accounts', () => {
     expect(mutations.renameAccount(base, id, '  ')).toBe(base)
   })
 })
+
+describe('individual account names', () => {
+  it('an individual account is named after its student, with the full name', () => {
+    const base = makeAppData()
+    const ana = base.students.find((s) => s.firstName === 'Ana')!
+    expect(base.accounts.find((a) => a.id === ana.accountId)?.name).toBe('Ana Test')
+    const created = mutations.createStudent(base, {
+      ...inputOf(ana, ''),
+      firstName: 'Nuria',
+      lastName: 'Blanco Sabroso',
+    })
+    const nuria = created.students.find((s) => s.firstName === 'Nuria')!
+    expect(created.accounts.find((a) => a.id === nuria.accountId)?.name).toBe('Nuria Blanco Sabroso')
+  })
+
+  it('a student without last name gives an account with just the first name', () => {
+    const base = makeAppData()
+    const ana = base.students.find((s) => s.firstName === 'Ana')!
+    const created = mutations.createStudent(base, { ...inputOf(ana, ''), firstName: 'Denisa', lastName: '' })
+    const denisa = created.students.find((s) => s.firstName === 'Denisa')!
+    expect(created.accounts.find((a) => a.id === denisa.accountId)?.name).toBe('Denisa')
+  })
+
+  it('renaming the student renames the individual account', () => {
+    const base = makeAppData()
+    const ana = base.students.find((s) => s.firstName === 'Ana')!
+    const next = mutations.updateStudent(base, ana.id, {
+      ...inputOf(ana, ana.accountId),
+      lastName: 'García López',
+    })
+    expect(next.accounts.find((a) => a.id === ana.accountId)?.name).toBe('Ana García López')
+  })
+
+  it('a shared account keeps its own name and cannot be renamed after one student when individual', () => {
+    const base = makeAppData()
+    const madre = base.students.find((s) => s.firstName === 'Madre')!
+    const shared = mutations.renameAccount(base, madre.accountId, 'Los Test')
+    expect(shared.accounts.find((a) => a.id === madre.accountId)?.name).toBe('Los Test')
+    const renamedMadre = mutations.updateStudent(shared, madre.id, {
+      ...inputOf(madre, madre.accountId),
+      firstName: 'Marta',
+    })
+    expect(renamedMadre.accounts.find((a) => a.id === madre.accountId)?.name).toBe('Los Test')
+    const ana = base.students.find((s) => s.firstName === 'Ana')!
+    expect(mutations.renameAccount(base, ana.accountId, 'Otro')).toBe(base)
+  })
+
+  it('when a couple splits, the account left with one student takes their name', () => {
+    const base = makeAppData()
+    const hijo = base.students.find((s) => s.firstName === 'Hijo')!
+    const padre = base.students.find((s) => s.firstName === 'Padre')!
+    const madre = base.students.find((s) => s.firstName === 'Madre')!
+    let state = mutations.renameAccount(base, hijo.accountId, 'Familia')
+    state = mutations.deleteStudent(state, padre.id)
+    state = mutations.deleteStudent(state, hijo.id)
+    expect(state.accounts.find((a) => a.id === madre.accountId)?.name).toBe('Madre Test')
+  })
+})
