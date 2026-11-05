@@ -69,7 +69,7 @@ export function SettingsView() {
               value={values.creditReasons}
               onChange={(v) => set('creditReasons', v as BillingSettings['creditReasons'])}
               options={cancellationReasons
-                .filter((reason) => reason !== 'no_show')
+                .filter((reason) => reason !== 'no_show' && reason !== 'single_attendee')
                 .map((reason) => ({
                   value: reason,
                   label: cancellationReasonLabels[reason],
@@ -77,7 +77,8 @@ export function SettingsView() {
             />
             <p className="-mt-3 text-xs text-muted-foreground">
               Si el alumno falta por su cuenta se cobra la clase, sea cual sea el motivo. El descuento se
-              aplica en el mismo mes.
+              aplica en el mismo mes. «Solo asiste un alumno» y «No vino ningún alumno» tienen reglas fijas:
+              en la primera no se cobra al alumno que vino, y en la segunda se cobra a todos.
             </p>
             <MultiSelectField
               label="Métodos de pago permitidos"

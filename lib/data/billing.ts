@@ -29,6 +29,8 @@ export function creditApplies(state: AppData, session: Session, studentId: strin
   const reason = (session.cancelReason ?? 'rain') as CancellationReason
   // Nobody came: the students lose the class and the teacher is paid for it.
   if (reason === 'no_show') return false
+  // Only one student could come: that student is never charged, the others are.
+  if (reason === 'single_attendee') return Boolean(session.creditedStudentIds?.includes(studentId))
   if (!state.billing.creditReasons.includes(reason)) return false
   return !session.creditedStudentIds || session.creditedStudentIds.includes(studentId)
 }

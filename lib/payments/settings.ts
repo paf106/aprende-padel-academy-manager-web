@@ -14,7 +14,7 @@ export type BillingSettings = {
 /** Defaults follow the AprendePadel Academy conditions. */
 export const defaultBillingSettings: BillingSettings = {
   includedPerWeeklyClass: 4,
-  creditReasons: ['rain', 'bad_weather', 'teacher_absent', 'teacher_late', 'single_attendee'],
+  creditReasons: ['rain', 'bad_weather', 'teacher_absent', 'teacher_late'],
   leaveNoticeDays: 10,
   allowedPaymentMethods: ['cash', 'transfer', 'bizum'],
 }

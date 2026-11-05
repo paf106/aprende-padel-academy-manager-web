@@ -143,3 +143,24 @@ describe('resetting a class to pending', () => {
     expect(reset.sessions.find((s) => s.id === session.id)?.attendance?.[first]).toBe('present')
   })
 })
+
+describe('only one student could come', () => {
+  it('never charges that student, whatever the settings list as discount reasons', () => {
+    const base = makeAppData()
+    const session = base.sessions.find((s) => s.groupId)!
+    const [first, second] = session.studentIds
+    const withoutIt = { ...base, billing: { ...base.billing, creditReasons: [] } }
+    const state = mutations.cancelSessions(withoutIt, [session.id], 'single_attendee', [first])
+    const cancelled = state.sessions.find((s) => s.id === session.id)!
+    expect(creditApplies(state, cancelled, first)).toBe(true)
+    expect(creditApplies(state, cancelled, second)).toBe(false)
+  })
+
+  it('charges everybody when nobody is marked as the student who could come', () => {
+    const base = makeAppData()
+    const session = base.sessions.find((s) => s.groupId)!
+    const state = mutations.cancelSessions(base, [session.id], 'single_attendee')
+    const cancelled = state.sessions.find((s) => s.id === session.id)!
+    expect(session.studentIds.some((id) => creditApplies(state, cancelled, id))).toBe(false)
+  })
+})
