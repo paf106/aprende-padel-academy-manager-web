@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { localTodayInTimeZone } from '@/lib/core/dates'
 import { studentCategories, studentGenders, studentLevels } from '@/lib/core/types'
 
 const optionalEmail = z.union([z.literal(''), z.email('Introduce un email válido')])
@@ -6,7 +7,7 @@ const isoDate = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'Indica la fecha de nacimiento')
   .refine(
-    (value) => !Number.isNaN(Date.parse(value)) && value <= new Date().toISOString().slice(0, 10),
+    (value) => !Number.isNaN(Date.parse(value)) && value <= localTodayInTimeZone('Europe/Madrid'),
     'Fecha no válida',
   )
 

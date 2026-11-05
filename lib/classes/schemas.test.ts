@@ -1,3 +1,4 @@
+import { localTodayInTimeZone } from '@/lib/core/dates'
 import { describe, expect, it } from 'vitest'
 import { validate } from '@/lib/core/validation'
 import { teacherDeletionBlockers, studentDeletionBlockers } from '@/lib/classes/deletion'
@@ -65,5 +66,13 @@ describe('deletion rules', () => {
   it('lists every blocker', () => {
     expect(studentDeletionBlockers({ groups: 2, charges: 1 })).toHaveLength(2)
     expect(teacherDeletionBlockers({ groups: 1, sessions: 3, settlements: 1 })).toHaveLength(3)
+  })
+})
+
+describe('student birth date', () => {
+  it('rejects a birth date in the future and accepts today', () => {
+    const today = localTodayInTimeZone('Europe/Madrid')
+    expect(validate(studentSchema, { ...validStudent, birthDate: today }).ok).toBe(true)
+    expect(validate(studentSchema, { ...validStudent, birthDate: '2999-01-01' }).ok).toBe(false)
   })
 })

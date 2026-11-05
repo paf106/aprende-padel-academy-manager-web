@@ -44,7 +44,7 @@ export function GroupFormDrawer({ group, onClose }: { group?: Group; onClose: ()
       : {
           ...emptyGroupInput,
           clubId: activeClubs[0]?.id ?? '',
-          startsOn: new Date().toISOString().slice(0, 10),
+          startsOn: localTodayInTimeZone('Europe/Madrid'),
         },
   )
   const [regenerate, setRegenerate] = useState('future')

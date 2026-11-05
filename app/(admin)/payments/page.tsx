@@ -1,4 +1,4 @@
-import { localTodayInTimeZone } from '@/lib/core/dates'
+import { isMonth, localTodayInTimeZone } from '@/lib/core/dates'
 import { PaymentsView, type PaymentsTab } from '@/app/(admin)/payments/payments-view'
 
 export const metadata = { title: 'Pagos | AprendePadel' }
@@ -15,7 +15,7 @@ export default async function PaymentsPage({
   return (
     <PaymentsView
       today={today}
-      initialMonth={/^d{4}-(0[1-9]|1[0-2])$/.test(month ?? '') ? month! : today.slice(0, 7)}
+      initialMonth={isMonth(month ?? '') ? month! : today.slice(0, 7)}
       initialTab={(tabs as readonly string[]).includes(view ?? '') ? (view as PaymentsTab) : 'charges'}
     />
   )

@@ -15,6 +15,7 @@ import { formatMoney } from '@/lib/core/money'
 import { buildCharges } from '@/lib/data/billing'
 import { fullName } from '@/lib/data/types'
 import { useAppData } from '@/lib/data/provider'
+import { ageOn } from '@/lib/payments/pricing'
 import { StudentFormDrawer } from '../student-form-drawer'
 
 const DAYS = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
@@ -49,7 +50,7 @@ export function StudentProfile({ id, today }: { id: string; today: string }) {
   const charge = buildCharges(demo, today).find((c) => c.account.id === student.accountId) ?? null
   const sharedWith = accountMembers.filter((s) => s.id !== student.id).map((s) => s.firstName)
   const mine = groups.filter((g) => g.studentIds.includes(student.id))
-  const years = Math.floor((Date.parse(today) - Date.parse(student.birthDate)) / (365.25 * 86400000))
+  const years = ageOn(student.birthDate, today)
   const otherClubs = student.extraClubIds.map((clubId) => clubLabel(clubId)).filter(Boolean)
 
   return (

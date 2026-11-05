@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { localTimeInTimeZone, zonedInstant } from '@/lib/core/dates'
+import { isIsoDate, isMonth, localTimeInTimeZone, zonedInstant } from '@/lib/core/dates'
 
 const madrid = (date: string, time: string) => zonedInstant(date, time, 'Europe/Madrid')
 
@@ -22,5 +22,16 @@ describe('zonedInstant (Europe/Madrid)', () => {
   it('handles midnight and early classes', () => {
     expect(madrid('2026-12-14', '00:30').toISOString()).toBe('2026-12-13T23:30:00.000Z')
     expect(madrid('2026-07-13', '08:00').toISOString()).toBe('2026-07-13T06:00:00.000Z')
+  })
+})
+
+describe('date text checks', () => {
+  it('accepts real dates and months only', () => {
+    expect(isIsoDate('2027-06-30')).toBe(true)
+    expect(isIsoDate('2027-02-30')).toBe(false)
+    expect(isIsoDate('30/06/2027')).toBe(false)
+    expect(isIsoDate('')).toBe(false)
+    expect(isMonth('2026-11')).toBe(true)
+    expect(isMonth('2026-13')).toBe(false)
   })
 })

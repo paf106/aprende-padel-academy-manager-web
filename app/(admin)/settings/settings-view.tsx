@@ -9,6 +9,7 @@ import { MultiSelectField, SelectField, TextField } from '@/components/ds/field'
 import { PageContainer } from '@/components/ds/page-header'
 import { useToast } from '@/components/ds/toast'
 import { defaultCapacity } from '@/lib/classes/capacity'
+import { isIsoDate } from '@/lib/core/dates'
 import { cancellationReasonLabels, moduleLabels, paymentMethodLabels } from '@/lib/core/labels'
 import { cancellationReasons, type ModuleId, type PaymentMethod } from '@/lib/core/types'
 import { validate } from '@/lib/core/validation'
@@ -140,7 +141,7 @@ function SeasonEndField() {
   const [value, setValue] = useState(seasonEnd)
   const [error, setError] = useState('')
   const save = () => {
-    if (!/^d{4}-d{2}-d{2}$/.test(value) || Number.isNaN(Date.parse(value))) {
+    if (!isIsoDate(value)) {
       setError('Indica una fecha válida')
       return
     }
