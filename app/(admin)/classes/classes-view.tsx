@@ -3,7 +3,7 @@
 import { UserCheck } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { cancellationReasonLabels, classStatusLabels } from '@/lib/core/labels'
-import { type CalendarView } from '@/lib/core/dates'
+import { zonedInstant, type CalendarView } from '@/lib/core/dates'
 import {
   cancellationReasons,
   classStatuses,
@@ -113,9 +113,8 @@ export function ClassesView({ today }: { today: string }) {
         ? (courses.find((c) => c.id === s.courseId)?.name ?? 'Curso')
         : (groupById(s.groupId)?.name ?? 'Clase libre')
   const events: CalendarEvent[] = filtered.map((s) => {
-    const end = new Date(`${s.date}T${s.start}:00+02:00`)
-    const start = new Date(end)
-    end.setMinutes(end.getMinutes() + s.duration)
+    const start = zonedInstant(s.date, s.start, 'Europe/Madrid')
+    const end = new Date(start.getTime() + s.duration * 60_000)
     return {
       id: s.id,
       title: sessionTitle(s),

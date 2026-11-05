@@ -116,3 +116,30 @@ export function calendarHeadingLabel(date: string, view: CalendarView) {
   }
   return `${monthName(start)} ${start.getUTCFullYear()} – ${monthName(end)} ${end.getUTCFullYear()}`
 }
+
+/** Wall-clock time of an instant in a time zone, expressed as if it were UTC (for offset arithmetic). */
+function wallClockAsUtc(instant: Date, timeZone: string) {
+  const parts = getDateTimeFormatter('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(instant)
+  const get = (type: string) => Number(parts.find((part) => part.type === type)?.value ?? 0)
+  return Date.UTC(get('year'), get('month') - 1, get('day'), get('hour'), get('minute'))
+}
+
+/** The instant at which the clocks of `timeZone` show `date` (YYYY-MM-DD) and `time` (HH:MM), summer time included. */
+export function zonedInstant(date: string, time: string, timeZone: string) {
+  const [year, month, day] = date.split('-').map(Number)
+  const [hour, minute] = time.split(':').map(Number)
+  const wanted = Date.UTC(year, month - 1, day, hour, minute)
+  let guess = wanted
+  for (let attempt = 0; attempt < 2; attempt++) {
+    guess += wanted - wallClockAsUtc(new Date(guess), timeZone)
+  }
+  return new Date(guess)
+}
