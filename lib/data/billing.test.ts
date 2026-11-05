@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { addDays, addMonths } from '@/lib/core/calendar-nav'
-import { buildCharges, buildSettlements, groupProfitability, simulateMonth } from '@/lib/data/billing'
+import {
+  buildCharges,
+  buildSettlements,
+  chargesOfClub,
+  groupProfitability,
+  simulateMonth,
+} from '@/lib/data/billing'
 import { makeAppData } from '@/lib/data/fixtures'
 import { mutations } from '@/lib/data/mutations'
 import { localTodayInTimeZone } from '@/lib/core/dates'
@@ -116,5 +122,32 @@ describe('charges of a chosen month', () => {
     expect(
       buildCharges(paid, `${today.slice(0, 7)}-01`).find((c) => c.account.id === madre.accountId)?.paidCents,
     ).toBe(0)
+  })
+})
+
+describe('filter by club', () => {
+  const state = makeAppData()
+  const [pioz, ambite] = state.clubs
+
+  it('shows the accounts whose students usually go to that club', () => {
+    const charges = buildCharges(state, today)
+    expect(chargesOfClub(state, charges, pioz.id)).toHaveLength(charges.length)
+    expect(chargesOfClub(state, charges, ambite.id)).toHaveLength(0)
+    expect(chargesOfClub(state, charges)).toBe(charges)
+  })
+
+  it('settles only the classes given at that club, and the teachers who gave any', () => {
+    const session = state.sessions.find((s) => s.groupId)!
+    const done = mutations.updateSession(state, session.id, { status: 'completed' })
+    const all = buildSettlements(done, session.date)
+    const atPioz = buildSettlements(done, session.date, pioz.id)
+    expect(atPioz.find((t) => t.teacherId === session.teacherId)?.sessions).toBe(1)
+    expect(atPioz[0].totalCents).toBe(all.find((t) => t.teacherId === atPioz[0].teacherId)!.totalCents)
+    expect(buildSettlements(done, session.date, ambite.id)).toEqual([])
+  })
+
+  it('lists only the groups of that club in the profitability', () => {
+    expect(groupProfitability(state, today, undefined, pioz.id)).toHaveLength(state.groups.length)
+    expect(groupProfitability(state, today, undefined, ambite.id)).toHaveLength(0)
   })
 })

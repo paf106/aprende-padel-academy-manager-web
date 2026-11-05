@@ -6,11 +6,12 @@ import { PaymentStatusBadge } from '@/components/ds/badge'
 import { Button } from '@/components/ds/button'
 import { Card } from '@/components/ds/card'
 import { DataTable } from '@/components/ds/data-table'
+import { Dropdown } from '@/components/ds/dropdown'
 import { PageContainer, PageToolbar } from '@/components/ds/page-header'
 import { Tabs } from '@/components/ds/tabs'
 import { useToast } from '@/components/ds/toast'
 import { formatMoney } from '@/lib/core/money'
-import { buildCharges, buildSettlements, groupProfitability } from '@/lib/data/billing'
+import { buildCharges, buildSettlements, chargesOfClub, groupProfitability } from '@/lib/data/billing'
 import { useAppData } from '@/lib/data/provider'
 import { ChargesTab } from './charges-tab'
 import { MonthPicker } from './month-picker'
@@ -35,10 +36,12 @@ function downloadCsv(name: string, rows: (string | number)[][]) {
 export function PaymentsView({
   today,
   initialMonth,
+  initialClub,
   initialTab,
 }: {
   today: string
   initialMonth: string
+  initialClub: string
   initialTab: PaymentsTab
 }) {
   const toast = useToast()
@@ -46,21 +49,32 @@ export function PaymentsView({
   const [tab, setTab] = useState<PaymentsTab>(initialTab)
   const [paidTeachers, setPaidTeachers] = useState<string[]>([])
   const [month, setMonth] = useState(initialMonth)
+  const [clubChoice, setClubChoice] = useState(initialClub)
+  const club = demo.activeClubs.some((c) => c.id === clubChoice) ? clubChoice : ''
   // The billing functions read the month from a date, so the first day of the chosen month stands for it.
   const monthStart = `${month}-01`
 
-  const charges = useMemo(() => buildCharges(demo, monthStart), [demo, monthStart])
-  const settlements = useMemo(() => buildSettlements(demo, monthStart), [demo, monthStart])
+  const allCharges = useMemo(() => buildCharges(demo, monthStart), [demo, monthStart])
+  const charges = useMemo(() => chargesOfClub(demo, allCharges, club), [demo, allCharges, club])
+  const settlements = useMemo(() => buildSettlements(demo, monthStart, club), [demo, monthStart, club])
   const profitability = useMemo(
-    () => groupProfitability(demo, monthStart, charges),
-    [demo, monthStart, charges],
+    () => groupProfitability(demo, monthStart, allCharges, club),
+    [demo, monthStart, allCharges, club],
   )
 
+  const rememberInUrl = (key: string, value: string) => {
+    const url = new URL(window.location.href)
+    if (value) url.searchParams.set(key, value)
+    else url.searchParams.delete(key)
+    window.history.replaceState(null, '', url)
+  }
   const chooseMonth = (next: string) => {
     setMonth(next)
-    const url = new URL(window.location.href)
-    url.searchParams.set('month', next)
-    window.history.replaceState(null, '', url)
+    rememberInUrl('month', next)
+  }
+  const chooseClub = (next: string) => {
+    setClubChoice(next)
+    rememberInUrl('club', next)
   }
 
   const exportCsv = () => {
@@ -90,6 +104,14 @@ export function PaymentsView({
         actions={
           <>
             <MonthPicker month={month} currentMonth={today.slice(0, 7)} onChange={chooseMonth} />
+            <Dropdown
+              aria-label="Sede"
+              className="w-44"
+              allLabel="Todas las sedes"
+              value={club}
+              onChange={chooseClub}
+              options={demo.activeClubs.map((c) => ({ value: c.id, label: c.name }))}
+            />
             <Button variant="secondary" onClick={exportCsv}>
               <Download size={16} aria-hidden="true" />
               Exportar CSV

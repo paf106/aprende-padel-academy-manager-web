@@ -199,40 +199,61 @@ export function sessionPay(state: AppData, session: Session) {
   })
 }
 
-export function buildSettlements(state: AppData, today: string): TeacherSettlementRow[] {
-  const sessions = monthSessions(state, today)
-  return state.teachers.map((teacher) => {
-    const mine = sessions.filter((s) => s.teacherId === teacher.id && teacherIsPaid(s.status, s.cancelReason))
-    return {
-      teacherId: teacher.id,
-      name: teacherName(teacher),
-      sessions: mine.length,
-      hours: mine.reduce((sum, s) => sum + s.duration / 60, 0),
-      totalCents: mine.reduce((sum, s) => sum + sessionPay(state, s), 0),
-    }
-  })
+/** Charges of the accounts that have a student whose usual club is `clubId`. Without a club, all of them. */
+export function chargesOfClub(state: AppData, charges: Charge[], clubId?: string) {
+  if (!clubId) return charges
+  return charges.filter((c) =>
+    state.students.some((s) => s.accountId === c.account.id && s.clubId === clubId),
+  )
 }
 
-export function groupProfitability(state: AppData, today: string, charges = buildCharges(state, today)) {
-  const sessions = monthSessions(state, today)
-  return state.groups.map((group: Group) => {
-    const cost = sessions
-      .filter((s) => s.groupId === group.id)
-      .reduce((sum, s) => sum + sessionPay(state, s), 0)
-    const income = charges.reduce((sum, charge) => {
-      const paidRatio = charge.dueCents === 0 ? 0 : Math.min(1, charge.paidCents / charge.dueCents)
-      return (
-        sum +
-        charge.members
-          .filter((line) => group.studentIds.includes(line.memberId))
-          .reduce(
-            (acc, line) => acc + Math.round((line.totalCents * paidRatio) / Math.max(line.classesPerWeek, 1)),
-            0,
-          )
+/** Settlements of the month; with a club, only the classes given there and the teachers who gave any. */
+export function buildSettlements(state: AppData, today: string, clubId?: string): TeacherSettlementRow[] {
+  const sessions = monthSessions(state, today).filter((s) => !clubId || s.clubId === clubId)
+  return state.teachers
+    .filter((teacher) => !clubId || sessions.some((s) => s.teacherId === teacher.id))
+    .map((teacher) => {
+      const mine = sessions.filter(
+        (s) => s.teacherId === teacher.id && teacherIsPaid(s.status, s.cancelReason),
       )
-    }, 0)
-    return { group, incomeCents: income, costCents: cost, marginCents: income - cost }
-  })
+      return {
+        teacherId: teacher.id,
+        name: teacherName(teacher),
+        sessions: mine.length,
+        hours: mine.reduce((sum, s) => sum + s.duration / 60, 0),
+        totalCents: mine.reduce((sum, s) => sum + sessionPay(state, s), 0),
+      }
+    })
+}
+
+export function groupProfitability(
+  state: AppData,
+  today: string,
+  charges = buildCharges(state, today),
+  clubId?: string,
+) {
+  const sessions = monthSessions(state, today)
+  return state.groups
+    .filter((g) => !clubId || g.clubId === clubId)
+    .map((group: Group) => {
+      const cost = sessions
+        .filter((s) => s.groupId === group.id)
+        .reduce((sum, s) => sum + sessionPay(state, s), 0)
+      const income = charges.reduce((sum, charge) => {
+        const paidRatio = charge.dueCents === 0 ? 0 : Math.min(1, charge.paidCents / charge.dueCents)
+        return (
+          sum +
+          charge.members
+            .filter((line) => group.studentIds.includes(line.memberId))
+            .reduce(
+              (acc, line) =>
+                acc + Math.round((line.totalCents * paidRatio) / Math.max(line.classesPerWeek, 1)),
+              0,
+            )
+        )
+      }, 0)
+      return { group, incomeCents: income, costCents: cost, marginCents: income - cost }
+    })
 }
 
 /** What an account would be charged in a month if some members were not attending (simulator). */

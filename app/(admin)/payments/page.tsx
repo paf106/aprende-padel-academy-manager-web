@@ -8,14 +8,15 @@ const tabs = ['charges', 'teachers', 'rates', 'profitability'] as const
 export default async function PaymentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string; month?: string }>
+  searchParams: Promise<{ view?: string; month?: string; club?: string }>
 }) {
-  const { view, month } = await searchParams
+  const { view, month, club } = await searchParams
   const today = localTodayInTimeZone('Europe/Madrid')
   return (
     <PaymentsView
       today={today}
       initialMonth={isMonth(month ?? '') ? month! : today.slice(0, 7)}
+      initialClub={club ?? ''}
       initialTab={(tabs as readonly string[]).includes(view ?? '') ? (view as PaymentsTab) : 'charges'}
     />
   )
