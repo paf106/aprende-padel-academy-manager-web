@@ -1,7 +1,7 @@
 'use server'
 
 import { requireAdmin } from '@/lib/auth'
-import { IMAGE_TYPES, MAX_IMAGE_BYTES } from '@/lib/core/image'
+import { detectImageType, IMAGE_TYPES, MAX_IMAGE_BYTES } from '@/lib/core/image'
 import { getSupabaseServer } from '@/lib/supabase/server'
 
 export type UploadResult = { ok: true; url: string } | { ok: false; error: string }
@@ -20,10 +20,13 @@ export async function uploadClubPhoto(dataUrl: string): Promise<UploadResult> {
   }
   const bytes = Buffer.from(match[2], 'base64')
   if (bytes.byteLength > MAX_IMAGE_BYTES) return { ok: false, error: 'La imagen no puede superar los 5 MB' }
+  // The file must really be the image it says it is.
+  const type = detectImageType(bytes)
+  if (!type || type !== match[1]) return { ok: false, error: 'El archivo no es una imagen válida' }
 
   const supabase = await getSupabaseServer()
-  const path = `${organizationId}/${crypto.randomUUID()}.${extensions[match[1]]}`
-  const { error } = await supabase.storage.from('club-photos').upload(path, bytes, { contentType: match[1] })
+  const path = `${organizationId}/${crypto.randomUUID()}.${extensions[type]}`
+  const { error } = await supabase.storage.from('club-photos').upload(path, bytes, { contentType: type })
   if (error) {
     console.error('uploadClubPhoto failed', { message: error.message })
     return { ok: false, error: 'No se pudo subir la foto. Inténtalo de nuevo.' }

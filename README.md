@@ -47,3 +47,9 @@ The admin panel reads and writes the Supabase database. The layout loads the org
 (`lib/db/load.ts`), screens read it through `useAppData()` and actions are pure reducers (`lib/data/mutations.ts`)
 applied optimistically; the changed rows are saved by a server action (`lib/db/persist.ts`). See
 [docs/DATABASE.md](docs/DATABASE.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## Security checks
+
+- `bun audit` before every release. Known and deferred: one moderate `minimatch` advisory in the ESLint chain (only used
+  while linting repository files); review it again when `eslint` or `typescript-eslint` publish a fix.
+- `bun run db:verify` checks row level security, the transactional save and the audit log against the real database.

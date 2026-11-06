@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { clubDeletionBlockers, groupDeletionBlockers } from '@/lib/classes/deletion'
 import { clubSchema, emptyClubInput } from '@/lib/classes/club-schema'
 import { emptyGroupInput, groupConflicts, groupSchema } from '@/lib/classes/group-schema'
-import { fitWithin, imageFileError } from '@/lib/core/image'
+import { detectImageType, fitWithin, imageFileError } from '@/lib/core/image'
 import { validate } from '@/lib/core/validation'
 
 const validClub = {
@@ -103,5 +103,24 @@ describe('mixed groups', () => {
         others: [],
       }),
     ).toEqual({})
+  })
+})
+
+describe('image content check', () => {
+  const bytes = (...values: number[]) => new Uint8Array([...values, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+  it('recognises JPG, PNG and WebP by their first bytes', () => {
+    expect(detectImageType(bytes(0xff, 0xd8, 0xff, 0xe0))).toBe('image/jpeg')
+    expect(detectImageType(bytes(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a))).toBe('image/png')
+    expect(detectImageType(bytes(0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50))).toBe(
+      'image/webp',
+    )
+  })
+  it('rejects anything else, whatever it claims to be', () => {
+    expect(
+      detectImageType(new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"></svg>')),
+    ).toBeNull()
+    expect(detectImageType(new TextEncoder().encode('<?php echo 1; ?>'))).toBeNull()
+    expect(detectImageType(new Uint8Array())).toBeNull()
+    expect(detectImageType(bytes(0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x41, 0x56, 0x45))).toBeNull()
   })
 })
