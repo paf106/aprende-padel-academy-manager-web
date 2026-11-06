@@ -6,7 +6,7 @@ import { PaymentStatusBadge } from '@/components/ds/badge'
 import { Button } from '@/components/ds/button'
 import { Card } from '@/components/ds/card'
 import { DataTable } from '@/components/ds/data-table'
-import { Dropdown } from '@/components/ds/dropdown'
+import { FilterBar, type FilterDef } from '@/components/ds/filter-bar'
 import { PageContainer, PageToolbar } from '@/components/ds/page-header'
 import { Tabs } from '@/components/ds/tabs'
 import { useToast } from '@/components/ds/toast'
@@ -77,6 +77,23 @@ export function PaymentsView({
     rememberInUrl('club', next)
   }
 
+  const clubFilter: FilterDef = {
+    key: 'club',
+    label: 'Sede',
+    allLabel: 'Todas las sedes',
+    options: demo.activeClubs.map((c) => ({ value: c.id, label: c.name })),
+  }
+  const clubBar = (
+    <div className="flex flex-wrap items-center gap-2">
+      <FilterBar
+        filters={[clubFilter]}
+        values={{ club }}
+        onChange={(_key, value) => chooseClub(value)}
+        onClear={() => chooseClub('')}
+      />
+    </div>
+  )
+
   const exportCsv = () => {
     if (tab === 'teachers') {
       downloadCsv(`liquidaciones-${month}.csv`, [
@@ -104,14 +121,6 @@ export function PaymentsView({
         actions={
           <>
             <MonthPicker month={month} currentMonth={today.slice(0, 7)} onChange={chooseMonth} />
-            <Dropdown
-              aria-label="Sede"
-              className="w-44"
-              allLabel="Todas las sedes"
-              value={club}
-              onChange={chooseClub}
-              options={demo.activeClubs.map((c) => ({ value: c.id, label: c.name }))}
-            />
             <Button variant="secondary" onClick={exportCsv}>
               <Download size={16} aria-hidden="true" />
               Exportar CSV
@@ -132,85 +141,104 @@ export function PaymentsView({
         />
       </PageToolbar>
 
-      {tab === 'charges' ? <ChargesTab month={month} today={today} charges={charges} /> : null}
+      {tab === 'charges' ? (
+        <ChargesTab
+          month={month}
+          today={today}
+          charges={charges}
+          clubFilter={clubFilter}
+          club={club}
+          onClubChange={chooseClub}
+        />
+      ) : null}
 
       {tab === 'teachers' ? (
-        <Card>
-          <DataTable
-            rows={settlements}
-            rowKey={(s) => s.teacherId}
-            columns={[
-              { key: 'name', header: 'Profesor', cell: (s) => <span className="font-medium">{s.name}</span> },
-              { key: 'sessions', header: 'Clases terminadas', align: 'right', cell: (s) => s.sessions },
-              { key: 'hours', header: 'Horas', align: 'right', cell: (s) => s.hours },
-              {
-                key: 'total',
-                header: 'Total',
-                align: 'right',
-                cell: (s) => <span className="font-semibold">{formatMoney(s.totalCents)}</span>,
-              },
-              {
-                key: 'status',
-                header: 'Estado',
-                cell: (s) => (
-                  <PaymentStatusBadge status={paidTeachers.includes(s.teacherId) ? 'paid' : 'pending'} />
-                ),
-              },
-              {
-                key: 'actions',
-                header: '',
-                align: 'right',
-                cell: (s) =>
-                  paidTeachers.includes(s.teacherId) ? null : (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => {
-                        setPaidTeachers((p) => [...p, s.teacherId])
-                        toast(`Liquidación de ${s.name} marcada como pagada.`)
-                      }}
-                    >
-                      Marcar pagada
-                    </Button>
+        <>
+          {clubBar}
+          <Card>
+            <DataTable
+              rows={settlements}
+              rowKey={(s) => s.teacherId}
+              columns={[
+                {
+                  key: 'name',
+                  header: 'Profesor',
+                  cell: (s) => <span className="font-medium">{s.name}</span>,
+                },
+                { key: 'sessions', header: 'Clases terminadas', align: 'right', cell: (s) => s.sessions },
+                { key: 'hours', header: 'Horas', align: 'right', cell: (s) => s.hours },
+                {
+                  key: 'total',
+                  header: 'Total',
+                  align: 'right',
+                  cell: (s) => <span className="font-semibold">{formatMoney(s.totalCents)}</span>,
+                },
+                {
+                  key: 'status',
+                  header: 'Estado',
+                  cell: (s) => (
+                    <PaymentStatusBadge status={paidTeachers.includes(s.teacherId) ? 'paid' : 'pending'} />
                   ),
-              },
-            ]}
-          />
-        </Card>
+                },
+                {
+                  key: 'actions',
+                  header: '',
+                  align: 'right',
+                  cell: (s) =>
+                    paidTeachers.includes(s.teacherId) ? null : (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => {
+                          setPaidTeachers((p) => [...p, s.teacherId])
+                          toast(`Liquidación de ${s.name} marcada como pagada.`)
+                        }}
+                      >
+                        Marcar pagada
+                      </Button>
+                    ),
+                },
+              ]}
+            />
+          </Card>
+        </>
       ) : null}
 
       {tab === 'rates' ? <RatesTab month={month} /> : null}
 
       {tab === 'profitability' ? (
-        <Card>
-          <DataTable
-            rows={profitability}
-            rowKey={(p) => p.group.id}
-            columns={[
-              {
-                key: 'group',
-                header: 'Grupo',
-                cell: (p) => <span className="font-medium">{p.group.name}</span>,
-              },
-              { key: 'club', header: 'Sede', cell: (p) => demo.clubLabel(p.group.clubId) },
-              { key: 'income', header: 'Cobrado', align: 'right', cell: (p) => formatMoney(p.incomeCents) },
-              { key: 'cost', header: 'Profesor', align: 'right', cell: (p) => formatMoney(p.costCents) },
-              {
-                key: 'margin',
-                header: 'Margen',
-                align: 'right',
-                cell: (p) => (
-                  <span className={p.marginCents < 0 ? 'font-semibold text-danger' : 'font-semibold'}>
-                    {formatMoney(p.marginCents)}
-                  </span>
-                ),
-              },
-            ]}
-          />
-          <p className="border-t border-border px-4 py-3 text-xs text-muted-foreground">
-            Margen aproximado: cobrado menos pago al profesor. El alquiler de pista no se incluye.
-          </p>
-        </Card>
+        <>
+          {clubBar}
+          <Card>
+            <DataTable
+              rows={profitability}
+              rowKey={(p) => p.group.id}
+              columns={[
+                {
+                  key: 'group',
+                  header: 'Grupo',
+                  cell: (p) => <span className="font-medium">{p.group.name}</span>,
+                },
+                { key: 'club', header: 'Sede', cell: (p) => demo.clubLabel(p.group.clubId) },
+                { key: 'income', header: 'Cobrado', align: 'right', cell: (p) => formatMoney(p.incomeCents) },
+                { key: 'cost', header: 'Profesor', align: 'right', cell: (p) => formatMoney(p.costCents) },
+                {
+                  key: 'margin',
+                  header: 'Margen',
+                  align: 'right',
+                  cell: (p) => (
+                    <span className={p.marginCents < 0 ? 'font-semibold text-danger' : 'font-semibold'}>
+                      {formatMoney(p.marginCents)}
+                    </span>
+                  ),
+                },
+              ]}
+            />
+            <p className="border-t border-border px-4 py-3 text-xs text-muted-foreground">
+              Margen aproximado: cobrado menos pago al profesor. El alquiler de pista no se incluye.
+            </p>
+          </Card>
+        </>
       ) : null}
     </PageContainer>
   )

@@ -35,7 +35,21 @@ const statusFilters: FilterDef[] = [
 
 const COLUMNS = ['Cuenta', 'A cobrar', 'Pagado', 'Deuda total', 'Estado', 'Último pago', '']
 
-export function ChargesTab({ month, today, charges }: { month: string; today: string; charges: Charge[] }) {
+export function ChargesTab({
+  month,
+  today,
+  charges,
+  clubFilter,
+  club,
+  onClubChange,
+}: {
+  month: string
+  today: string
+  charges: Charge[]
+  clubFilter: FilterDef
+  club: string
+  onClubChange: (clubId: string) => void
+}) {
   const toast = useToast()
   const { billing, catalog, actions } = useAppData()
   const [query, setQuery] = useState('')
@@ -102,12 +116,13 @@ export function ChargesTab({ month, today, charges }: { month: string; today: st
       <div className="flex flex-wrap items-center gap-2">
         <FilterBar
           search={{ value: query, onChange: setQuery, placeholder: 'Buscar cuenta…', label: 'Buscar cuenta' }}
-          filters={statusFilters}
-          values={{ status }}
-          onChange={(_key, value) => setStatus(value)}
+          filters={[...statusFilters, clubFilter]}
+          values={{ status, club }}
+          onChange={(key, value) => (key === 'club' ? onClubChange(value) : setStatus(value))}
           onClear={() => {
             setQuery('')
             setStatus('')
+            onClubChange('')
           }}
         />
       </div>
