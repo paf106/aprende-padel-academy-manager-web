@@ -125,6 +125,20 @@ checks.push([
   }),
 ])
 checks.push([
+  'every save leaves an audit row that only admins can read',
+  await asUser(admin, async (tx) => {
+    const created = club('Zz6')
+    await tx`select public.apply_changes(${tx.json({ steps: [upsert([created])] } as never)})`
+    const rows =
+      await tx`select table_name, row_count, row_ids from core.audit_log where table_name = 'core.clubs'`
+    return rows.length === 1 && rows[0].row_count === 1 && rows[0].row_ids[0] === created.id
+  }),
+])
+checks.push([
+  'a teacher cannot read the audit log',
+  (await count({ role: 'teacher', organization_id: ORG_ID }, 'core.audit_log')) === 0,
+])
+checks.push([
   'apply_changes refuses a teacher',
   (await apply({ role: 'teacher', organization_id: ORG_ID }, [upsert([club('Zz4')])])) !== 'ok',
 ])

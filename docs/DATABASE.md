@@ -14,6 +14,7 @@ The migrations in `supabase/migrations` implement a simplified version of the de
   `core`, `classes` and `payments` must be listed in the API's exposed schemas.
 - Only admins of an organization can read and write its rows; teachers have no login in this version.
 - `payments.payments` is append-only (insert and select only, plus a trigger that rejects updates and deletes). A mistaken payment is voided with a new row whose `reverses_id` points to it (once per payment).
+- `core.audit_log` records every save (user, table, operation, row ids), written by `apply_changes` from the session; payments also keep `created_by` and `created_by_email`.
 - Students and teachers do not need a last name; teacher email and phone are optional.
   `core.students.needs_review` marks students imported with default data until an admin saves them.
 - Saving goes through `public.apply_changes(changes)`: one transaction that runs as the signed-in user, takes organization_id from the session and ignores unknown columns. The app maps rows to its own types in `lib/db/mapping.ts` and writes row-level diffs, so adding a column means

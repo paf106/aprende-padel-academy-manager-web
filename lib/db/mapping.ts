@@ -566,6 +566,7 @@ export function fromRows(rows: TableRows): AppData {
       paidOn: p.paid_on,
       reversesId: p.reverses_id ?? undefined,
       voidReason: p.void_reason || undefined,
+      createdByEmail: p.created_by_email || undefined,
     })),
     extraCharges: get('payments.extra_charges').map((c) => ({
       id: c.id,

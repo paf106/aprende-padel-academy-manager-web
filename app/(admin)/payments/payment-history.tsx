@@ -54,10 +54,13 @@ export function PaymentHistory({ accountId, month }: { accountId: string; month:
               <span className={voided ? 'text-muted-foreground line-through' : ''}>
                 {day(payment.paidOn)} · {paymentMethodLabels[payment.method]} ·{' '}
                 {formatMoney(payment.amountCents)}
+                {payment.createdByEmail ? ` · ${payment.createdByEmail}` : ''}
               </span>
               {voided ? (
                 <span className="text-xs text-muted-foreground">
-                  Anulado{voidOf(payment.id)?.voidReason ? ` · ${voidOf(payment.id)?.voidReason}` : ''}
+                  Anulado
+                  {voidOf(payment.id)?.createdByEmail ? ` por ${voidOf(payment.id)?.createdByEmail}` : ''}
+                  {voidOf(payment.id)?.voidReason ? ` · ${voidOf(payment.id)?.voidReason}` : ''}
                 </span>
               ) : (
                 <Button size="sm" variant="ghost" onClick={() => setVoiding([payment.id])}>
