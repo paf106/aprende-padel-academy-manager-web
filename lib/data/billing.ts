@@ -1,4 +1,4 @@
-import { expandClosedDays } from '@/lib/classes/closures'
+import { expandClosedDays, type Closure } from '@/lib/classes/closures'
 import { addMonths } from '@/lib/core/calendar-nav'
 import type { CancellationReason } from '@/lib/core/types'
 import {
@@ -41,26 +41,49 @@ export function creditApplies(state: AppData, session: Session, studentId: strin
   return !session.creditedStudentIds || session.creditedStudentIds.includes(studentId)
 }
 
+type ClassIndex = Map<string, Map<string, Session[]>>
+const classIndexCache = new WeakMap<readonly Session[], ClassIndex>()
+
+/** Group classes by student and month, once per list of sessions, so billing does not scan every class again for each student and month. */
+function classIndex(sessions: readonly Session[]): ClassIndex {
+  const cached = classIndexCache.get(sessions)
+  if (cached) return cached
+  const index: ClassIndex = new Map()
+  for (const session of sessions) {
+    if (!session.groupId) continue
+    const month = session.date.slice(0, 7)
+    for (const studentId of session.studentIds) {
+      if (session.guests?.[studentId]) continue
+      const months = index.get(studentId) ?? new Map<string, Session[]>()
+      const list = months.get(month)
+      if (list) list.push(session)
+      else months.set(month, [session])
+      index.set(studentId, months)
+    }
+  }
+  classIndexCache.set(sessions, index)
+  return index
+}
+
+const closedDaysCache = new WeakMap<readonly Closure[], Map<string, Set<string>>>()
+function closedDays(closures: readonly Closure[], clubId: string) {
+  const byClub = closedDaysCache.get(closures) ?? new Map<string, Set<string>>()
+  closedDaysCache.set(closures, byClub)
+  if (!byClub.has(clubId)) byClub.set(clubId, new Set(expandClosedDays(closures, clubId)))
+  return byClub.get(clubId)!
+}
+
 /**
  * Classes of the month for every active member of an account, read from the calendar: the classes where the
  * student is a member of the group. Holidays and discounted cancellations are not charged.
  */
 export function memberMonths(state: AppData, accountId: string, month: string): MemberMonth[] {
-  const closedByClub = new Map<string, Set<string>>()
-  const closedOn = (clubId: string, date: string) => {
-    if (!closedByClub.has(clubId)) closedByClub.set(clubId, new Set(expandClosedDays(state.closures, clubId)))
-    return closedByClub.get(clubId)!.has(date)
-  }
+  const closedOn = (clubId: string, date: string) => closedDays(state.closures, clubId).has(date)
+  const index = classIndex(state.sessions)
   return state.students
     .filter((s) => s.accountId === accountId && s.active)
     .map((student) => {
-      const mine = state.sessions.filter(
-        (s) =>
-          s.groupId &&
-          s.date.startsWith(month) &&
-          s.studentIds.includes(student.id) &&
-          !s.guests?.[student.id],
-      )
+      const mine = index.get(student.id)?.get(month) ?? []
       let holidayClasses = 0
       let creditedCancellations = 0
       for (const session of mine) {

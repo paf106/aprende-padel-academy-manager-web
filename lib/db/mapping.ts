@@ -108,8 +108,56 @@ export const rowKey = (spec: TableSpec, row: Row) => spec.keys.map((k) => String
 const time = (value: unknown) => String(value ?? '').slice(0, 5)
 const orNull = (value: string | undefined) => (value ? value : null)
 
+const sessionRowsCache = new WeakMap<readonly Session[], { sessions: Row[]; attendees: Row[] }>()
+
+/** Sessions and their attendees are the biggest tables and rarely change: their rows are kept until the array changes. */
+function sessionRows(sessions: readonly Session[]) {
+  const cached = sessionRowsCache.get(sessions)
+  if (cached) return cached
+  const rows = {
+    sessions: sessions.map((s) => ({
+      id: s.id,
+      group_id: orNull(s.groupId),
+      course_id: orNull(s.courseId),
+      kind: s.kind ?? 'group',
+      manual: s.manual ?? false,
+      series_id: s.seriesId ?? null,
+      club_id: s.clubId,
+      teacher_id: s.teacherId,
+      date: s.date,
+      start_time: s.start,
+      duration: s.duration,
+      category: s.category,
+      level: s.level ?? null,
+      status: s.status,
+      cancel_reason: s.cancelReason ?? null,
+      credited_student_ids: s.creditedStudentIds ?? null,
+    })),
+    attendees: sessions.flatMap((s) =>
+      [...new Set(s.studentIds)].map((studentId) => ({
+        session_id: s.id,
+        student_id: studentId,
+        attendance: s.attendance?.[studentId] ?? 'unmarked',
+        origin: s.guests?.[studentId] ?? 'group',
+      })),
+    ),
+  }
+  sessionRowsCache.set(sessions, rows)
+  return rows
+}
+
+const rowsCache = new WeakMap<AppData, TableRows>()
+
 /** App data as database rows, without organization_id (the server adds it from the session). */
 export function toRows(data: AppData): TableRows {
+  const cached = rowsCache.get(data)
+  if (cached) return cached
+  const rows = buildRows(data)
+  rowsCache.set(data, rows)
+  return rows
+}
+
+function buildRows(data: AppData): TableRows {
   const rows: TableRows = {}
   const put = (schema: TableSpec['schema'], table: string, list: Row[]) => {
     rows[`${schema}.${table}`] = list
@@ -304,40 +352,9 @@ export function toRows(data: AppData): TableRows {
       [...new Set(c.studentIds)].map((studentId) => ({ course_id: c.id, student_id: studentId })),
     ),
   )
-  put(
-    'classes',
-    'sessions',
-    data.sessions.map((s) => ({
-      id: s.id,
-      group_id: orNull(s.groupId),
-      course_id: orNull(s.courseId),
-      kind: s.kind ?? 'group',
-      manual: s.manual ?? false,
-      series_id: s.seriesId ?? null,
-      club_id: s.clubId,
-      teacher_id: s.teacherId,
-      date: s.date,
-      start_time: s.start,
-      duration: s.duration,
-      category: s.category,
-      level: s.level ?? null,
-      status: s.status,
-      cancel_reason: s.cancelReason ?? null,
-      credited_student_ids: s.creditedStudentIds ?? null,
-    })),
-  )
-  put(
-    'classes',
-    'session_attendees',
-    data.sessions.flatMap((s) =>
-      [...new Set(s.studentIds)].map((studentId) => ({
-        session_id: s.id,
-        student_id: studentId,
-        attendance: s.attendance?.[studentId] ?? 'unmarked',
-        origin: s.guests?.[studentId] ?? 'group',
-      })),
-    ),
-  )
+  const sessionTables = sessionRows(data.sessions)
+  put('classes', 'sessions', sessionTables.sessions)
+  put('classes', 'session_attendees', sessionTables.attendees)
 
   put(
     'payments',

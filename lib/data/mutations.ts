@@ -325,6 +325,7 @@ export const mutations = {
   },
   /** Changes the last day of the season and brings every active group's calendar up to it. */
   setSeasonEnd(state: AppData, seasonEnd: string): AppData {
+    if (seasonEnd === state.seasonEnd) return state
     const next = { ...state, seasonEnd }
     const sessions = next.groups.reduce(
       (current, group) => replaceFutureSessions({ ...next, sessions: current }, group, today()),
