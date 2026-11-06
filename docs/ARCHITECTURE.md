@@ -57,7 +57,9 @@ docs/           Documentation
 - Leaving needs notice (10 days by default); without it the full month is charged.
 - Manual price overrides (with a mandatory reason) are for exceptions such as scholarships.
 - There are no make-up classes: a student added to a class that is not theirs pays a single class.
-- Groups generate their classes from their start date until the end of the season (30 June). Editing a group updates
+- Groups generate their classes from their start date until the end of the season (30 June). A student who joins a
+  group later is only in the classes from the chosen date (`joined_on`): regenerating the calendar never adds them to
+  earlier classes. Editing a group updates
   its pending classes from a chosen date: attendance, single-class guests and substitute teachers are kept, and
   finished, cancelled and manually created classes are never touched. Deleting a class is allowed; editing the group
   can create it again if the date still fits. Classes can also be repeated every week from the calendar.

@@ -15,6 +15,17 @@ export type BreakdownData = {
 
 /** Explains how a monthly charge was built: offers, manual prices, extra classes and credits. */
 export function ChargeBreakdown({ data, catalog }: { data: BreakdownData; catalog: RateCatalog }) {
+  const dayNumbers = (dates: readonly string[]) => {
+    const names = dates.map((d) => Number(d.slice(8)))
+    const month = dates[0]
+      ? new Intl.DateTimeFormat('es-ES', { month: 'short', timeZone: 'UTC' })
+          .format(new Date(`${dates[0]}T00:00:00Z`))
+          .replace('.', '')
+      : ''
+    const list =
+      names.length > 1 ? `${names.slice(0, -1).join(', ')} y ${names.at(-1)}` : String(names[0] ?? '')
+    return `${list} ${month}`
+  }
   const segmentName = (id: string | null) =>
     catalog.segments.find((s) => s.id === id)?.name ?? 'Sin tramo de edad'
   const offerName = (id: string | null) => catalog.offers.find((o) => o.id === id)?.name
@@ -53,6 +64,11 @@ export function ChargeBreakdown({ data, catalog }: { data: BreakdownData; catalo
                     ? 'Precio fijado'
                     : 'Cuota individual'}
               </span>
+              {line.classDates.length > 0 ? (
+                <span className="block text-xs text-muted-foreground">
+                  Clases que se cobran: {dayNumbers(line.classDates)}
+                </span>
+              ) : null}
             </span>
             <span className="tabular-nums text-muted-foreground">
               {formatMoney(line.shareCents)}

@@ -18,6 +18,8 @@ export type MemberMonth = {
   creditedCancellations: number
   /** Leaving without enough notice: the month is charged in full. */
   forfeitCredits?: boolean
+  /** Dates of the classes that are charged, to show them in the breakdown. */
+  classDates?: string[]
 }
 
 /** A manual price that wins over the automatic one. Months are YYYY-MM; an empty `to` means open ended. */
@@ -46,6 +48,8 @@ export type MemberLine = {
   extraCents: number
   /** Classes of the month that are charged: scheduled, minus holidays and discounted cancellations. */
   billedClasses: number
+  /** Dates of those classes (YYYY-MM-DD), when known. */
+  classDates: string[]
   /** Taken off the fee when the month has fewer classes than the fee covers. */
   discountCents: number
   totalCents: number
@@ -133,6 +137,7 @@ export function monthlyCharge(input: ChargeInput): ChargeResult {
       extraClasses,
       extraCents,
       billedClasses: billed,
+      classDates: member.classDates ?? [],
       discountCents: discount,
       totalCents: share + extraCents - discount,
     }

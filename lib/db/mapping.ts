@@ -324,7 +324,11 @@ function buildRows(data: AppData): TableRows {
     'classes',
     'group_members',
     data.groups.flatMap((g) =>
-      [...new Set(g.studentIds)].map((studentId) => ({ group_id: g.id, student_id: studentId })),
+      [...new Set(g.studentIds)].map((studentId) => ({
+        group_id: g.id,
+        student_id: studentId,
+        joined_on: g.memberSince?.[studentId] ?? null,
+      })),
     ),
   )
   put(
@@ -399,6 +403,13 @@ function buildRows(data: AppData): TableRows {
     })),
   )
   return rows
+}
+
+const memberSinceOf = (rows: Row[]) => {
+  const since = Object.fromEntries(
+    rows.filter((r) => r.joined_on).map((r) => [r.student_id, r.joined_on as string]),
+  )
+  return Object.keys(since).length > 0 ? since : undefined
 }
 
 /** Database rows as app data. Missing singleton rows fall back to sensible defaults. */
@@ -501,6 +512,7 @@ export function fromRows(rows: TableRows): AppData {
       endsOn: g.ends_on ?? '',
       active: g.active,
       studentIds: (groupMembers.get(g.id) ?? []).map((r) => r.student_id),
+      memberSince: memberSinceOf(groupMembers.get(g.id) ?? []),
     })),
     courses: get('classes.courses').map((c) => ({
       id: c.id,

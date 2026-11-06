@@ -86,11 +86,12 @@ export function memberMonths(state: AppData, accountId: string, month: string): 
       const mine = index.get(student.id)?.get(month) ?? []
       let holidayClasses = 0
       let creditedCancellations = 0
+      const classDates: string[] = []
       for (const session of mine) {
         if (closedOn(session.clubId, session.date)) holidayClasses += 1
         else if (session.status === 'cancelled' && creditApplies(state, session, student.id)) {
           creditedCancellations += 1
-        }
+        } else classDates.push(session.date)
       }
       return {
         memberId: student.id,
@@ -100,6 +101,7 @@ export function memberMonths(state: AppData, accountId: string, month: string): 
         occurrences: mine.length,
         holidayClasses,
         creditedCancellations,
+        classDates: classDates.sort(),
       }
     })
 }

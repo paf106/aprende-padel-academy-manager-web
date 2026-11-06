@@ -68,6 +68,8 @@ export type Group = {
   endsOn: string
   active: boolean
   studentIds: string[]
+  /** The day a student joined the group, when it was after the group started. Earlier classes never include them. */
+  memberSince?: Record<string, string>
 }
 /** A closed-price course (for example the June intensive): its own dates, weekdays and a single payment. */
 export type Course = {

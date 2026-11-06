@@ -112,7 +112,15 @@ export const mutations = {
   ): AppData {
     const current = state.groups.find((g) => g.id === id)
     if (!current) return state
-    const group: Group = { ...current, ...input }
+    // Students who join now are only in the classes from the chosen date on.
+    const joinedOn = options.from ?? today()
+    const memberSince = Object.fromEntries(
+      input.studentIds.flatMap((studentId) => {
+        const date = current.studentIds.includes(studentId) ? current.memberSince?.[studentId] : joinedOn
+        return date ? [[studentId, date]] : []
+      }),
+    )
+    const group: Group = { ...current, ...input, memberSince }
     return {
       ...state,
       groups: state.groups.map((g) => (g.id === id ? group : g)),
@@ -191,7 +199,12 @@ export const mutations = {
       next = withoutStudent(next, later, studentId)
     } else if (following === 'group') {
       const group = state.groups.find((g) => g.id === session.groupId)!
-      const updated: Group = { ...group, studentIds: group.studentIds.filter((id) => id !== studentId) }
+      const { [studentId]: _left, ...memberSince } = group.memberSince ?? {}
+      const updated: Group = {
+        ...group,
+        studentIds: group.studentIds.filter((id) => id !== studentId),
+        memberSince,
+      }
       next = {
         ...next,
         groups: next.groups.map((g) => (g.id === group.id ? updated : g)),
@@ -598,8 +611,13 @@ function newSession(group: Group, slot: GeneratedSlot): Session {
     category: group.category,
     level: group.level,
     status: 'pending',
-    studentIds: group.studentIds,
+    studentIds: membersOn(group, slot.date),
   }
+}
+
+/** Students of the group on a given day: those who had not joined yet are left out. */
+export function membersOn(group: Pick<Group, 'studentIds' | 'memberSince'>, date: string) {
+  return group.studentIds.filter((id) => !group.memberSince?.[id] || group.memberSince[id] <= date)
 }
 
 /** All the classes of a new group, from its start date until the end of the season. */
@@ -618,7 +636,8 @@ function buildSessions(current: AppData, group: Group): Session[] {
 function syncSession(session: Session, group: Group, before?: Group): Session {
   const substituted = before !== undefined && session.teacherId !== before.teacherId
   const guests = Object.keys(session.guests ?? {})
-  const studentIds = [...group.studentIds, ...guests.filter((id) => !group.studentIds.includes(id))]
+  const members = membersOn(group, session.date)
+  const studentIds = [...members, ...guests.filter((id) => !members.includes(id))]
   return {
     ...session,
     clubId: group.clubId,
