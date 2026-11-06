@@ -28,6 +28,7 @@ docs/           Documentation
 - **Routes:** English slugs (`/classes`, `/students`, `/payments`...).
 - **Money:** integer euro cents everywhere.
 - **Dates and times:** see "Dates and times" below; the organization always works in `Europe/Madrid`.
+- **Security:** the Content-Security-Policy is built per request in `proxy.ts` with a nonce (no `unsafe-inline` for scripts); database errors are logged on the server and never shown to the user.
 - **Roles:** stored in `app_metadata` (`role`, `is_platform_admin`), never in `user_metadata`.
 - **Imports:** use the `@/` alias (`@/lib/payments/proration`).
 - **Tests:** next to the code (`*.test.ts`), run with Vitest.

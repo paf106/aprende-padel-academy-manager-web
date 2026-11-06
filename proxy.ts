@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { isModuleRoute } from '@/lib/modules'
+import { buildCsp, newNonce } from '@/lib/security/csp'
 
 const authCookieOptions = {
   httpOnly: true,
@@ -9,8 +10,30 @@ const authCookieOptions = {
   path: '/',
 }
 
+/** Gives the request a nonce and the matching Content-Security-Policy, which Next uses to sign its own inline scripts. */
+function withCsp(request: NextRequest) {
+  const nonce = newNonce()
+  const csp = buildCsp(nonce, {
+    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    development: process.env.NODE_ENV === 'development',
+  })
+  const headers = new Headers(request.headers)
+  headers.set('x-nonce', nonce)
+  headers.set('content-security-policy', csp)
+  return { headers, csp }
+}
+
 export async function proxy(request: NextRequest) {
-  let response = NextResponse.next({ request })
+  const { headers, csp } = withCsp(request)
+  const forward = () => {
+    // Cookies refreshed by Supabase must reach the page being rendered, so the cookie header is rebuilt each time.
+    const cookie = request.cookies.toString()
+    if (cookie) headers.set('cookie', cookie)
+    const next = NextResponse.next({ request: { headers } })
+    next.headers.set('Content-Security-Policy', csp)
+    return next
+  }
+  let response = forward()
   const { pathname } = request.nextUrl
   const isLogin = pathname.startsWith('/login')
   const isProtected = pathname === '/' || pathname.startsWith('/platform') || isModuleRoute(pathname)
@@ -26,7 +49,7 @@ export async function proxy(request: NextRequest) {
       getAll: () => request.cookies.getAll(),
       setAll: (values) => {
         values.forEach(({ name, value }) => request.cookies.set(name, value))
-        response = NextResponse.next({ request })
+        response = forward()
         values.forEach(({ name, value, options }) => response.cookies.set(name, value, options))
       },
     },

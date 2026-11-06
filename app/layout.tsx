@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next'
+import { headers } from 'next/headers'
 import localFont from 'next/font/local'
 import './globals.css'
 import { ToastProvider } from '@/components/ds/toast'
@@ -15,11 +16,12 @@ export const metadata: Metadata = {
   description: 'Gestión de clubes y clases de pádel',
 }
 export const viewport: Viewport = { themeColor: '#f8fafc' }
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const nonce = (await headers()).get('x-nonce') ?? undefined
   return (
     <html lang="es" suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body className={`${onest.variable} min-h-screen bg-background font-sans text-foreground antialiased`}>
         <ToastProvider>

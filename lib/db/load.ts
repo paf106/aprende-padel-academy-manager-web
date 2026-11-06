@@ -14,7 +14,16 @@ export async function loadAppData(): Promise<AppData> {
         let query = supabase.schema(spec.schema).from(spec.table).select('*')
         for (const column of orderColumns(spec)) query = query.order(column)
         const { data, error } = await query.range(from, from + PAGE - 1)
-        if (error) throw new Error(`${tableName(spec)}: ${error.message}`)
+        if (error) {
+          console.error('loadAppData failed', {
+            table: tableName(spec),
+            code: error.code,
+            message: error.message,
+          })
+          throw new Error(
+            'No se pudieron leer los datos de la organización. Inténtalo de nuevo en unos minutos.',
+          )
+        }
         rows.push(...(data as Row[]))
         if (data.length < PAGE) break
       }

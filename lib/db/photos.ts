@@ -24,6 +24,9 @@ export async function uploadClubPhoto(dataUrl: string): Promise<UploadResult> {
   const supabase = await getSupabaseServer()
   const path = `${organizationId}/${crypto.randomUUID()}.${extensions[match[1]]}`
   const { error } = await supabase.storage.from('club-photos').upload(path, bytes, { contentType: match[1] })
-  if (error) return { ok: false, error: error.message }
+  if (error) {
+    console.error('uploadClubPhoto failed', { message: error.message })
+    return { ok: false, error: 'No se pudo subir la foto. Inténtalo de nuevo.' }
+  }
   return { ok: true, url: supabase.storage.from('club-photos').getPublicUrl(path).data.publicUrl }
 }
