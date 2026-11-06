@@ -19,6 +19,8 @@ export type TableSpec = {
   appendOnly?: boolean
   /** Columns to sort by before the key columns, so lists keep a stable, readable order. */
   order?: string[]
+  /** Only recent rows are loaded: the column to compare, and its unit. History older than the window is not needed. */
+  window?: { column: string; unit: 'date' | 'month'; select?: string }
 }
 
 /** Parents come before children, so upserts run in this order and deletes run in reverse. */
@@ -62,12 +64,20 @@ export const TABLES: TableSpec[] = [
     keys: ['course_id', 'student_id'],
     conflict: 'course_id,student_id',
   },
-  { schema: 'classes', table: 'sessions', keys: ['id'], conflict: 'id', order: ['date', 'start_time'] },
+  {
+    schema: 'classes',
+    table: 'sessions',
+    keys: ['id'],
+    conflict: 'id',
+    order: ['date', 'start_time'],
+    window: { column: 'date', unit: 'date' },
+  },
   {
     schema: 'classes',
     table: 'session_attendees',
     keys: ['session_id', 'student_id'],
     conflict: 'session_id,student_id',
+    window: { column: 'session.date', unit: 'date', select: '*, session:sessions!inner(date)' },
   },
   { schema: 'payments', table: 'rate_overrides', keys: ['id'], conflict: 'id', order: ['from_month'] },
   {
@@ -77,8 +87,16 @@ export const TABLES: TableSpec[] = [
     conflict: 'id',
     appendOnly: true,
     order: ['created_at'],
+    window: { column: 'month', unit: 'month' },
   },
-  { schema: 'payments', table: 'extra_charges', keys: ['id'], conflict: 'id', order: ['month'] },
+  {
+    schema: 'payments',
+    table: 'extra_charges',
+    keys: ['id'],
+    conflict: 'id',
+    order: ['month'],
+    window: { column: 'month', unit: 'month' },
+  },
 ]
 
 /** Sort columns of a table: its own order first, always ending with the key columns so the order is total. */

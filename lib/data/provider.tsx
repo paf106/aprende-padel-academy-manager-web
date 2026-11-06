@@ -15,6 +15,8 @@ class Writer {
   private latest: Local
   private queue: Promise<void> = Promise.resolve()
   private pending = 0
+  /** The screen already shows what was saved, so the page is only reloaded after an error or for server-filled fields. */
+  private needsRefresh = false
 
   constructor(initialData: AppData) {
     this.latest = { base: initialData, data: initialData }
@@ -35,12 +37,22 @@ class Writer {
         const changes = diffRows(toRows(current), toRows(next))
         if (!hasChanges(changes)) return
         const result = await persistChanges(changes)
-        if (!result.ok) hooks.onError(`No se pudo guardar: ${result.error}`)
+        if (!result.ok) {
+          this.needsRefresh = true
+          hooks.onError(`No se pudo guardar: ${result.error}`)
+        } else if (changes.upserts['payments.payments']) {
+          // Payments carry who entered them, which only the database knows.
+          this.needsRefresh = true
+        }
       } catch {
+        this.needsRefresh = true
         hooks.onError('No se pudo guardar. Comprueba tu conexión e inténtalo de nuevo.')
       } finally {
         this.pending -= 1
-        if (this.pending === 0) hooks.onIdle()
+        if (this.pending === 0 && this.needsRefresh) {
+          this.needsRefresh = false
+          hooks.onIdle()
+        }
       }
     })
     return this.latest
