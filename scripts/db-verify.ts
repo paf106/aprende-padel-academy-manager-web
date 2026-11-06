@@ -78,6 +78,95 @@ const foreign = await asUser(admin, async (tx) => {
   }
 })
 checks.push(['an admin cannot write rows of another organization', foreign])
+const apply = (appMetadata: Record<string, unknown>, steps: unknown[]) =>
+  asUser(appMetadata, async (tx) => {
+    try {
+      await tx.savepoint(async (sp) => sp`select public.apply_changes(${sp.json({ steps } as never)})`)
+      return 'ok' as const
+    } catch (error) {
+      return error instanceof Error ? error.message : 'error'
+    }
+  })
+const club = (name: string, extra: Record<string, unknown> = {}) => ({
+  id: crypto.randomUUID(),
+  name,
+  ...extra,
+})
+const upsert = (rows: unknown[]) => ({
+  op: 'upsert',
+  table: 'core.clubs',
+  keys: ['id'],
+  conflict: ['id'],
+  rows,
+})
+checks.push(['apply_changes saves a change as admin', (await apply(admin, [upsert([club('Zz')])])) === 'ok'])
+checks.push([
+  'apply_changes ignores the organization sent by the client',
+  await asUser(admin, async (tx) => {
+    const other = club('Zz2', { organization_id: '00000000-0000-0000-0000-0000000000ff' })
+    await tx`select public.apply_changes(${tx.json({ steps: [upsert([other])] } as never)})`
+    const [row] = await tx`select organization_id from core.clubs where id = ${other.id}`
+    return row?.organization_id === ORG_ID
+  }),
+])
+checks.push([
+  'apply_changes is all or nothing',
+  await asUser(admin, async (tx) => {
+    const good = club('Zz3')
+    try {
+      await tx.savepoint(
+        async (sp) =>
+          sp`select public.apply_changes(${sp.json({ steps: [upsert([good]), upsert([{ id: 'not-a-uuid', name: 'x' }])] } as never)})`,
+      )
+    } catch {
+      // expected
+    }
+    return (await tx`select count(*)::int as n from core.clubs where id = ${good.id}`)[0].n === 0
+  }),
+])
+checks.push([
+  'apply_changes refuses a teacher',
+  (await apply({ role: 'teacher', organization_id: ORG_ID }, [upsert([club('Zz4')])])) !== 'ok',
+])
+checks.push([
+  'apply_changes refuses a user without organization',
+  (await apply({ role: 'admin' }, [upsert([club('Zz5')])])) !== 'ok',
+])
+checks.push([
+  'apply_changes refuses the organizations table',
+  (await apply(admin, [
+    {
+      op: 'upsert',
+      table: 'core.organizations',
+      keys: ['id'],
+      conflict: ['id'],
+      rows: [{ id: ORG_ID, name: 'x' }],
+    },
+  ])) !== 'ok',
+])
+checks.push([
+  'apply_changes cannot delete a payment',
+  await asUser(admin, async (tx) => {
+    const [account] = await tx`select id from core.billing_accounts limit 1`
+    const [payment] =
+      await tx`insert into payments.payments (organization_id, account_id, month, amount_cents, method, paid_on) values (${ORG_ID}, ${account.id}, '2026-11', 1000, 'cash', '2026-11-05') returning id`
+    const step = {
+      op: 'delete',
+      table: 'payments.payments',
+      keys: ['id'],
+      conflict: [],
+      rows: [{ id: payment.id }],
+    }
+    try {
+      await tx.savepoint(
+        async (sp) => sp`select public.apply_changes(${sp.json({ steps: [step] } as never)})`,
+      )
+    } catch {
+      // refused, which is fine too
+    }
+    return (await tx`select count(*)::int as n from payments.payments where id = ${payment.id}`)[0].n === 1
+  }),
+])
 await sql.end()
 
 // The API must expose the schemas used by the app.

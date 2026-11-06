@@ -16,7 +16,7 @@ The migrations in `supabase/migrations` implement a simplified version of the de
 - `payments.payments` is append-only (insert and select only, plus a trigger that rejects updates and deletes). A mistaken payment is voided with a new row whose `reverses_id` points to it (once per payment).
 - Students and teachers do not need a last name; teacher email and phone are optional.
   `core.students.needs_review` marks students imported with default data until an admin saves them.
-- The app maps rows to its own types in `lib/db/mapping.ts` and writes row-level diffs, so adding a column means
+- Saving goes through `public.apply_changes(changes)`: one transaction that runs as the signed-in user, takes organization_id from the session and ignores unknown columns. The app maps rows to its own types in `lib/db/mapping.ts` and writes row-level diffs, so adding a column means
   updating the migration and the mapping.
 - `classes.settings` holds the end of the season; `classes.sessions.manual` marks classes created by hand, which group edits never remove.
 - Club photos are stored in the public `club-photos` bucket under `<organization_id>/`; the `photo` column keeps the URL.
