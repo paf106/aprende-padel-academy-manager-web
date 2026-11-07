@@ -1,5 +1,5 @@
 import { addDays } from '@/lib/core/calendar-nav'
-import { allocateToMembers } from '@/lib/payments/account-billing'
+import { allocateEqualSaving } from '@/lib/payments/account-billing'
 import {
   packSize,
   type AgeSegment,
@@ -130,7 +130,7 @@ export function priceMembers(members: readonly PricingMember[], catalog: RateCat
     const choice = bestChoice(group, catalog.offers, catalog.rates)
     for (const { offer, members: covered } of choice.offers) {
       const individual = covered.map((m) => findRate(catalog.rates, m.segmentId, m.classesPerWeek))
-      const shares = allocateToMembers(
+      const shares = allocateEqualSaving(
         covered.map((m, i) => ({ memberId: m.id, amountCents: individual[i] ?? 0 })),
         offer.priceCents,
       )

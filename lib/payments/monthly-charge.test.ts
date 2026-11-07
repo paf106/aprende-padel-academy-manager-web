@@ -137,3 +137,60 @@ describe('leave notice', () => {
     expect(leaveNoticeMet('2026-11-05', '2026-11-11', 10)).toBe(false)
   })
 })
+
+describe('equal saving in a family', () => {
+  const adultTwoChildren = {
+    ...catalog,
+    offers: [
+      ...catalog.offers,
+      {
+        id: 'adult-2-children',
+        name: 'Adulto con 2 niños',
+        classesPerWeek: 1,
+        priceCents: 7000,
+        active: true,
+        composition: [
+          { count: 1, segmentIds: ['adult'] },
+          { count: 2, segmentIds: ['child'] },
+        ],
+      },
+    ],
+  }
+  const family = [adult('dad'), child('c1'), child('c2')]
+
+  it('an offer of 70 for an adult and two children is 30 + 20 + 20', () => {
+    const result = monthlyCharge({
+      accountId: 'acc',
+      month: '2026-11',
+      members: family,
+      catalog: adultTwoChildren,
+      settings: defaultBillingSettings,
+    })
+    expect(result.offers.map((o) => o.offerId)).toEqual(['adult-2-children'])
+    expect(result.lines.map((l) => l.shareCents)).toEqual([3000, 2000, 2000])
+    expect(result.totalCents).toBe(7000)
+  })
+
+  it('a fixed price for the account is split the same way', () => {
+    const result = monthlyCharge({
+      accountId: 'acc',
+      month: '2026-11',
+      members: family,
+      catalog,
+      settings: defaultBillingSettings,
+      overrides: [
+        {
+          id: 'o',
+          scope: 'account',
+          targetId: 'acc',
+          amountCents: 7000,
+          reason: 'Acuerdo',
+          from: '2026-10',
+          to: '',
+        },
+      ],
+    })
+    expect(result.lines.map((l) => l.shareCents)).toEqual([3000, 2000, 2000])
+    expect(result.totalCents).toBe(7000)
+  })
+})

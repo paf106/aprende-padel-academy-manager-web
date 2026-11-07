@@ -1,4 +1,4 @@
-import { allocateToMembers } from '@/lib/payments/account-billing'
+import { allocateEqualSaving } from '@/lib/payments/account-billing'
 import { priceMembers, segmentForMonth } from '@/lib/payments/pricing'
 import { prorateFee } from '@/lib/payments/proration'
 import type { AppliedOffer, MemberPrice, RateCatalog } from '@/lib/payments/rates'
@@ -98,12 +98,13 @@ export function monthlyCharge(input: ChargeInput): ChargeResult {
 
   let shares = new Map<string, number>(pricing.prices.map((p) => [p.memberId, p.amountCents]))
   if (accountOverride && pricedMembers.length > 0) {
-    const weights = pricedMembers.map((m) => ({
+    // The fixed price is split as an equal discount over what each member would pay alone.
+    const alone = pricedMembers.map((m) => ({
       memberId: m.memberId,
-      amountCents: priceOf.get(m.memberId)?.amountCents ?? 0,
+      amountCents: priceOf.get(m.memberId)?.individualCents ?? priceOf.get(m.memberId)?.amountCents ?? 0,
     }))
     shares = new Map(
-      allocateToMembers(weights, accountOverride.amountCents).map((s) => [s.memberId, s.amountCents]),
+      allocateEqualSaving(alone, accountOverride.amountCents).map((s) => [s.memberId, s.amountCents]),
     )
   }
 

@@ -49,7 +49,9 @@ docs/           Documentation
 - Fees are monthly and come from the organization's rates: age segments by classes per week, plus combined offers
   (family, couple). Rates are generic; AprendePadel's 2026-2027 conditions are loaded by the seed script.
 - The cheapest combination of offers and individual rates is applied each month. An offer needs all its members that
-  month and the same weekly frequency; if a child skips a month the family drops to the offer that fits.
+  month and the same weekly frequency; if a child skips a month the family drops to the offer that fits. The saving
+  of an offer, or of a price fixed by hand for a whole account, is shared equally between its members (35 + 25 + 25
+  for 70 is 30 + 20 + 20); spare cents go to the first members and nobody pays less than zero.
 - The monthly fee follows the classes in the calendar: rate × classes of the month ÷ 4 per weekly class. A month
   with 3 classes is prorated (35 € becomes 26,25 €); one with 5 charges the extra class (43,75 €). Closed days and
   cancelled classes with a discount reason (rain, bad weather, teacher absent or 20+ minutes late, only one student

@@ -52,6 +52,39 @@ export function allocateToMembers(members: readonly MemberCharge[], totalCents: 
   return shares.map(({ memberId, amountCents }) => ({ memberId, amountCents }))
 }
 
+/**
+ * Splits a price between members as an equal discount (or surcharge) over what each one would pay alone:
+ * 35 + 25 + 25 for a 70 offer is a saving of 15, 5 each, so 30 + 20 + 20. Spare cents go to the first members, nobody
+ * pays less than zero, and the parts always add up to `totalCents`.
+ */
+export function allocateEqualSaving(members: readonly MemberCharge[], totalCents: number): MemberCharge[] {
+  assertCents(totalCents)
+  if (members.length === 0) return []
+  const parts = members.map((m) => ({ memberId: m.memberId, amountCents: m.amountCents }))
+  let remaining = parts.reduce((sum, p) => sum + p.amountCents, 0) - totalCents
+  if (remaining < 0) {
+    const each = Math.floor(-remaining / parts.length)
+    let extra = -remaining - each * parts.length
+    for (const part of parts) part.amountCents += each + (extra-- > 0 ? 1 : 0)
+    return parts
+  }
+  while (remaining > 0) {
+    const open = parts.filter((p) => p.amountCents > 0)
+    if (open.length === 0) break
+    const each = Math.floor(remaining / open.length)
+    let extra = remaining - each * open.length
+    let taken = 0
+    for (const part of open) {
+      const cut = Math.min(each + (extra-- > 0 ? 1 : 0), part.amountCents)
+      part.amountCents -= cut
+      taken += cut
+    }
+    if (taken === 0) break
+    remaining -= taken
+  }
+  return parts
+}
+
 export function accountDebt(months: readonly AccountMonth[], currentMonth: string) {
   const unpaid = months.filter((m) => m.dueCents > m.paidCents).sort((a, b) => a.month.localeCompare(b.month))
   const totalCents = unpaid.reduce((sum, m) => sum + (m.dueCents - m.paidCents), 0)

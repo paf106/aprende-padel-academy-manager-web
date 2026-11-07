@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { prorateFee } from '@/lib/payments/proration'
 import { defaultTeacherRates, resolveTeacherRate, teacherSessionPay } from '@/lib/payments/teacher-pay'
-import { accountDebt, accountStatement, allocateToMembers } from '@/lib/payments/account-billing'
+import {
+  accountDebt,
+  accountStatement,
+  allocateEqualSaving,
+  allocateToMembers,
+} from '@/lib/payments/account-billing'
 
 describe('fee proration', () => {
   it('35 € with 1 of 4 cancelled = 26.25 €', () => expect(prorateFee(3500, 4, 1)).toBe(2625))
@@ -69,5 +74,64 @@ describe('billing account', () => {
         '2026-10',
       ),
     ).toEqual({ totalCents: 9000, monthsOverdue: 2, oldestMonth: '2026-08', oldestAgeMonths: 2 })
+  })
+})
+
+describe('equal saving split', () => {
+  const sum = (parts: { amountCents: number }[]) => parts.reduce((s, p) => s + p.amountCents, 0)
+  it('shares the saving of an offer equally: 35 + 25 + 25 for 70 is 30 + 20 + 20', () => {
+    const parts = allocateEqualSaving(
+      [
+        { memberId: 'adult', amountCents: 3500 },
+        { memberId: 'c1', amountCents: 2500 },
+        { memberId: 'c2', amountCents: 2500 },
+      ],
+      7000,
+    )
+    expect(parts.map((p) => p.amountCents)).toEqual([3000, 2000, 2000])
+  })
+  it('gives the same as a proportional split when everybody pays the same', () => {
+    const parts = allocateEqualSaving(
+      [
+        { memberId: 'a', amountCents: 3500 },
+        { memberId: 'b', amountCents: 3500 },
+      ],
+      6000,
+    )
+    expect(parts.map((p) => p.amountCents)).toEqual([3000, 3000])
+  })
+  it('gives the first members the spare cents of saving and keeps the total', () => {
+    const parts = allocateEqualSaving(
+      [
+        { memberId: 'a', amountCents: 3000 },
+        { memberId: 'b', amountCents: 3000 },
+        { memberId: 'c', amountCents: 3000 },
+      ],
+      8900,
+    )
+    expect(parts.map((p) => p.amountCents)).toEqual([2966, 2967, 2967])
+    expect(sum(parts)).toBe(8900)
+  })
+  it('never lets a member pay less than zero', () => {
+    const parts = allocateEqualSaving(
+      [
+        { memberId: 'a', amountCents: 500 },
+        { memberId: 'b', amountCents: 3500 },
+      ],
+      1000,
+    )
+    expect(parts.every((p) => p.amountCents >= 0)).toBe(true)
+    expect(sum(parts)).toBe(1000)
+    expect(parts[0].amountCents).toBe(0)
+  })
+  it('spreads a surcharge equally too', () => {
+    const parts = allocateEqualSaving(
+      [
+        { memberId: 'a', amountCents: 2000 },
+        { memberId: 'b', amountCents: 3000 },
+      ],
+      6000,
+    )
+    expect(parts.map((p) => p.amountCents)).toEqual([2500, 3500])
   })
 })
