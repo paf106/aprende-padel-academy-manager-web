@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { makeAppData } from '@/lib/data/fixtures'
+import { diffRows, toRows } from '@/lib/db/mapping'
+import { buildSteps } from '@/lib/db/steps'
 import { mutations } from '@/lib/data/mutations'
 import type { Student } from '@/lib/data/types'
 import type { StudentInput } from '@/lib/classes/student-schema'
@@ -117,5 +119,44 @@ describe('individual account names', () => {
     state = mutations.deleteStudent(state, padre.id)
     state = mutations.deleteStudent(state, hijo.id)
     expect(state.accounts.find((a) => a.id === madre.accountId)?.name).toBe('Madre Test')
+  })
+})
+
+describe('importing students', () => {
+  it('creates all of them at once, each with an individual account, and flags the ones to review', () => {
+    const base = makeAppData()
+    const ana = base.students.find((s) => s.firstName === 'Ana')!
+    const input = (firstName: string, lastName: string): StudentInput => ({
+      ...inputOf(ana, ''),
+      firstName,
+      lastName,
+      accountId: '',
+    })
+    const next = mutations.importStudents(base, [
+      { input: input('Nuria', 'Blanco Sabroso'), needsReview: false },
+      { input: input('Hugo', ''), needsReview: true },
+    ])
+    expect(next.students).toHaveLength(base.students.length + 2)
+    expect(next.accounts).toHaveLength(base.accounts.length + 2)
+    const nuria = next.students.find((s) => s.firstName === 'Nuria')!
+    const hugo = next.students.find((s) => s.firstName === 'Hugo')!
+    expect(nuria.needsReview).toBe(false)
+    expect(hugo.needsReview).toBe(true)
+    expect(next.accounts.find((a) => a.id === nuria.accountId)?.name).toBe('Nuria Blanco Sabroso')
+    expect(next.accounts.find((a) => a.id === hugo.accountId)?.name).toBe('Hugo')
+  })
+
+  it('is saved in one go', () => {
+    const base = makeAppData()
+    const ana = base.students.find((s) => s.firstName === 'Ana')!
+    const items = ['A', 'B', 'C'].map((firstName) => ({
+      input: { ...inputOf(ana, ''), firstName, accountId: '' },
+      needsReview: false,
+    }))
+    const steps = buildSteps(diffRows(toRows(base), toRows(mutations.importStudents(base, items))))
+    expect(steps.map((s) => `${s.op} ${s.table} ${s.rows.length}`)).toEqual([
+      'upsert core.billing_accounts 3',
+      'upsert core.students 3',
+    ])
   })
 })

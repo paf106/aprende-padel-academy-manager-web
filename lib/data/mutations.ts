@@ -42,6 +42,25 @@ export const mutations = {
       accounts: withAccount(state.accounts, accountId, input),
     })
   },
+  /** Creates many students at once (CSV import), each with an individual account; flagged ones need review. */
+  importStudents(
+    state: AppData,
+    items: ReadonlyArray<{ input: StudentInput; needsReview: boolean }>,
+  ): AppData {
+    const before = state.students.length
+    const next = items.reduce((current, item) => mutations.createStudent(current, item.input), state)
+    const flagged = new Set(
+      next.students
+        .slice(before)
+        .filter((_, index) => items[index].needsReview)
+        .map((s) => s.id),
+    )
+    if (flagged.size === 0) return next
+    return {
+      ...next,
+      students: next.students.map((s) => (flagged.has(s.id) ? { ...s, needsReview: true } : s)),
+    }
+  },
   updateStudent(state: AppData, id: string, input: StudentInput): AppData {
     const previous = state.students.find((s) => s.id === id)
     if (!previous) return state

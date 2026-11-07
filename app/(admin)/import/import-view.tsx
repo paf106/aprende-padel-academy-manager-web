@@ -2,7 +2,9 @@
 
 import { Download, FileUp } from 'lucide-react'
 import { useState } from 'react'
+import Link from 'next/link'
 import { parseStudentsCsv, studentCsvTemplate, type ImportRow } from '@/lib/classes/csv-import'
+import { emptyStudentInput } from '@/lib/classes/student-schema'
 import { Badge } from '@/components/ds/badge'
 import { Button } from '@/components/ds/button'
 import { BentoCard, BentoGrid, Card, Stat } from '@/components/ds/card'
@@ -14,15 +16,16 @@ import { useAppData } from '@/lib/data/provider'
 
 export function ImportView() {
   const toast = useToast()
-  const { activeClubs: clubs } = useAppData()
+  const { activeClubs: clubs, students, actions } = useAppData()
   const [rows, setRows] = useState<ImportRow[] | null>(null)
   const [fileName, setFileName] = useState('')
+  const [imported, setImported] = useState(0)
   const valid = rows?.filter((r) => r.errors.length === 0) ?? []
   const invalid = rows?.filter((r) => r.errors.length > 0) ?? []
 
   const downloadTemplate = () => {
     const url = URL.createObjectURL(
-      new Blob(['\ufeff' + studentCsvTemplate()], { type: 'text/csv;charset=utf-8' }),
+      new Blob(['\ufeff' + studentCsvTemplate(clubs[0]?.name)], { type: 'text/csv;charset=utf-8' }),
     )
     const link = document.createElement('a')
     link.href = url
@@ -49,7 +52,8 @@ export function ImportView() {
         <FileUp size={24} aria-hidden="true" className="text-brand" />
         <span className="font-medium">{fileName || 'Elige un archivo CSV'}</span>
         <span className="text-sm text-muted-foreground">
-          Columnas: nombre, apellidos, nacimiento, genero, categoria, nivel, sede
+          Obligatorias: nombre, nacimiento, categoria, nivel, sede. Opcionales: apellidos, genero, telefono,
+          email, tutor, telefono_tutor
         </span>
         <input
           type="file"
@@ -63,11 +67,21 @@ export function ImportView() {
               parseStudentsCsv(
                 await file.text(),
                 clubs.map((c) => c.name),
+                students,
               ),
             )
           }}
         />
       </label>
+
+      {imported > 0 && !rows ? (
+        <p className="text-sm">
+          {imported} alumnos importados.{' '}
+          <Link href="/students" className="font-medium text-brand">
+            Ver alumnos
+          </Link>
+        </p>
+      ) : null}
 
       {rows ? (
         <>
@@ -112,7 +126,35 @@ export function ImportView() {
             <Button
               disabled={valid.length === 0}
               onClick={() => {
-                toast(`${valid.length} alumnos listos. La importación se conectará con la base de datos.`)
+                const items = valid.flatMap((row) => {
+                  const data = row.data
+                  const club = data && clubs.find((c) => c.name === data.club)
+                  if (!data || !club) return []
+                  return [
+                    {
+                      needsReview: data.needsReview,
+                      input: {
+                        ...emptyStudentInput,
+                        firstName: data.firstName,
+                        lastName: data.lastName,
+                        birthDate: data.birthDate,
+                        gender: data.gender,
+                        category: data.category,
+                        level: data.level,
+                        clubId: club.id,
+                        email: data.email,
+                        phone: data.phone,
+                        guardianName: data.guardianName,
+                        guardianPhone: data.guardianPhone,
+                      },
+                    },
+                  ]
+                })
+                actions.importStudents(items)
+                setImported(items.length)
+                setRows(null)
+                setFileName('')
+                toast(`${items.length} alumnos importados.`)
               }}
             >
               Importar {valid.length} alumnos
