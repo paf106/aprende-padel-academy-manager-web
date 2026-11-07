@@ -132,6 +132,19 @@ export type PaymentRecord = {
   createdByEmail?: string
 }
 
+/** What was paid to a teacher for a month, as it was when it was paid. */
+export type TeacherSettlementRecord = {
+  id: string
+  teacherId: string
+  month: string
+  paidOn: string
+  amountCents: number
+  sessions: number
+  hours: number
+  /** Who marked it as paid: filled in by the database, only read by the app. */
+  createdByEmail?: string
+}
+
 /** A charge outside the monthly fee: a single class, a private class or a course. Added to the account's month. */
 export type ExtraCharge = {
   id: string
@@ -159,6 +172,7 @@ export type AppData = {
   overrides: RateOverride[]
   teacherRates: TeacherRates
   payments: PaymentRecord[]
+  teacherSettlements: TeacherSettlementRecord[]
   extras: ExtraRates
   extraCharges: ExtraCharge[]
   courses: Course[]

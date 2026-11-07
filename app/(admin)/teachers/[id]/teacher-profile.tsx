@@ -23,6 +23,7 @@ export function TeacherProfile({ id, today }: { id: string; today: string }) {
   const demo = useAppData()
   const { teacherById, clubLabel, groups, actions } = demo
   const settlement = buildSettlements(demo, today).find((s) => s.teacherId === id) ?? null
+  const paid = demo.teacherSettlements.find((s) => s.teacherId === id && s.month === today.slice(0, 7))
   const [editing, setEditing] = useState(false)
   const teacher = teacherById(id)
 
@@ -100,6 +101,11 @@ export function TeacherProfile({ id, today }: { id: string; today: string }) {
             label="A liquidar"
             hint={`${settlement?.sessions ?? 0} clases terminadas · ${settlement?.hours ?? 0} h`}
           />
+          <p className="text-xs text-muted-foreground">
+            {paid
+              ? `Pagada el ${paid.paidOn.split('-').reverse().join('/')} · ${formatMoney(paid.amountCents)}`
+              : 'Pendiente de pago'}
+          </p>
         </BentoCard>
         <BentoCard span="md" title="Sedes">
           <ul className="flex flex-wrap gap-1.5">

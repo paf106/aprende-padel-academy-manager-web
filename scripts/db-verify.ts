@@ -135,6 +135,25 @@ checks.push([
   }),
 ])
 checks.push([
+  'a teacher cannot read settlements, and a month is settled once per teacher',
+  (await count({ role: 'teacher', organization_id: ORG_ID }, 'payments.teacher_settlements')) === 0 &&
+    (await asUser(admin, async (tx) => {
+      const [teacher] = await tx`select id from core.teachers limit 1`
+      const insert = () =>
+        tx.savepoint(
+          async (sp) =>
+            sp`insert into payments.teacher_settlements (organization_id, teacher_id, month, paid_on, amount_cents, sessions, hours) values (${ORG_ID}, ${teacher.id}, '2026-11', '2026-11-30', 1000, 1, 1)`,
+        )
+      await insert()
+      try {
+        await insert()
+        return false
+      } catch {
+        return true
+      }
+    })),
+])
+checks.push([
   'a teacher cannot read the audit log',
   (await count({ role: 'teacher', organization_id: ORG_ID }, 'core.audit_log')) === 0,
 ])

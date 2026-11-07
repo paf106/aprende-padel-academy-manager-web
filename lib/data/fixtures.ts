@@ -25,6 +25,7 @@ export const emptyAppData: AppData = {
   overrides: [],
   teacherRates: defaultTeacherRates,
   payments: [],
+  teacherSettlements: [],
   extras: aprendePadelExtras,
   extraCharges: [],
   courses: [],

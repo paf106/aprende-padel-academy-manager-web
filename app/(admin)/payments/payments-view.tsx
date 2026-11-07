@@ -4,7 +4,9 @@ import { Download } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { PaymentStatusBadge } from '@/components/ds/badge'
 import { Button } from '@/components/ds/button'
+import { ConfirmDialog } from '@/components/crud/confirm-dialog'
 import { Card } from '@/components/ds/card'
+import { Input, Label } from '@/components/ds/input'
 import { DataTable } from '@/components/ds/data-table'
 import { FilterBar, type FilterDef } from '@/components/ds/filter-bar'
 import { PageContainer, PageToolbar } from '@/components/ds/page-header'
@@ -14,7 +16,7 @@ import { formatMoney } from '@/lib/core/money'
 import { buildCharges, buildSettlements, chargesOfClub, groupProfitability } from '@/lib/data/billing'
 import { useAppData } from '@/lib/data/provider'
 import { ChargesTab } from './charges-tab'
-import { MonthPicker } from './month-picker'
+import { MonthPicker, monthLabel } from './month-picker'
 import { RatesTab } from './rates-tab'
 
 export type PaymentsTab = 'charges' | 'teachers' | 'rates' | 'profitability'
@@ -47,7 +49,15 @@ export function PaymentsView({
   const toast = useToast()
   const demo = useAppData()
   const [tab, setTab] = useState<PaymentsTab>(initialTab)
-  const [paidTeachers, setPaidTeachers] = useState<string[]>([])
+  const [settling, setSettling] = useState<{
+    teacherId: string
+    name: string
+    amountCents: number
+    sessions: number
+    hours: number
+  } | null>(null)
+  const [paidOn, setPaidOn] = useState(today)
+  const [undoing, setUndoing] = useState<string | null>(null)
   const [month, setMonth] = useState(initialMonth)
   const [clubChoice, setClubChoice] = useState(initialClub)
   const club = demo.activeClubs.some((c) => c.id === clubChoice) ? clubChoice : ''
@@ -176,27 +186,62 @@ export function PaymentsView({
                 {
                   key: 'status',
                   header: 'Estado',
-                  cell: (s) => (
-                    <PaymentStatusBadge status={paidTeachers.includes(s.teacherId) ? 'paid' : 'pending'} />
-                  ),
+                  cell: (s) => {
+                    const record = demo.teacherSettlements.find(
+                      (r) => r.teacherId === s.teacherId && r.month === month,
+                    )
+                    return (
+                      <div className="grid gap-0.5">
+                        <PaymentStatusBadge status={record ? 'paid' : 'pending'} />
+                        {record ? (
+                          <span className="text-xs text-muted-foreground">
+                            Pagada el {record.paidOn.split('-').reverse().join('/')} ·{' '}
+                            {formatMoney(record.amountCents)}
+                            {record.createdByEmail ? ` · ${record.createdByEmail}` : ''}
+                          </span>
+                        ) : null}
+                        {record && record.amountCents !== s.totalCents ? (
+                          <span className="text-xs text-warning">
+                            Se pagaron {formatMoney(record.amountCents)}; ahora son{' '}
+                            {formatMoney(s.totalCents)}
+                          </span>
+                        ) : null}
+                      </div>
+                    )
+                  },
                 },
                 {
                   key: 'actions',
                   header: '',
                   align: 'right',
-                  cell: (s) =>
-                    paidTeachers.includes(s.teacherId) ? null : (
+                  cell: (s) => {
+                    const record = demo.teacherSettlements.find(
+                      (r) => r.teacherId === s.teacherId && r.month === month,
+                    )
+                    return record ? (
+                      <Button size="sm" variant="ghost" onClick={() => setUndoing(record.id)}>
+                        Deshacer
+                      </Button>
+                    ) : (
                       <Button
                         size="sm"
                         variant="secondary"
+                        disabled={s.totalCents <= 0}
                         onClick={() => {
-                          setPaidTeachers((p) => [...p, s.teacherId])
-                          toast(`Liquidación de ${s.name} marcada como pagada.`)
+                          setPaidOn(today)
+                          setSettling({
+                            teacherId: s.teacherId,
+                            name: s.name,
+                            amountCents: s.totalCents,
+                            sessions: s.sessions,
+                            hours: s.hours,
+                          })
                         }}
                       >
                         Marcar pagada
                       </Button>
-                    ),
+                    )
+                  },
                 },
               ]}
             />
@@ -240,6 +285,51 @@ export function PaymentsView({
           </Card>
         </>
       ) : null}
+      <ConfirmDialog
+        open={settling !== null}
+        title="Marcar liquidación como pagada"
+        description={
+          settling
+            ? `${settling.name} · ${monthLabel(month)} · ${formatMoney(settling.amountCents)} (${settling.sessions} clases, ${settling.hours} h).`
+            : ''
+        }
+        confirmLabel="Marcar pagada"
+        tone="primary"
+        onClose={() => setSettling(null)}
+        onConfirm={() => {
+          if (!settling) return
+          demo.actions.markSettlementPaid(settling.teacherId, month, paidOn, {
+            amountCents: settling.amountCents,
+            sessions: settling.sessions,
+            hours: settling.hours,
+          })
+          toast(`Liquidación de ${settling.name} marcada como pagada.`)
+          setSettling(null)
+        }}
+      >
+        <div className="mt-4">
+          <Label htmlFor="settlement-date">Fecha de pago</Label>
+          <Input
+            id="settlement-date"
+            type="date"
+            value={paidOn}
+            onChange={(e) => setPaidOn(e.target.value)}
+          />
+        </div>
+      </ConfirmDialog>
+      <ConfirmDialog
+        open={undoing !== null}
+        title="Deshacer la liquidación"
+        description="La liquidación volverá a estar pendiente de pago."
+        confirmLabel="Deshacer"
+        onClose={() => setUndoing(null)}
+        onConfirm={() => {
+          if (!undoing) return
+          demo.actions.undoSettlement(undoing)
+          toast('Liquidación pendiente otra vez.')
+          setUndoing(null)
+        }}
+      />
     </PageContainer>
   )
 }

@@ -349,6 +349,25 @@ export const mutations = {
   addPayment(state: AppData, payment: Omit<PaymentRecord, 'id'>): AppData {
     return { ...state, payments: [...state.payments, { ...payment, id: newId() }] }
   },
+  /** Marks a teacher's month as paid, keeping what was paid. A month can only be paid once. */
+  markSettlementPaid(
+    state: AppData,
+    teacherId: string,
+    month: string,
+    paidOn: string,
+    paid: { amountCents: number; sessions: number; hours: number },
+  ): AppData {
+    if (paid.amountCents <= 0) return state
+    if (state.teacherSettlements.some((s) => s.teacherId === teacherId && s.month === month)) return state
+    return {
+      ...state,
+      teacherSettlements: [...state.teacherSettlements, { id: newId(), teacherId, month, paidOn, ...paid }],
+    }
+  },
+  /** Takes back a settlement marked as paid by mistake. */
+  undoSettlement(state: AppData, id: string): AppData {
+    return { ...state, teacherSettlements: state.teacherSettlements.filter((s) => s.id !== id) }
+  },
   /** Voids a payment with a new entry that points to it. The payment stays in the history. */
   voidPayment(state: AppData, id: string, reason: string): AppData {
     const payment = state.payments.find((p) => p.id === id)

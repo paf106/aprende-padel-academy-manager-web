@@ -91,6 +91,14 @@ export const TABLES: TableSpec[] = [
   },
   {
     schema: 'payments',
+    table: 'teacher_settlements',
+    keys: ['id'],
+    conflict: 'id',
+    order: ['month'],
+    window: { column: 'month', unit: 'month' },
+  },
+  {
+    schema: 'payments',
     table: 'extra_charges',
     keys: ['id'],
     conflict: 'id',
@@ -389,6 +397,19 @@ function buildRows(data: AppData): TableRows {
   )
   put(
     'payments',
+    'teacher_settlements',
+    data.teacherSettlements.map((s) => ({
+      id: s.id,
+      teacher_id: s.teacherId,
+      month: s.month,
+      paid_on: s.paidOn,
+      amount_cents: s.amountCents,
+      sessions: s.sessions,
+      hours: s.hours,
+    })),
+  )
+  put(
+    'payments',
     'extra_charges',
     data.extraCharges.map((c) => ({
       id: c.id,
@@ -614,6 +635,16 @@ export function fromRows(rows: TableRows): AppData {
       reversesId: p.reverses_id ?? undefined,
       voidReason: p.void_reason || undefined,
       createdByEmail: p.created_by_email || undefined,
+    })),
+    teacherSettlements: get('payments.teacher_settlements').map((s) => ({
+      id: s.id,
+      teacherId: s.teacher_id,
+      month: s.month,
+      paidOn: s.paid_on,
+      amountCents: s.amount_cents,
+      sessions: s.sessions,
+      hours: Number(s.hours),
+      createdByEmail: s.created_by_email || undefined,
     })),
     extraCharges: get('payments.extra_charges').map((c) => ({
       id: c.id,

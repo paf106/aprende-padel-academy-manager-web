@@ -14,6 +14,7 @@ The migrations in `supabase/migrations` implement a simplified version of the de
   `core`, `classes` and `payments` must be listed in the API's exposed schemas.
 - Only admins of an organization can read and write its rows; teachers have no login in this version.
 - `payments.payments` is append-only (insert and select only, plus a trigger that rejects updates and deletes). A mistaken payment is voided with a new row whose `reverses_id` points to it (once per payment).
+- `payments.teacher_settlements` keeps what was paid to a teacher for a month (one row per teacher and month).
 - `core.audit_log` records every save (user, table, operation, row ids), written by `apply_changes` from the session; payments also keep `created_by` and `created_by_email`.
 - `classes.group_members.joined_on` is the day a student joined a group; earlier classes never include them.
 - Students and teachers do not need a last name; teacher email and phone are optional.
