@@ -35,7 +35,6 @@ const icons: Record<string, LucideIcon> = {
   '/clubs': MapPin,
   '/payments': CreditCard,
   '/import': FileUp,
-  '/setup': Settings,
   '/settings': Settings,
 }
 

@@ -27,7 +27,6 @@ export const modules: readonly ModuleDefinition[] = [
       { href: '/teachers', label: 'Profesores', section: 'secondary' },
       { href: '/clubs', label: 'Sedes', section: 'secondary' },
       { href: '/import', label: 'Importar', section: 'secondary' },
-      { href: '/setup', label: 'Configuración', section: 'secondary' },
       { href: '/settings', label: 'Ajustes', section: 'secondary' },
     ],
   },

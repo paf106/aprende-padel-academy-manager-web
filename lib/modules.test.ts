@@ -18,7 +18,6 @@ describe('module route registry', () => {
       '/teachers',
       '/clubs',
       '/import',
-      '/setup',
       '/settings',
     ])
     expect(getModuleRoutes(['payments'], 'secondary')).toEqual([])
