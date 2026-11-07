@@ -1,3 +1,4 @@
+import { addDays } from '@/lib/core/calendar-nav'
 import { allocateToMembers } from '@/lib/payments/account-billing'
 import {
   packSize,
@@ -23,9 +24,12 @@ export function segmentForAge(segments: readonly AgeSegment[], age: number) {
   return segments.find((s) => age >= s.minAge && (s.maxAge === null || age <= s.maxAge)) ?? null
 }
 
-/** The segment is recalculated every month, on the first day of that month. */
+/**
+ * The segment of a billing month is decided by the age on the last day of the previous month, so a birthday only
+ * changes the rate the month after it, whatever the day (even the 1st).
+ */
 export function segmentForMonth(segments: readonly AgeSegment[], birthDate: string, month: string) {
-  return segmentForAge(segments, ageOn(birthDate, `${month}-01`))
+  return segmentForAge(segments, ageOn(birthDate, addDays(`${month}-01`, -1)))
 }
 
 export function findRate(rates: readonly IndividualRate[], segmentId: string | null, classesPerWeek: number) {

@@ -35,6 +35,19 @@ describe('age segments', () => {
     expect(segmentForMonth(catalog.segments, '2014-01-20', '2026-01')?.id).toBe('child')
     expect(segmentForMonth(catalog.segments, '2014-01-20', '2026-02')?.id).toBe('adult')
   })
+  it('keeps the old segment in the month of the birthday, whatever the day, even the 1st and the last', () => {
+    for (const birthday of ['2015-03-01', '2015-03-15', '2015-03-31']) {
+      expect(segmentForMonth(catalog.segments, birthday, '2027-02')?.id).toBe('child')
+      expect(segmentForMonth(catalog.segments, birthday, '2027-03')?.id, birthday).toBe('child')
+      expect(segmentForMonth(catalog.segments, birthday, '2027-04')?.id, birthday).toBe('adult')
+    }
+  })
+  it('handles birthdays on the 29th of February and the jump to senior', () => {
+    expect(segmentForMonth(catalog.segments, '2016-02-29', '2027-03')?.id).toBe('child')
+    expect(segmentForMonth(catalog.segments, '2016-02-29', '2028-03')?.id).toBe('adult')
+    expect(segmentForMonth(catalog.segments, '1960-11-01', '2026-11')?.id).toBe('adult')
+    expect(segmentForMonth(catalog.segments, '1960-11-01', '2026-12')?.id).toBe('senior')
+  })
 })
 
 describe('composition matching', () => {

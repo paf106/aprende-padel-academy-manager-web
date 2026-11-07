@@ -86,6 +86,11 @@ describe('families', () => {
     expect(run([...parents, teen], { month: '2026-01' }).totalCents).toBe(8000)
     expect(run([...parents, teen], { month: '2026-02' }).totalCents).toBe(6000 + 3500)
   })
+  it('a child who turns 12 on the 1st still pays as a child that month', () => {
+    const teen = member('teen', '2014-03-01')
+    expect(run([...parents, teen], { month: '2026-03' }).totalCents).toBe(8000)
+    expect(run([...parents, teen], { month: '2026-04' }).totalCents).toBe(6000 + 3500)
+  })
   it('extra classes and discounts follow each member share', () => {
     const result = run([...parents, child('c1', { occurrences: 5 }), child('c2', { occurrences: 3 })])
     const long = result.lines.find((l) => l.memberId === 'c1')!

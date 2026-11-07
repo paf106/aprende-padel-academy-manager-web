@@ -44,7 +44,8 @@ docs/           Documentation
   come is not charged and the others are, and the teacher is not paid. A cancelled or finished class can be set back to
   pending.
 - Age segments: 7 to 11 children, 12 to 65 adults, 66 and over seniors. A student changes segment the month after
-  their birthday, because the segment is read on the first day of each month.
+  their birthday, whatever the day (even the 1st): the segment of a month is decided by the age on the last day of the
+  previous month. Closed-price courses use the age on the first day of the course.
 - Fees are monthly and come from the organization's rates: age segments by classes per week, plus combined offers
   (family, couple). Rates are generic; AprendePadel's 2026-2027 conditions are loaded by the seed script.
 - The cheapest combination of offers and individual rates is applied each month. An offer needs all its members that
