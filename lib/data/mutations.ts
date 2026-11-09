@@ -1,0 +1,721 @@
+import { expandClosedDays, type Closure } from '@/lib/classes/closures'
+import type { ClubInput } from '@/lib/classes/club-schema'
+import { generateCourseSlots, type CourseInput } from '@/lib/classes/course-schema'
+import type { GroupInput } from '@/lib/classes/group-schema'
+import { planRegeneration, type GeneratedSlot } from '@/lib/classes/group-sessions'
+import { weeklyDates } from '@/lib/classes/series'
+import type { StudentInput } from '@/lib/classes/student-schema'
+import type { TeacherInput } from '@/lib/classes/teacher-schema'
+import { localTodayInTimeZone } from '@/lib/core/dates'
+import {
+  fullName,
+  type Account,
+  type AppData,
+  type Club,
+  type Course,
+  type ExtraCharge,
+  type Group,
+  type PaymentRecord,
+  type Session,
+  type Student,
+  type Teacher,
+} from '@/lib/data/types'
+import { activePayments } from '@/lib/data/billing'
+import { priceCourseEnrollment, type CoursePrices } from '@/lib/payments/courses'
+import { dropInPrice, privateClassPrice, MAX_PRIVATE_STUDENTS } from '@/lib/payments/extras'
+import type { RateOverride } from '@/lib/payments/monthly-charge'
+import type { RateCatalog } from '@/lib/payments/rates'
+import type { BillingSettings } from '@/lib/payments/settings'
+import type { TeacherRates } from '@/lib/payments/teacher-pay'
+
+const today = () => localTodayInTimeZone('Europe/Madrid')
+const newId = () => crypto.randomUUID()
+
+/** Pure reducers: each takes the current data and returns the next. The provider applies and persists them. */
+export const mutations = {
+  createStudent(state: AppData, input: StudentInput): AppData {
+    const accountId = input.accountId || newId()
+    const student: Student = { ...input, id: newId(), accountId, active: true, needsReview: false }
+    return withIndividualNames({
+      ...state,
+      students: [...state.students, student],
+      accounts: withAccount(state.accounts, accountId, input),
+    })
+  },
+  /** Creates many students at once (CSV import), each with an individual account; flagged ones need review. */
+  importStudents(
+    state: AppData,
+    items: ReadonlyArray<{ input: StudentInput; needsReview: boolean }>,
+  ): AppData {
+    const before = state.students.length
+    const next = items.reduce((current, item) => mutations.createStudent(current, item.input), state)
+    const flagged = new Set(
+      next.students
+        .slice(before)
+        .filter((_, index) => items[index].needsReview)
+        .map((s) => s.id),
+    )
+    if (flagged.size === 0) return next
+    return {
+      ...next,
+      students: next.students.map((s) => (flagged.has(s.id) ? { ...s, needsReview: true } : s)),
+    }
+  },
+  updateStudent(state: AppData, id: string, input: StudentInput): AppData {
+    const previous = state.students.find((s) => s.id === id)
+    if (!previous) return state
+    const accountId = input.accountId || newId()
+    const students = state.students.map((s) =>
+      s.id === id ? { ...s, ...input, accountId, needsReview: false } : s,
+    )
+    const next = { ...state, students, accounts: withAccount(state.accounts, accountId, input) }
+    return withIndividualNames(
+      previous.accountId === accountId ? next : dropAccountIfUnused(next, previous.accountId),
+    )
+  },
+  /** Only shared accounts (couple, family) have a name of their own; an individual one is named after its student. */
+  renameAccount(state: AppData, id: string, name: string): AppData {
+    const trimmed = name.trim()
+    if (!trimmed || state.students.filter((s) => s.accountId === id).length <= 1) return state
+    return { ...state, accounts: state.accounts.map((a) => (a.id === id ? { ...a, name: trimmed } : a)) }
+  },
+  setStudentActive(state: AppData, id: string, active: boolean): AppData {
+    return { ...state, students: state.students.map((s) => (s.id === id ? { ...s, active } : s)) }
+  },
+  deleteStudent(state: AppData, id: string): AppData {
+    return withIndividualNames({ ...state, students: state.students.filter((s) => s.id !== id) })
+  },
+
+  createTeacher(state: AppData, input: TeacherInput): AppData {
+    const teacher: Teacher = { ...input, id: newId(), active: true }
+    return { ...state, teachers: [...state.teachers, teacher] }
+  },
+  updateTeacher(state: AppData, id: string, input: TeacherInput): AppData {
+    return { ...state, teachers: state.teachers.map((t) => (t.id === id ? { ...t, ...input } : t)) }
+  },
+  setTeacherActive(state: AppData, id: string, active: boolean): AppData {
+    return { ...state, teachers: state.teachers.map((t) => (t.id === id ? { ...t, active } : t)) }
+  },
+  deleteTeacher(state: AppData, id: string): AppData {
+    return { ...state, teachers: state.teachers.filter((t) => t.id !== id) }
+  },
+
+  createClub(state: AppData, input: ClubInput): AppData {
+    const club: Club = { ...input, id: newId(), active: true }
+    return { ...state, clubs: [...state.clubs, club] }
+  },
+  updateClub(state: AppData, id: string, input: ClubInput): AppData {
+    return { ...state, clubs: state.clubs.map((c) => (c.id === id ? { ...c, ...input } : c)) }
+  },
+  setClubActive(state: AppData, id: string, active: boolean): AppData {
+    return { ...state, clubs: state.clubs.map((c) => (c.id === id ? { ...c, active } : c)) }
+  },
+  deleteClub(state: AppData, id: string): AppData {
+    return { ...state, clubs: state.clubs.filter((c) => c.id !== id) }
+  },
+
+  createGroup(state: AppData, input: GroupInput): AppData {
+    const group: Group = { ...input, id: newId(), active: true }
+    return {
+      ...state,
+      groups: [...state.groups, group],
+      sessions: [...state.sessions, ...buildSessions(state, group)],
+    }
+  },
+  /** With `regenerate`, pending classes from `from` (default today) on are updated to match the group. */
+  updateGroup(
+    state: AppData,
+    id: string,
+    input: GroupInput,
+    options: { regenerate: boolean; from?: string },
+  ): AppData {
+    const current = state.groups.find((g) => g.id === id)
+    if (!current) return state
+    // Students who join now are only in the classes from the chosen date on.
+    const joinedOn = options.from ?? today()
+    const memberSince = Object.fromEntries(
+      input.studentIds.flatMap((studentId) => {
+        const date = current.studentIds.includes(studentId) ? current.memberSince?.[studentId] : joinedOn
+        return date ? [[studentId, date]] : []
+      }),
+    )
+    const group: Group = { ...current, ...input, memberSince }
+    return {
+      ...state,
+      groups: state.groups.map((g) => (g.id === id ? group : g)),
+      sessions: options.regenerate
+        ? replaceFutureSessions(state, group, options.from ?? today())
+        : state.sessions,
+    }
+  },
+  setGroupActive(state: AppData, id: string, active: boolean): AppData {
+    const current = state.groups.find((g) => g.id === id)
+    if (!current) return state
+    const group: Group = { ...current, active, endsOn: active ? '' : today() }
+    return {
+      ...state,
+      groups: state.groups.map((g) => (g.id === id ? group : g)),
+      sessions: replaceFutureSessions(state, group, today()),
+    }
+  },
+  deleteGroup(state: AppData, id: string): AppData {
+    return {
+      ...state,
+      groups: state.groups.filter((g) => g.id !== id),
+      sessions: state.sessions.filter((s) => s.groupId !== id || s.status !== 'pending'),
+    }
+  },
+
+  addSession(state: AppData, session: Session): AppData {
+    return {
+      ...state,
+      sessions: [...state.sessions, session],
+      extraCharges: [...state.extraCharges, ...privateCharges(state, session)],
+    }
+  },
+  /** Adds a student to a class they do not belong to as a paid single class. */
+  addGuestToSession(state: AppData, sessionId: string, studentId: string): AppData {
+    const session = state.sessions.find((s) => s.id === sessionId)
+    const student = state.students.find((s) => s.id === studentId)
+    if (!session || !student || session.studentIds.includes(studentId)) return state
+    const charge = dropInCharge(state, session, student)
+    return {
+      ...state,
+      sessions: state.sessions.map((s) =>
+        s.id === sessionId
+          ? {
+              ...s,
+              studentIds: [...s.studentIds, studentId],
+              guests: { ...s.guests, [studentId]: 'drop_in' as const },
+              attendance: { ...s.attendance, [studentId]: 'unmarked' },
+            }
+          : s,
+      ),
+      extraCharges: [...state.extraCharges, charge],
+    }
+  },
+  /**
+   * Takes a student out of a class, or out of this class and the following ones: of the weekly series, or of the
+   * group when the class comes from it. Their charges for the class go too, and a private class is priced again.
+   */
+  removeStudentFromSession(
+    state: AppData,
+    sessionId: string,
+    studentId: string,
+    scope: 'one' | 'following',
+  ): AppData {
+    const session = state.sessions.find((s) => s.id === sessionId)
+    if (!session?.studentIds.includes(studentId)) return state
+    if (session.kind === 'private' && session.studentIds.length <= 1) return state
+    const following = scope === 'following' ? followingScope(state.groups, session, studentId) : null
+    let next = withoutStudent(state, [sessionId], studentId)
+    if (following === 'series') {
+      const later = state.sessions
+        .filter(
+          (s) => s.seriesId === session.seriesId && s.date > session.date && s.studentIds.includes(studentId),
+        )
+        .map((s) => s.id)
+      next = withoutStudent(next, later, studentId)
+    } else if (following === 'group') {
+      const group = state.groups.find((g) => g.id === session.groupId)!
+      const { [studentId]: _left, ...memberSince } = group.memberSince ?? {}
+      const updated: Group = {
+        ...group,
+        studentIds: group.studentIds.filter((id) => id !== studentId),
+        memberSince,
+      }
+      next = {
+        ...next,
+        groups: next.groups.map((g) => (g.id === group.id ? updated : g)),
+        sessions: replaceFutureSessions(next, updated, session.date),
+      }
+    }
+    return next
+  },
+  updateSession(state: AppData, id: string, patch: Partial<Session>): AppData {
+    return { ...state, sessions: state.sessions.map((s) => (s.id === id ? { ...s, ...patch } : s)) }
+  },
+  /** Creates a class by hand and, when `repeat` is set, the same class every week until the end of the season. */
+  addSessionSeries(state: AppData, session: Session, repeat: boolean): AppData {
+    const dates = repeat
+      ? weeklyDates(session.date, state.seasonEnd, expandClosedDays(state.closures, session.clubId))
+      : [session.date]
+    const seriesId = repeat && dates.length > 1 ? newId() : undefined
+    const created = dates.map((date, index) => ({
+      ...session,
+      id: index === 0 ? session.id : newId(),
+      date,
+      seriesId,
+    }))
+    return {
+      ...state,
+      sessions: [...state.sessions, ...created],
+      extraCharges: [...state.extraCharges, ...created.flatMap((s) => privateCharges(state, s))],
+    }
+  },
+  /** Removes a class with its charges, or this class and the following ones of its weekly series. */
+  deleteSession(state: AppData, id: string, scope: 'one' | 'following' = 'one'): AppData {
+    const session = state.sessions.find((s) => s.id === id)
+    if (!session) return state
+    const removed = new Set(
+      state.sessions
+        .filter(
+          (s) =>
+            s.id === id ||
+            (scope === 'following' &&
+              session.seriesId &&
+              s.seriesId === session.seriesId &&
+              s.date >= session.date),
+        )
+        .map((s) => s.id),
+    )
+    return {
+      ...state,
+      sessions: state.sessions.filter((s) => !removed.has(s.id)),
+      extraCharges: state.extraCharges.filter((c) => !c.sessionId || !removed.has(c.sessionId)),
+    }
+  },
+  /** A cancelled or finished class goes back to pending; the charges removed when it was cancelled come back. */
+  resetSession(state: AppData, id: string): AppData {
+    const session = state.sessions.find((s) => s.id === id)
+    if (!session || session.status === 'pending') return state
+    const reset: Session = {
+      ...session,
+      status: 'pending',
+      cancelReason: undefined,
+      creditedStudentIds: undefined,
+    }
+    const charged = (studentId?: string) =>
+      state.extraCharges.some((c) => c.sessionId === id && (!studentId || c.studentId === studentId))
+    const guests = Object.keys(session.guests ?? {})
+      .filter((studentId) => !charged(studentId))
+      .flatMap((studentId) => {
+        const student = state.students.find((s) => s.id === studentId)
+        return student ? [dropInCharge(state, session, student)] : []
+      })
+    const privateAgain = session.kind === 'private' && !charged() ? privateCharges(state, reset) : []
+    return {
+      ...state,
+      sessions: state.sessions.map((s) => (s.id === id ? reset : s)),
+      extraCharges: [...state.extraCharges, ...guests, ...privateAgain],
+    }
+  },
+  /** Cancelled classes are not charged: extra charges linked to them disappear. */
+  cancelSessions(
+    state: AppData,
+    ids: readonly string[],
+    reason: string,
+    creditedStudentIds?: string[],
+  ): AppData {
+    return {
+      ...state,
+      sessions: state.sessions.map((s) =>
+        ids.includes(s.id) ? { ...s, status: 'cancelled', cancelReason: reason, creditedStudentIds } : s,
+      ),
+      extraCharges: state.extraCharges.filter((c) => !c.sessionId || !ids.includes(c.sessionId)),
+    }
+  },
+
+  createCourse(state: AppData, input: CourseInput): AppData {
+    const course: Course = { ...input, id: newId(), active: true }
+    return {
+      ...state,
+      courses: [...state.courses, course],
+      sessions: [...state.sessions, ...courseSessions(state, course)],
+      extraCharges: [...state.extraCharges, ...courseCharges(state, course)],
+    }
+  },
+  updateCourse(state: AppData, id: string, input: CourseInput): AppData {
+    const current = state.courses.find((c) => c.id === id)
+    if (!current) return state
+    return rebuildCourse(state, { ...current, ...input })
+  },
+  setCourseActive(state: AppData, id: string, active: boolean): AppData {
+    const current = state.courses.find((c) => c.id === id)
+    if (!current) return state
+    return rebuildCourse(state, { ...current, active })
+  },
+  deleteCourse(state: AppData, id: string): AppData {
+    return {
+      ...state,
+      courses: state.courses.filter((c) => c.id !== id),
+      sessions: state.sessions.filter((s) => s.courseId !== id || s.status !== 'pending'),
+      extraCharges: state.extraCharges.filter((c) => c.courseId !== id),
+    }
+  },
+  setCoursePrices(state: AppData, coursePrices: CoursePrices): AppData {
+    return {
+      ...state,
+      coursePrices,
+      extraCharges: [
+        ...state.extraCharges.filter((c) => c.kind !== 'course'),
+        ...state.courses
+          .filter((c) => c.active)
+          .flatMap((course) => courseCharges({ ...state, coursePrices }, course)),
+      ],
+    }
+  },
+  /** Changes the last day of the season and brings every active group's calendar up to it. */
+  setSeasonEnd(state: AppData, seasonEnd: string): AppData {
+    if (seasonEnd === state.seasonEnd) return state
+    const next = { ...state, seasonEnd }
+    const sessions = next.groups.reduce(
+      (current, group) => replaceFutureSessions({ ...next, sessions: current }, group, today()),
+      next.sessions,
+    )
+    return { ...next, sessions }
+  },
+  addPayment(state: AppData, payment: Omit<PaymentRecord, 'id'>): AppData {
+    return { ...state, payments: [...state.payments, { ...payment, id: newId() }] }
+  },
+  /** Marks a teacher's month as paid, keeping what was paid. A month can only be paid once. */
+  markSettlementPaid(
+    state: AppData,
+    teacherId: string,
+    month: string,
+    paidOn: string,
+    paid: { amountCents: number; sessions: number; hours: number },
+  ): AppData {
+    if (paid.amountCents <= 0) return state
+    if (state.teacherSettlements.some((s) => s.teacherId === teacherId && s.month === month)) return state
+    return {
+      ...state,
+      teacherSettlements: [...state.teacherSettlements, { id: newId(), teacherId, month, paidOn, ...paid }],
+    }
+  },
+  /** Takes back a settlement marked as paid by mistake. */
+  undoSettlement(state: AppData, id: string): AppData {
+    return { ...state, teacherSettlements: state.teacherSettlements.filter((s) => s.id !== id) }
+  },
+  /** Voids a payment with a new entry that points to it. The payment stays in the history. */
+  voidPayment(state: AppData, id: string, reason: string): AppData {
+    const payment = state.payments.find((p) => p.id === id)
+    if (!payment || !activePayments(state.payments).some((p) => p.id === id)) return state
+    return {
+      ...state,
+      payments: [...state.payments, { ...payment, id: newId(), reversesId: id, voidReason: reason.trim() }],
+    }
+  },
+  /** Voids every payment of an account in a month, so the month goes back to unpaid. */
+  voidMonthPayments(state: AppData, accountId: string, month: string, reason: string): AppData {
+    return activePayments(state.payments)
+      .filter((p) => p.accountId === accountId && p.month === month)
+      .reduce((current, p) => mutations.voidPayment(current, p.id, reason), state)
+  },
+  setCatalog(state: AppData, catalog: RateCatalog): AppData {
+    return { ...state, catalog }
+  },
+  setBilling(state: AppData, billing: BillingSettings): AppData {
+    return { ...state, billing }
+  },
+  setTeacherRates(state: AppData, teacherRates: TeacherRates): AppData {
+    return { ...state, teacherRates }
+  },
+  addOverride(state: AppData, override: Omit<RateOverride, 'id'>): AppData {
+    return { ...state, overrides: [...state.overrides, { ...override, id: newId() }] }
+  },
+  removeOverride(state: AppData, id: string): AppData {
+    return { ...state, overrides: state.overrides.filter((o) => o.id !== id) }
+  },
+  /** A closed club has no classes: pending ones generated by groups and courses on those days are removed. */
+  addClosure(state: AppData, closure: Closure): AppData {
+    const closed = (s: Session) =>
+      (s.groupId || s.courseId) &&
+      !s.manual &&
+      s.status === 'pending' &&
+      s.date >= closure.from &&
+      s.date <= closure.to &&
+      (!closure.clubId || s.clubId === closure.clubId)
+    return {
+      ...state,
+      closures: [...state.closures, closure],
+      sessions: state.sessions.filter((s) => !closed(s)),
+      extraCharges: state.extraCharges.filter(
+        (c) => !c.sessionId || !state.sessions.some((s) => s.id === c.sessionId && closed(s)),
+      ),
+    }
+  },
+}
+
+type Mutations = typeof mutations
+/** The reducers with the state argument removed: what screens call. */
+export type Actions = {
+  [K in keyof Mutations]: Mutations[K] extends (state: AppData, ...args: infer A) => AppData
+    ? (...args: A) => void
+    : never
+}
+
+/** Whether "this and the following" means the weekly series or the group of the class, or is not available. */
+export function followingScope(
+  groups: readonly Group[],
+  session: Pick<Session, 'seriesId' | 'groupId' | 'guests' | 'courseId' | 'kind'>,
+  studentId: string,
+): 'series' | 'group' | null {
+  if (session.seriesId) return 'series'
+  const group = groups.find((g) => g.id === session.groupId)
+  const member = Boolean(group?.studentIds.includes(studentId)) && !session.guests?.[studentId]
+  return group && member && !session.courseId && session.kind !== 'private' ? 'group' : null
+}
+
+/** Removes the student from those classes with their attendance and charges; a private class is priced again. */
+function withoutStudent(state: AppData, sessionIds: readonly string[], studentId: string): AppData {
+  const touched = new Set(sessionIds)
+  const sessions = state.sessions.map((s) => {
+    if (!touched.has(s.id) || !s.studentIds.includes(studentId)) return s
+    const { [studentId]: _attendance, ...attendance } = s.attendance ?? {}
+    const { [studentId]: _guest, ...guests } = s.guests ?? {}
+    return {
+      ...s,
+      studentIds: s.studentIds.filter((id) => id !== studentId),
+      attendance,
+      guests: Object.keys(guests).length > 0 ? guests : undefined,
+      creditedStudentIds: s.creditedStudentIds?.filter((id) => id !== studentId),
+    }
+  })
+  const base = { ...state, sessions }
+  const privateAgain = sessions.filter((s) => touched.has(s.id) && s.kind === 'private')
+  const privateIds = new Set(privateAgain.map((s) => s.id))
+  return {
+    ...base,
+    extraCharges: [
+      ...state.extraCharges.filter(
+        (c) =>
+          !c.sessionId ||
+          !touched.has(c.sessionId) ||
+          (c.studentId !== studentId && !privateIds.has(c.sessionId)),
+      ),
+      ...privateAgain.flatMap((s) => privateCharges(base, s)),
+    ],
+  }
+}
+
+function rebuildCourse(state: AppData, course: Course): AppData {
+  return {
+    ...state,
+    courses: state.courses.map((c) => (c.id === course.id ? course : c)),
+    sessions: replaceCourseSessions(state, course),
+    extraCharges: [
+      ...state.extraCharges.filter((c) => c.courseId !== course.id),
+      ...(course.active ? courseCharges(state, course) : []),
+    ],
+  }
+}
+
+function courseSessions(current: AppData, course: Course): Session[] {
+  if (!course.active) return []
+  const closed = expandClosedDays(current.closures, course.clubId)
+  return generateCourseSlots(course, closed).map((slot) => ({
+    id: newId(),
+    groupId: '',
+    courseId: course.id,
+    clubId: course.clubId,
+    teacherId: course.teacherId,
+    date: slot.date,
+    start: slot.start,
+    duration: slot.duration,
+    category: course.category,
+    level: course.level,
+    status: 'pending' as const,
+    studentIds: course.studentIds,
+  }))
+}
+
+/** Pending classes from today on are rebuilt from the course; finished and past classes stay untouched. */
+function replaceCourseSessions(current: AppData, course: Course): Session[] {
+  const from = today()
+  const kept = current.sessions.filter(
+    (s) => s.courseId !== course.id || s.date < from || s.status !== 'pending',
+  )
+  const added = courseSessions(current, course).filter(
+    (next) => next.date >= from && !kept.some((s) => s.courseId === course.id && s.date === next.date),
+  )
+  return [...kept, ...added]
+}
+
+/** A single payment per enrolled student, priced with the course price list and its combined offers. */
+function courseCharges(current: AppData, course: Course): ExtraCharge[] {
+  const enrolled = course.studentIds
+    .map((id) => current.students.find((s) => s.id === id))
+    .filter((s): s is Student => Boolean(s))
+  const accounts = [...new Set(enrolled.map((s) => s.accountId))]
+  return accounts.flatMap((accountId) => {
+    const members = enrolled.filter((s) => s.accountId === accountId)
+    const pricing = priceCourseEnrollment(
+      members.map((s) => ({ id: s.id, birthDate: s.birthDate })),
+      current.coursePrices,
+      current.catalog.segments,
+      course.startsOn,
+    )
+    return pricing.prices.map((price) => {
+      const offer = pricing.offers.find((o) => o.offerId === price.offerId)
+      return {
+        id: newId(),
+        accountId,
+        studentId: price.memberId,
+        kind: 'course' as const,
+        description: `Curso «${course.name}»${offer ? ` · ${offer.name}` : ''}`,
+        amountCents: price.amountCents,
+        month: course.startsOn.slice(0, 7),
+        courseId: course.id,
+      }
+    })
+  })
+}
+
+/** The single-class charge of a student added to a class that is not theirs. */
+function dropInCharge(state: AppData, session: Session, student: Student): ExtraCharge {
+  return {
+    id: newId(),
+    accountId: student.accountId,
+    studentId: student.id,
+    kind: 'drop_in',
+    description: `Clase suelta del ${session.date.split('-').reverse().join('/')}`,
+    amountCents: dropInPrice(state.extras, session.duration),
+    month: session.date.slice(0, 7),
+    sessionId: session.id,
+  }
+}
+
+/** Charges of a private class: instructor price per student plus the court, split between the students. */
+function privateCharges(current: AppData, session: Session): ExtraCharge[] {
+  if (session.kind !== 'private') return []
+  const students = session.studentIds
+    .slice(0, MAX_PRIVATE_STUDENTS)
+    .map((id) => current.students.find((s) => s.id === id))
+    .filter((s): s is Student => Boolean(s))
+  if (students.length === 0) return []
+  const club = current.clubs.find((c) => c.id === session.clubId)
+  const price = privateClassPrice({
+    extras: current.extras,
+    students: students.length,
+    durationMinutes: session.duration,
+    courtPricePerHourCents: club?.courtPriceCents ?? 0,
+  })
+  return students.map((student, index) => ({
+    id: newId(),
+    accountId: student.accountId,
+    studentId: student.id,
+    kind: 'private' as const,
+    description: `Clase particular del ${session.date.split('-').reverse().join('/')}`,
+    amountCents: price.perStudentCents[index],
+    month: session.date.slice(0, 7),
+    sessionId: session.id,
+  }))
+}
+
+/** An account nobody belongs to anymore is removed, unless it has payments, charges or a manual price. */
+function dropAccountIfUnused(state: AppData, accountId: string): AppData {
+  const inUse =
+    state.students.some((s) => s.accountId === accountId) ||
+    state.payments.some((p) => p.accountId === accountId) ||
+    state.extraCharges.some((c) => c.accountId === accountId) ||
+    state.overrides.some((o) => o.scope === 'account' && o.targetId === accountId)
+  return inUse ? state : { ...state, accounts: state.accounts.filter((a) => a.id !== accountId) }
+}
+
+/** An account with a single student is named after that student: their full name. */
+export function withIndividualNames(state: AppData): AppData {
+  let changed = false
+  const accounts = state.accounts.map((account) => {
+    const members = state.students.filter((s) => s.accountId === account.id)
+    if (members.length !== 1) return account
+    const name = fullName(members[0])
+    if (name === account.name) return account
+    changed = true
+    return { ...account, name }
+  })
+  return changed ? { ...state, accounts } : state
+}
+
+/** A student without an existing account gets a new individual billing account. */
+function withAccount(
+  accounts: Account[],
+  accountId: string,
+  student: { firstName: string; lastName: string },
+): Account[] {
+  if (accounts.some((a) => a.id === accountId)) return accounts
+  return [...accounts, { id: accountId, name: fullName(student) }]
+}
+
+function newSession(group: Group, slot: GeneratedSlot): Session {
+  return {
+    id: newId(),
+    groupId: group.id,
+    clubId: group.clubId,
+    teacherId: group.teacherId,
+    date: slot.date,
+    start: slot.start,
+    duration: slot.duration,
+    category: group.category,
+    level: group.level,
+    status: 'pending',
+    studentIds: membersOn(group, slot.date),
+  }
+}
+
+/** Students of the group on a given day: those who had not joined yet are left out. */
+export function membersOn(group: Pick<Group, 'studentIds' | 'memberSince'>, date: string) {
+  return group.studentIds.filter((id) => !group.memberSince?.[id] || group.memberSince[id] <= date)
+}
+
+/** All the classes of a new group, from its start date until the end of the season. */
+function buildSessions(current: AppData, group: Group): Session[] {
+  const plan = planRegeneration(
+    [],
+    group.id,
+    group,
+    { from: group.startsOn, to: current.seasonEnd },
+    expandClosedDays(current.closures, group.clubId),
+  )
+  return plan.add.map((slot) => newSession(group, slot))
+}
+
+/** A class that stays keeps its attendance, its guests and a substitute teacher, but follows the group's time, teacher and students. */
+function syncSession(session: Session, group: Group, before?: Group): Session {
+  const substituted = before !== undefined && session.teacherId !== before.teacherId
+  const guests = Object.keys(session.guests ?? {})
+  const members = membersOn(group, session.date)
+  const studentIds = [...members, ...guests.filter((id) => !members.includes(id))]
+  return {
+    ...session,
+    clubId: group.clubId,
+    teacherId: substituted ? session.teacherId : group.teacherId,
+    start: group.start,
+    duration: group.duration,
+    category: group.category,
+    level: group.level,
+    studentIds,
+    attendance: session.attendance
+      ? Object.fromEntries(Object.entries(session.attendance).filter(([id]) => studentIds.includes(id)))
+      : undefined,
+  }
+}
+
+/**
+ * Pending classes from `from` on are updated to the group's schedule: they keep their attendance and guests,
+ * dates that no longer fit are removed and missing dates are added. Everything else stays untouched.
+ */
+function replaceFutureSessions(current: AppData, group: Group, from: string): Session[] {
+  const plan = planRegeneration(
+    current.sessions,
+    group.id,
+    group,
+    { from, to: current.seasonEnd },
+    expandClosedDays(current.closures, group.clubId),
+  )
+  const before = current.groups.find((g) => g.id === group.id)
+  const sessions = current.sessions
+    .filter((s) => !plan.remove.includes(s.id))
+    .map((s) => (plan.keep.includes(s.id) ? syncSession(s, group, before) : s))
+  return [...sessions, ...plan.add.map((slot) => newSession(group, slot))]
+}
+
+export function studentUsage(groups: readonly Group[], studentId: string) {
+  const groupCount = groups.filter((g) => g.studentIds.includes(studentId)).length
+  return { groups: groupCount, charges: groupCount > 0 ? 1 : 0 }
+}
+
+export function teacherUsage(groups: readonly Group[], teacherId: string) {
+  const groupCount = groups.filter((g) => g.teacherId === teacherId).length
+  return { groups: groupCount, sessions: groupCount > 0 ? 1 : 0, settlements: groupCount > 0 ? 1 : 0 }
+}

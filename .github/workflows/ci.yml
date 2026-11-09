@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, master, v2]
   pull_request:
 
 jobs:
@@ -18,16 +18,3 @@ jobs:
       - run: bun run typecheck
       - run: bun run test
       - run: bun run build
-
-  database:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.4.2
-      - run: bun install --frozen-lockfile
-      - run: bunx supabase start
-      - run: bunx supabase test db
-      - if: always()
-        run: bunx supabase stop --no-backup

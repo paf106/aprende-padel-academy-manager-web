@@ -1,9 +1,0 @@
-{
-  "extends": "./tsconfig.base.json",
-  "compilerOptions": {
-    "incremental": false,
-    "types": ["bun"]
-  },
-  "include": ["packages/**/*.ts", "modules/**/*.ts", "scripts/**/*.ts"],
-  "exclude": ["**/*.test.ts", "**/node_modules/**"]
-}
